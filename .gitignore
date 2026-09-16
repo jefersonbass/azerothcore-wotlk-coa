@@ -133,3 +133,8 @@ __pycache__/
 # apenas os dados exportados ficam de fora)
 tools/issue-sync/issues/
 tools/issue-sync/state.json
+
+# ascension-ref: referencia local Ascension/CoA (ferramenta commitada,
+# apenas downloads e indice ficam de fora)
+tools/ascension-ref/data/
+tools/ascension-ref/index/
