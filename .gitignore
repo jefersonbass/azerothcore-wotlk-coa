@@ -128,3 +128,8 @@ __pycache__/
 !/modules/mod-ascension-compat/
 !/modules/mod-worldforged-pickups/
 !/modules/mod-teleport-actionbar/
+
+# issue-sync: export local de issues (a ferramenta em si é commitada,
+# apenas os dados exportados ficam de fora)
+tools/issue-sync/issues/
+tools/issue-sync/state.json
