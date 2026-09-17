@@ -45,6 +45,7 @@
 #include "AscensionReaperPainmail.h"
 #include "AscensionReaperScytheRush.h"
 #include "AscensionVenomancerCatalyst.h"
+#include "AscensionSpecialization.h"
 #include "AscensionSpellProgressionData.h"
 #include "AscensionTalentReplacementData.h"
 #include "AscensionTaughtAbilityData.h"
@@ -52,6 +53,7 @@
 #include "Battlefield.h"
 #include "BattlefieldMgr.h"
 #include "Chat.h"
+#include "ClientDBC.h"
 #include "CommandScript.h"
 #include "ConfigValueCache.h"
 #include "DatabaseEnv.h"
@@ -84,9 +86,6 @@
 #include <cstring>
 #include <type_traits>
 #include <deque>
-#include <filesystem>
-#include <fstream>
-#include <functional>
 #include <limits>
 #include <list>
 #include <map>
@@ -300,7 +299,6 @@ enum class AscensionCompatConfig {
   LOG_CONSUMED_PACKETS,
   FIRST_EXTENSION_OPCODE,
   LAST_EXTENSION_OPCODE,
-  DBC_DIRECTORY,
   AUTO_COLLECT_APPEARANCES,
   UNLOCK_LOCAL_APPEARANCE_CATALOG,
   APPEARANCE_CATALOG_PER_CATEGORY,
@@ -329,9 +327,6 @@ public:
                            "AscensionCompat.FirstExtensionOpcode", 0x051F);
     SetConfigValue<uint32>(AscensionCompatConfig::LAST_EXTENSION_OPCODE,
                            "AscensionCompat.LastExtensionOpcode", 0x09D3);
-    SetConfigValue<std::string>(AscensionCompatConfig::DBC_DIRECTORY,
-                                "AscensionCompat.DbcDirectory",
-                                "./data/dbc/Ascension");
     SetConfigValue<bool>(AscensionCompatConfig::AUTO_COLLECT_APPEARANCES,
                          "AscensionCompat.AutoCollectAppearances", true);
     SetConfigValue<bool>(
@@ -394,66 +389,6 @@ struct PlayerCollectionState {
   bool CanSeeItemAppearances = true;
   bool CanSeeSpellAppearances = true;
 };
-
-struct WdbcHeader {
-  char Magic[4];
-  uint32 RecordCount;
-  uint32 FieldCount;
-  uint32 RecordSize;
-  uint32 StringBlockSize;
-};
-
-uint32 ReadRecordField(std::vector<uint8> const &record,
-                       std::size_t fieldIndex) {
-  uint32 value = 0;
-  std::memcpy(&value, record.data() + fieldIndex * sizeof(uint32),
-              sizeof(value));
-  return value;
-}
-
-bool ForEachWdbcRecord(
-    std::filesystem::path const &path, std::size_t minimumDwordCount,
-    std::function<void(std::vector<uint8> const &)> const &visitor) {
-  std::ifstream input(path, std::ios::binary);
-  if (!input)
-  {
-    LOG_ERROR("module.ascension_compat", "Unable to open Ascension DBC {}",
-              path.generic_string());
-    return false;
-  }
-
-  WdbcHeader header{};
-  input.read(reinterpret_cast<char *>(&header), sizeof(header));
-  if (!input || std::memcmp(header.Magic, "WDBC", 4) != 0)
-  {
-    LOG_ERROR("module.ascension_compat", "Invalid WDBC header in {}",
-              path.generic_string());
-    return false;
-  }
-
-  if (header.RecordSize < minimumDwordCount * sizeof(uint32) ||
-      header.RecordSize % sizeof(uint32) != 0) {
-    LOG_ERROR("module.ascension_compat",
-              "Unsupported record layout in {}: fields={}, recordSize={}",
-              path.generic_string(), header.FieldCount, header.RecordSize);
-    return false;
-  }
-
-  std::vector<uint8> record(header.RecordSize);
-  for (uint32 row = 0; row < header.RecordCount; ++row) {
-    input.read(reinterpret_cast<char *>(record.data()), record.size());
-    if (!input)
-    {
-      LOG_ERROR("module.ascension_compat", "Truncated DBC {} at row {}",
-                path.generic_string(), row);
-      return false;
-    }
-
-    visitor(record);
-  }
-
-  return true;
-}
 
 uint8 AppearanceCategoryForEquipmentSlot(uint8 slot) {
   switch (slot) {
@@ -1310,6 +1245,10 @@ public:
                granted);
       return true;
     }
+
+    // Like Player::ActivateSpec, dismiss the pet summoned under the old specialization.
+    if (Pet* pet = player->GetPet())
+      player->RemovePet(pet, PET_SAVE_NOT_IN_SLOT);
 
     std::unordered_set<uint32> visitedSpellIds;
     uint32 removed = 0;
@@ -2471,7 +2410,7 @@ public:
     return instance;
   }
 
-  bool LoadClientData(std::filesystem::path const &dbcDirectory) {
+  bool LoadClientData() {
     _appearances.clear();
     _itemAppearances.clear();
     _itemSetItems.clear();
@@ -2479,72 +2418,76 @@ public:
     _allAppearanceIds.clear();
     _allVanityItemIds.clear();
 
+    ClientDBC appearances;
     bool appearancesLoaded =
-        ForEachWdbcRecord(dbcDirectory / "Appearances.dbc", 9,
-                          [this](std::vector<uint8> const &record) {
-                            uint32 appearanceId = ReadRecordField(record, 0);
-                            if (!appearanceId)
-                              return;
+        appearances.Load(GetClientDBCPath("Appearances.dbc"), 9);
+    for (uint32 row = 0; row < appearances.GetRecordCount(); ++row) {
+      ClientDBC::Record record = appearances.GetRecord(row);
+      uint32 appearanceId = record.GetUInt32(0);
+      if (!appearanceId)
+        continue;
 
-                            uint32 displayId = ReadRecordField(record, 3);
-                            _appearances[appearanceId] = AppearanceInfo{
-                                displayId, ReadRecordField(record, 5),
-                                ReadRecordField(record, 6),
-                                ReadRecordField(record, 7), displayId};
-                            AppearanceInfo& appearance = _appearances[appearanceId];
-                            if (IsCosmeticCategory(appearance.PrimaryCategory))
-                                appearance.CosmeticSpell = ResolveCosmeticSpell(appearanceId,
-                                    displayId, ReadRecordField(record, 8));
-                            _allAppearanceIds.push_back(appearanceId);
-                          });
+      uint32 displayId = record.GetUInt32(3);
+      _appearances[appearanceId] =
+          AppearanceInfo{displayId, record.GetUInt32(5), record.GetUInt32(6),
+                         record.GetUInt32(7), displayId};
+      AppearanceInfo& appearance = _appearances[appearanceId];
+      if (IsCosmeticCategory(appearance.PrimaryCategory))
+        appearance.CosmeticSpell = ResolveCosmeticSpell(appearanceId,
+            displayId, record.GetUInt32(8));
+      _allAppearanceIds.push_back(appearanceId);
+    }
 
+    ClientDBC itemAppearances;
     bool itemAppearancesLoaded =
-        ForEachWdbcRecord(dbcDirectory / "ItemAppearances.dbc", 3,
-                          [this](std::vector<uint8> const &record) {
-                            uint32 itemId = ReadRecordField(record, 1);
-                            uint32 appearanceId = ReadRecordField(record, 2);
-                            if (itemId && appearanceId)
-                              _itemAppearances[itemId] = appearanceId;
-                          });
+        itemAppearances.Load(GetClientDBCPath("ItemAppearances.dbc"), 3);
+    for (uint32 row = 0; row < itemAppearances.GetRecordCount(); ++row) {
+      ClientDBC::Record record = itemAppearances.GetRecord(row);
+      uint32 itemId = record.GetUInt32(1);
+      uint32 appearanceId = record.GetUInt32(2);
+      if (itemId && appearanceId)
+        _itemAppearances[itemId] = appearanceId;
+    }
 
-    bool itemSetsLoaded =
-        ForEachWdbcRecord(dbcDirectory.parent_path() / "ItemSet.dbc", 35,
-                          [this](std::vector<uint8> const &record) {
-                            uint32 itemSetId = ReadRecordField(record, 0);
-                            if (!itemSetId)
-                              return;
+    // The core's ItemSet store keeps ten items; CoA sets list up to seventeen (DWORDs 18-34).
+    ClientDBC itemSets;
+    bool itemSetsLoaded = itemSets.Load(GetClientDBCPath("ItemSet.dbc"), 35);
+    for (uint32 row = 0; row < itemSets.GetRecordCount(); ++row) {
+      ClientDBC::Record record = itemSets.GetRecord(row);
+      uint32 itemSetId = record.GetUInt32(0);
+      if (!itemSetId)
+        continue;
 
-                            std::vector<uint32> &items =
-                                _itemSetItems[itemSetId];
-                            for (std::size_t field = 18; field <= 34; ++field) {
-                              uint32 itemId = ReadRecordField(record, field);
-                              if (itemId)
-                                items.push_back(itemId);
-                            }
-                          });
+      std::vector<uint32> &items = _itemSetItems[itemSetId];
+      for (uint32 field = 18; field <= 34; ++field) {
+        uint32 itemId = record.GetUInt32(field);
+        if (itemId)
+          items.push_back(itemId);
+      }
+    }
 
+    ClientDBC vanity;
     bool vanityLoaded =
-        ForEachWdbcRecord(dbcDirectory / "VanityCollection.dbc", 77,
-                          [this](std::vector<uint8> const &record) {
-                            uint32 itemId = ReadRecordField(record, 1);
-                            if (!itemId)
-                              return;
+        vanity.Load(GetClientDBCPath("VanityCollection.dbc"), 77);
+    for (uint32 row = 0; row < vanity.GetRecordCount(); ++row) {
+      ClientDBC::Record record = vanity.GetRecord(row);
+      uint32 itemId = record.GetUInt32(1);
+      if (!itemId)
+        continue;
 
-                            VanityInfo info{
-                                // f44 is an empty locale column. The physical
-                                // record has 77 DWORDs; f76 is LearnedSpell.
-                                ReadRecordField(record, 76),
-                                ReadRecordField(record, 12),
-                                ReadRecordField(record, 2)};
+      VanityInfo info{
+          // f44 is an empty locale column. The physical
+          // record has 77 DWORDs; f76 is LearnedSpell.
+          record.GetUInt32(76), record.GetUInt32(12), record.GetUInt32(2)};
 
-                            // The same row is what the client stores as a vanity store record,
-                            // so the packet is built from it rather than from a second table.
-                            for (std::size_t field = 0; field < VANITY_STORE_RECORD_DWORDS; ++field)
-                              info.StoreRecord[field] = ReadRecordField(record, field);
+      // The same row is what the client stores as a vanity store record,
+      // so the packet is built from it rather than from a second table.
+      for (uint32 field = 0; field < VANITY_STORE_RECORD_DWORDS; ++field)
+        info.StoreRecord[field] = record.GetUInt32(field);
 
-                            _vanityItems[itemId] = info;
-                            _allVanityItemIds.push_back(itemId);
-                          });
+      _vanityItems[itemId] = info;
+      _allVanityItemIds.push_back(itemId);
+    }
 
     std::sort(_allAppearanceIds.begin(), _allAppearanceIds.end());
     _allAppearanceIds.erase(
@@ -4647,17 +4590,25 @@ public:
 };
 
 class AscensionCompatPlayerScript : public PlayerScript {
+    // One script instance serves every player, and players on different maps update on
+    // different map threads: every access to the pending list goes through this lock.
+    std::mutex _pendingEquipmentLock;
     std::unordered_map<ObjectGuid, std::vector<ObjectGuid>> _pendingEquipment;
 
     void EquipNewItems(Player* player)
     {
-        auto itr = _pendingEquipment.find(player->GetGUID());
-        if (itr == _pendingEquipment.end())
-            return;
+        std::vector<ObjectGuid> items;
+        {
+            std::lock_guard<std::mutex> lock(_pendingEquipmentLock);
+            auto itr = _pendingEquipment.find(player->GetGUID());
+            if (itr == _pendingEquipment.end())
+                return;
 
-        // Finish the acquisition before moving items; its caller still uses the original bag positions.
-        auto items = std::move(itr->second);
-        _pendingEquipment.erase(itr);
+            // Finish the acquisition before moving items; its caller still uses the original bag positions.
+            items = std::move(itr->second);
+            _pendingEquipment.erase(itr);
+        }
+
         for (ObjectGuid guid : items)
         {
             Item* item = player->GetItemByGuid(guid);
@@ -4758,17 +4709,32 @@ public:
       // SynchronizeTaughtAbilities grants Dual Wield (674) from OnPlayerLogin, which runs only
       // after inventory is already loaded, so CanDualWield() is still false here even when the
       // player legitimately dual-wielded last session; the saved offhand item would otherwise
-      // fail EQUIP_ERR_CANT_DUAL_WIELD and get mailed back on every login. Only paper over that
-      // one not-yet-synced reason: SynchronizeTaughtAbilities's own AutoUnequipOffhandIfNeed()
-      // unequips it again moments later in the same login if the player is no longer eligible.
+      // be rejected and get mailed back on every login. Only paper over that one not-yet-synced
+      // flag: SynchronizeTaughtAbilities's own AutoUnequipOffhandIfNeed() unequips it again
+      // moments later in the same login if the player is no longer eligible.
       uint8 result = player->CanEquipItem(slot, dest, item, false, false);
-      if (result != EQUIP_ERR_CANT_DUAL_WIELD)
+      if (result == EQUIP_ERR_OK || player->CanDualWield())
       {
           err = result;
           return false;
       }
 
-      dest = (INVENTORY_SLOT_BAG_0 << 8) | slot;
+      // A one-hand weapon is refused before the dual wield check (EQUIP_ERR_ITEM_CANT_BE_EQUIPPED:
+      // FindEquipSlot offers the offhand only with dual wield), an offhand weapon at it
+      // (EQUIP_ERR_CANT_DUAL_WIELD). Re-check with the flag the login sync is about to restore.
+      player->SetCanDualWield(true);
+      uint16 dualWieldDest = 0;
+      uint8 const dualWieldResult = player->CanEquipItem(slot, dualWieldDest, item, false, false);
+      if (dualWieldResult != EQUIP_ERR_OK)
+      {
+          player->SetCanDualWield(false);
+          err = result;
+          return false;
+      }
+
+      // Keep the flag: the zone update that adds the player to the map also calls
+      // AutoUnequipOffhandIfNeed(), before OnPlayerLogin runs the taught ability sync.
+      dest = dualWieldDest;
       err = EQUIP_ERR_OK;
       return false;
   }
@@ -4874,7 +4840,10 @@ public:
     }
 
   void OnPlayerLogout(Player *player) override {
-    _pendingEquipment.erase(player->GetGUID());
+    {
+      std::lock_guard<std::mutex> lock(_pendingEquipmentLock);
+      _pendingEquipment.erase(player->GetGUID());
+    }
     AscensionClassService::Instance().OnPlayerLogout(player);
     AscensionResourceService::Instance().OnPlayerLogout(player);
     AscensionCollectionService::Instance().OnPlayerLogout(player);
@@ -4906,7 +4875,10 @@ public:
     if (item && player->IsInWorld() && player->getClass() >= CLASS_BARBARIAN &&
         player->getClass() <= CLASS_SPIRIT_MAGE &&
         ascensionCompatConfig.GetConfigValue<bool>(AscensionCompatConfig::ENABLED))
+    {
+        std::lock_guard<std::mutex> lock(_pendingEquipmentLock);
         _pendingEquipment[player->GetGUID()].push_back(item->GetGUID());
+    }
   }
 
   void OnPlayerCreateItem(Player *player, Item *item,
@@ -5321,6 +5293,7 @@ public:
   }
 
   void OnStartup() override {
+    AscensionCompatData::LoadCoATalentData();
     if (!ascensionCompatConfig.GetConfigValue<bool>(
             AscensionCompatConfig::ENABLED))
       return;
@@ -5329,12 +5302,8 @@ public:
         AscensionCompatConfig::FIRST_EXTENSION_OPCODE);
     uint32 lastOpcode = ascensionCompatConfig.GetConfigValue<uint32>(
         AscensionCompatConfig::LAST_EXTENSION_OPCODE);
-    std::filesystem::path dbcDirectory(
-        std::string(ascensionCompatConfig.GetConfigValue(
-            AscensionCompatConfig::DBC_DIRECTORY)));
-
     bool dataLoaded =
-        AscensionCollectionService::Instance().LoadClientData(dbcDirectory);
+        AscensionCollectionService::Instance().LoadClientData();
     AscensionResourceService::Instance().ValidateDefinitions();
     LOG_INFO("module.ascension_compat",
              "Ascension compatibility enabled; consuming extension opcodes "
@@ -5754,6 +5723,130 @@ bool IsAscensionPrimalistWeaponsEligible(Player const* player, bool allowUnconfi
         player->getClass() == CLASS_WILDWALKER && player->GetLevel() >= 20 && player->HasSpell(537218) &&
         (AscensionClassService::Instance().GetActiveSpecialization(player) == 59 ||
             (allowUnconfirmed && !AscensionClassService::Instance().GetActiveSpecialization(player)));
+}
+
+uint32 GetAscensionActiveSpecialization(Player const* player)
+{
+    if (!player || !IsAscensionCustomClass(player))
+        return 0;
+
+    if (uint32 const active = AscensionClassService::Instance().GetActiveSpecialization(player))
+        return active;
+
+    // GetPlayerSetting is not const but only reads the cached settings.
+    return const_cast<Player*>(player)->GetPlayerSetting(ASCENSION_ACTIVE_SPEC_SETTING, 0).value;
+}
+
+bool SwitchAscensionSpecialization(Player* player, uint32 specializationId)
+{
+    return player && ascensionCompatConfig.GetConfigValue<bool>(AscensionCompatConfig::ENABLED) &&
+        AscensionClassService::Instance().SwitchSpecialization(player, specializationId);
+}
+
+static AscensionCompatData::CoATalentEntry const* FindAscensionTalentEntry(uint32 entryId)
+{
+    auto const& entries = AscensionCompatData::CoATalentEntries;
+    auto itr = std::lower_bound(entries.begin(), entries.end(), entryId,
+        [](AscensionCompatData::CoATalentEntry const& entry, uint32 id) { return entry.EntryId < id; });
+    return itr != entries.end() && itr->EntryId == entryId ? &*itr : nullptr;
+}
+
+uint32 GetAscensionTalentRank(Player const* player, uint32 entryId)
+{
+    AscensionCompatData::CoATalentEntry const* entry = FindAscensionTalentEntry(entryId);
+    if (!player || !entry)
+        return 0;
+
+    for (uint32 rank = entry->SpellCount; rank > 0; --rank)
+        if (entry->SpellIds[rank - 1] && player->HasSpell(entry->SpellIds[rank - 1]))
+            return rank;
+    return 0;
+}
+
+bool SetAscensionTalentRank(Player* player, uint32 entryId, uint32 rank)
+{
+    AscensionCompatData::CoATalentEntry const* entry = FindAscensionTalentEntry(entryId);
+    if (!player || !entry || !IsAscensionCustomClass(player) || entry->ClassId != player->getClass() ||
+        rank > entry->SpellCount)
+        return false;
+
+    // Automatic entries belong to SynchronizeProgression, never to a purchase.
+    uint32 const freeChoiceGroup = AscensionClassService::GetSelectableFreeGroup(entryId);
+    if (entry->AECost == 0 && entry->TECost == 0 && !freeChoiceGroup)
+        return false;
+
+    if (rank > 0 && entry->SpecId != 0 && entry->SpecId != GetAscensionActiveSpecialization(player))
+        return false;
+
+    uint32 const selectedSpellId = rank > 0 ? entry->SpellIds[rank - 1] : 0;
+    if (rank > 0 && (!selectedSpellId || !sSpellMgr->GetSpellInfo(selectedSpellId)))
+        return false;
+
+    // Same resolution as ".local talent": a selection clears the other options of its free group,
+    // then every rank of the entry, before learning the chosen rank.
+    if (rank > 0 && freeChoiceGroup)
+        for (auto const& other : AscensionCompatData::CoATalentEntries)
+            if (other.ClassId == player->getClass() && other.SpecId == entry->SpecId && other.EntryId != entryId &&
+                AscensionClassService::GetSelectableFreeGroup(other.EntryId) == freeChoiceGroup)
+                for (uint32 spellId : other.SpellIds)
+                    if (spellId && player->HasSpell(spellId))
+                        player->removeSpell(spellId, SPEC_MASK_ALL, false);
+
+    for (uint32 spellId : entry->SpellIds)
+        if (spellId && player->HasSpell(spellId))
+            player->removeSpell(spellId, SPEC_MASK_ALL, false);
+
+    if (rank > 0)
+        player->learnSpell(selectedSpellId, false);
+
+    AscensionClassService::Instance().SynchronizeProgression(player);
+    return true;
+}
+
+bool IsAscensionCustomClassId(uint8 classId)
+{
+    return classId >= CLASS_BARBARIAN && classId <= CLASS_SPIRIT_MAGE;
+}
+
+std::vector<AscensionClassAbility> GetAscensionClassAbilities(uint8 classId)
+{
+    std::vector<AscensionClassAbility> abilities;
+    if (!IsAscensionCustomClassId(classId))
+        return abilities;
+
+    for (auto const& grant : AscensionCompatData::ClassSpells)
+        if (grant.ClassId == classId)
+            abilities.push_back({ grant.SpellId, grant.SpellId, 0, grant.RequiredLevel });
+
+    // Each rank of a Character Advancement entry; remember which specialization grants it for the ranks below.
+    std::unordered_map<uint32, uint16> specializationOf;
+    for (auto const& entry : AscensionCompatData::CoATalentEntries)
+    {
+        if (entry.ClassId != classId || !entry.SpellIds[0])
+            continue;
+
+        for (uint32 spellId : entry.SpellIds)
+        {
+            if (!spellId)
+                continue;
+
+            abilities.push_back({ spellId, entry.SpellIds[0], entry.SpecId, entry.RequiredLevel });
+            specializationOf.emplace(spellId, entry.SpecId);
+        }
+    }
+
+    // Higher ranks the progression teaches with level.
+    for (auto const& rank : AscensionProgression::Ranks)
+    {
+        if (rank.ClassId != classId)
+            continue;
+
+        auto const specialization = specializationOf.find(rank.FirstSpellId);
+        uint16 const specId = specialization != specializationOf.end() ? specialization->second : 0;
+        abilities.push_back({ rank.SpellId, rank.FirstSpellId, specId, rank.RequiredLevel });
+    }
+
+    return abilities;
 }
 
 void AddAscensionCompatScripts() {
