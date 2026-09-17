@@ -227,6 +227,12 @@ constexpr uint32 SPELL_REAPER_GENERATE_SOUL = 805078;
 constexpr uint32 SPELL_REAPER_SCYTHE_RUSH = 500359;
 // The 20 second per-target marker Scythe Rush's hit adapter applies through helper 805339.
 constexpr uint32 SPELL_REAPER_SCYTHE_RUSH_MARKER = 500377;
+// Harvest Time. Its tooltip promises "a $s2% [chance] to not consume" Soul Infusion, and the
+// effect behind that line is SPELL_AURA_ADD_FLAT_MODIFIER with SPELLMOD_CHANCE_OF_SUCCESS -50
+// restricted to SpellFamilyName 36. This core only reads that modifier for proc and hit chance,
+// never for a resource cost, so nothing implemented the line and the window spent Soul Infusion
+// at the usual rate.
+constexpr uint32 SPELL_REAPER_HARVEST_TIME = 803995;
 constexpr char ASCENSION_LOCAL_RESOURCE_PREFIX[] = "ASC_LOCAL_RESOURCE";
 constexpr char ASCENSION_ACTIVE_SPEC_SETTING[] = "core.ascension_active_spec";
 
@@ -2258,6 +2264,17 @@ private:
                 aura->ModStackAmount(amount - 1);
     }
 
+    // Harvest Time's tooltip is specific: it is about Soul Infusion, the buff its own effect names.
+    // Only a spell that requires Soul Infusion (CasterAuraSpell 803031) is therefore exempt. An
+    // ability paid for with Reaped Souls alone still pays - Sanguine Orb (500361) and Tormented
+    // Souls (500483) both carry CasterAuraSpell 500363, Reaped Soul, so an unscoped exemption made
+    // them free for a Reaper holding a single soul and no infusion at all.
+    static bool HarvestTimePreserves(Player const* player, SpellInfo const* spellInfo)
+    {
+        return spellInfo->CasterAuraSpell == SPELL_REAPER_SOUL_INFUSION &&
+            player->HasAura(SPELL_REAPER_HARVEST_TIME);
+    }
+
     // True when the spell had at least one target other than the caster and every such target
     // missed, dodged or parried it. Neutral creatures count: hostility is not required to attack.
     static bool WasAvoidedByEveryTarget(Player const* player, Spell* spell)
@@ -2283,6 +2300,13 @@ private:
             return;
 
         SpellInfo const* spellInfo = spell->GetSpellInfo();
+
+        // Harvest Time preserves the cost outright rather than rolling for it. An eight second
+        // window a Reaper can plan a rotation around is what the ability is for; a coin flip per
+        // cast is not something the player can act on.
+        if (HarvestTimePreserves(player, spellInfo))
+            return;
+
         uint32 spellId = spellInfo->Id;
         if (std::find(REAPER_ALL_SOUL_CONSUMERS.begin(),
                 REAPER_ALL_SOUL_CONSUMERS.end(), spellId) !=
@@ -5483,6 +5507,39 @@ class spell_ascension_legacy_quest_reward : public SpellScript
 // Ascension mount buttons frequently cast a wrapper, not the riding aura.
 // Resolve only validated catalog wrappers, using the same zone/riding rules
 // as AzerothCore's spell_gen_mount and the matching client spell variants.
+// Jailer's Bargain promises "a shield that absorbs damage equal to 30% of your maximum health",
+// but its SPELL_AURA_SCHOOL_ABSORB effect carries EffectBasePoints 0 and no scaling, so the aura
+// landed at a single point of absorption and popped on the first hit. The DBC cannot express a
+// percentage of the caster's maximum health, so compute it here.
+class spell_ascension_jailers_bargain : public AuraScript
+{
+    PrepareAuraScript(spell_ascension_jailers_bargain);
+
+    static constexpr uint8 AbsorbPercent = 30;
+
+    bool Load() override
+    {
+        return ascensionCompatConfig.GetConfigValue<bool>(AscensionCompatConfig::ENABLED) &&
+            GetUnitOwner() && GetUnitOwner()->IsPlayer();
+    }
+
+    void CalculateAmount(AuraEffect const* /*effect*/, int32& amount, bool& canBeRecalculated)
+    {
+        if (Unit* owner = GetUnitOwner())
+            amount = int32(owner->GetMaxHealth() * AbsorbPercent / 100);
+
+        // Fixed at cast, like every other percentage-of-health shield: a health buff landing
+        // mid-duration must not resize what is already absorbing.
+        canBeRecalculated = false;
+    }
+
+    void Register() override
+    {
+        DoEffectCalcAmount += AuraEffectCalcAmountFn(spell_ascension_jailers_bargain::CalculateAmount,
+            EFFECT_0, SPELL_AURA_SCHOOL_ABSORB);
+    }
+};
+
 class spell_ascension_local_mount : public SpellScript
 {
     PrepareSpellScript(spell_ascension_local_mount);
@@ -5704,6 +5761,7 @@ void AddAscensionCompatScripts() {
   RegisterSpellScript(spell_ascension_personal_bank);
   RegisterSpellScript(spell_ascension_experience_potion);
   RegisterSpellScript(spell_ascension_local_mount);
+  RegisterSpellScript(spell_ascension_jailers_bargain);
   RegisterSpellScript(spell_ascension_wildcard_mount);
   RegisterSpellScript(spell_ascension_legacy_quest_reward);
   new AscensionTradesmanScroll();
