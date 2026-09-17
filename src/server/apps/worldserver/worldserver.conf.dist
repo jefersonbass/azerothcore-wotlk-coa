@@ -676,6 +676,7 @@ ChatLog.Enable = 0
 
 Appender.Console=1,4,0,"1 9 3 6 5 8"
 Appender.Server=2,5,0,Server.log,w
+Appender.Playerbots=2,5,0,Playerbots.log,w
 # Appender.GM=2,5,15,gm_%s.log
 Appender.Errors=2,2,0,Errors.log,w
 # Appender.DB=3,5,0
@@ -709,6 +710,7 @@ Logger.sql=4,Console Server
 Logger.time.update=4,Console Server
 Logger.module=4,Console Server
 Logger.spells.scripts=2,Console Errors
+Logger.playerbots=5,Console Playerbots
 # Logger.achievement=4,Console Server
 # Logger.addon=4,Console Server
 # Logger.auctionHouse=4,Console Server
@@ -1850,16 +1852,6 @@ CleanCharacterDB = 0
 #        Default:     0  - (All cleanup methods will be disabled after the next cleanup)
 
 PersistentCharacterCleanFlags = 0
-
-#
-#    ValidateSkillLearnedBySpells
-#        Description: If enabled, players will lose spells that are invalid for their race/class.
-#        Default:     1 - (Enabled, enforce valid spells)
-#                     0 - (Disabled, allow invalid spells)
-#        Note:        Disabling this and then having your character learn spells which require DBC edits can result in the character not being saved in the database
-#                     Disable AT YOUR OWN RISK
-
-ValidateSkillLearnedBySpells = 1
 
 #
 ###################################################################################################

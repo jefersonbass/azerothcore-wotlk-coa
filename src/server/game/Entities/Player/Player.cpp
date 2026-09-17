@@ -3250,35 +3250,6 @@ bool Player::addSpell(uint32 spellId, uint8 addSpecMask, bool updateActive, bool
     return true;
 }
 
-bool Player::CheckSkillLearnedBySpell(uint32 spellId)
-{
-    if (!sWorld->getBoolConfig(CONFIG_VALIDATE_SKILL_LEARNED_BY_SPELLS))
-        return true;
-
-    SkillLineAbilityMapBounds skill_bounds = sSpellMgr->GetSkillLineAbilityMapBounds(spellId);
-    uint32 errorSkill = 0;
-    for (SkillLineAbilityMap::const_iterator sla = skill_bounds.first; sla != skill_bounds.second; ++sla)
-    {
-        SkillLineEntry const* pSkill = sSkillLineStore.LookupEntry(sla->second->SkillLine);
-        if (!pSkill)
-            continue;
-
-        if (GetSkillRaceClassInfo(pSkill->id, getRace(), getClass()))
-            return true;
-        else
-            errorSkill = pSkill->id;
-    }
-
-    if (errorSkill)
-    {
-        LOG_ERROR("entities.player", "Player {} (GUID: {}), has spell ({}) that teach skill ({}) which is invalid for the race/class combination (Race: {}, Class: {}). Will be deleted.",
-            GetName(), GetGUID().GetCounter(), spellId, errorSkill, getRace(), getClass());
-
-        return false;
-    }
-    return true;
-}
-
 bool Player::_addSpell(uint32 spellId, uint8 addSpecMask, bool temporary, bool learnFromSkill /*= false*/)
 {
     // pussywizard: this can be called to OVERWRITE currently existing spell params! usually to set active = false for lower ranks of a spell
@@ -5184,6 +5155,15 @@ void Player::CleanupChannels()
         m_channels.erase(m_channels.begin());               // remove from player's channel list
         ch->LeaveChannel(this, false);                     // not send to client, not remove from player's channel list
     }
+}
+
+// Playerbot helper if bot talks in a different locale
+bool Player::IsInChannel(Channel const* c)
+{
+    return std::any_of(m_channels.begin(), m_channels.end(), [c](Channel const* chan)
+    {
+        return c->GetChannelId() == chan->GetChannelId();
+    });
 }
 
 void Player::ClearChannelWatch()
@@ -7786,8 +7766,19 @@ void Player::CastItemUseSpell(Item* item, SpellCastTargets const& targets, uint8
     }
 
     // xinef: send all spells in one go, prevents crash because container is not set
+    ObjectGuid const itemGuid = item->GetGUID();
     for (std::list<Spell*>::const_iterator itr = pushSpells.begin(); itr != pushSpells.end(); ++itr)
+    {
+        // An earlier spell can use the item's last charge and destroy it; an item that was never saved is
+        // deleted at once, so the remaining spells must not be prepared with it.
+        if (!GetItemByGuid(itemGuid))
+        {
+            delete *itr;
+            continue;
+        }
+
         (*itr)->prepare(&targets);
+    }
 }
 
 void Player::_RemoveAllItemMods()
@@ -9716,7 +9707,15 @@ void Player::StopCastingCharm(Aura* except /*= nullptr*/)
         if (charm->GetCharmerGUID())
         {
             LOG_FATAL("entities.player", "Charmed unit has charmer {}", charm->GetCharmerGUID().ToString());
-            ABORT();
+            // Conquest of Azeroth: a Tinker killed while controlling its Destructo-Bot (50300)
+            // reaches this point with the charm half released. Stopping the whole server for
+            // one creature is worse than forcing the release.
+            LOG_ERROR("entities.player", "Player::StopCastingCharm - forcing the release of {} by {}",
+                      charm->GetGUID().ToString(), GetGUID().ToString());
+            if (charm->GetCharmerGUID() == GetGUID())
+                charm->RemoveCharmedBy(this);
+            if (GetCharmGUID())
+                SetGuidValue(UNIT_FIELD_CHARM, ObjectGuid::Empty);
         }
         else
         {
@@ -10180,9 +10179,11 @@ void Player::ApplySpellMod(uint32 spellId, SpellModOp op, T& basevalue, Spell* s
         if (temporaryPet && mod->ownerAura && mod->ownerAura->IsUsingCharges())
             return;
 
-        // skip if already instant or cost is free
+        // skip if already instant or cost is free; a flat cast time increase can still give an instant spell a cast
+        // time (Templar Holy Light makes the instant Benediction a 1.5 sec cast)
         if (mod->op == SPELLMOD_CASTING_TIME || mod->op == SPELLMOD_COST)
-            if (((float)basevalue + (float)basevalue * (totalmul - 1.0f) + (float)totalflat) <= 0)
+            if (((float)basevalue + (float)basevalue * (totalmul - 1.0f) + (float)totalflat) <= 0 &&
+                !(mod->op == SPELLMOD_CASTING_TIME && mod->type == SPELLMOD_FLAT && mod->value > 0))
                 return;
 
         if (mod->type == SPELLMOD_FLAT)
