@@ -15,7 +15,9 @@ enum MountainSpells : uint32
     Terrasmash = 706220,
     Geode = 804002,
     ResourcesOfTheEarth = 560548,
-    Replenishment = 1257670
+    Replenishment = 1257670,
+    MountainMover = 805643,
+    MountainMoverStacks = 805644
 };
 
 class aura_ascension_blessed_by_earth : public AuraScript
@@ -150,6 +152,40 @@ class aura_ascension_resources_of_the_earth : public AuraScript
     }
 };
 
+// Mountain Mover (805643): avoiding an attack grants a stack of Mountain
+// Mover (805644) for ten seconds, stacking five times; the stacking aura
+// config is native. Wildclaw consumes the stacks in the shared cast hooks.
+class aura_ascension_mountain_mover : public AuraScript
+{
+    PrepareAuraScript(aura_ascension_mountain_mover);
+
+    bool CheckProc(ProcEventInfo& event)
+    {
+        Unit* owner = GetTarget();
+        return owner->IsPlayer() && owner->getClass() == CLASS_WILDWALKER && owner->IsAlive() &&
+            event.GetActionTarget() == owner && event.GetActor() &&
+            !event.GetActor()->IsFriendlyTo(owner) &&
+            (event.GetHitMask() & (PROC_HIT_MISS | PROC_HIT_DODGE | PROC_HIT_PARRY));
+    }
+
+    void Stack(AuraEffect const*, ProcEventInfo&)
+    {
+        PreventDefaultAction();
+        GetTarget()->CastSpell(GetTarget(), MountainMoverStacks, true);
+    }
+
+    void Register() override
+    {
+        DoCheckProc += AuraCheckProcFn(aura_ascension_mountain_mover::CheckProc);
+        OnEffectProc += AuraEffectProcFn(aura_ascension_mountain_mover::Stack,
+            EFFECT_0, SPELL_AURA_PROC_TRIGGER_SPELL);
+        OnEffectProc += AuraEffectProcFn(aura_ascension_mountain_mover::Stack,
+            EFFECT_1, SPELL_AURA_PROC_TRIGGER_SPELL);
+        OnEffectProc += AuraEffectProcFn(aura_ascension_mountain_mover::Stack,
+            EFFECT_2, SPELL_AURA_PROC_TRIGGER_SPELL);
+    }
+};
+
 class mountain_talent_metadata : public GlobalScript
 {
 public:
@@ -160,6 +196,13 @@ public:
         // Old trigger granted Mountain on the first stack without its talent.
         if (info->Id == EarthsRage && info->SpellFamilyName == 37)
             info->Effects[EFFECT_2].Effect = 0;
+
+        // Mountain Mover stacks (805644): the authored minus ten percent
+        // modifier has no scoping data and would fight the scripted
+        // consumption, so it is neutralized; the cost and damage bonuses
+        // ride on the shared Wildclaw cast hooks instead.
+        if (info->Id == MountainMoverStacks && info->SpellFamilyName == 37)
+            info->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_DUMMY;
     }
 };
 }
@@ -170,5 +213,6 @@ void AddSC_AscensionPrimalistMountain()
     RegisterSpellScript(aura_ascension_mountain_threshold);
     RegisterSpellScript(aura_ascension_terrasmash);
     RegisterSpellScript(aura_ascension_resources_of_the_earth);
+    RegisterSpellScript(aura_ascension_mountain_mover);
     new mountain_talent_metadata();
 }
