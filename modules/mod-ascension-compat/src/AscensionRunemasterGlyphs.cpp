@@ -38,6 +38,8 @@ constexpr uint32 SPELL_PRIMORDIAL_SALVOS = 800752;
 constexpr uint32 SPELL_FLAME_SALVO = 800729;
 constexpr uint32 SPELL_FROST_SALVO = 800730;
 constexpr uint32 SPELL_ARCANE_SALVO = 800731;
+constexpr uint32 SPELL_ADVANCED_MAGI = 804557;
+constexpr uint32 SPELL_ELEMENTAL_BURST_ROOT = 802202;
 
 bool IsElementalBurst(uint32 id)
 {
@@ -111,6 +113,20 @@ class spell_ascension_runemaster_glyph_cast : public SpellScript
         uint32 const id = GetSpellInfo()->Id;
         if (IsGlyphGenerator(id))
             GenerateGlyph(caster);
+        // Advanced Magi: "Increases the spell power scaling of Elemental Burst
+        // by 25%." Boost the flat damage base points before hit calculation.
+        else if (IsElementalBurst(id) && caster->HasAura(SPELL_ADVANCED_MAGI))
+        {
+            for (uint8 i = EFFECT_0; i < MAX_SPELL_EFFECTS; ++i)
+            {
+                SpellEffectInfo const& effect = GetSpellInfo()->Effects[i];
+                if (effect.Effect != SPELL_EFFECT_SCHOOL_DAMAGE ||
+                    GetSpellValue()->EffectBasePoints[i] != effect.BasePoints)
+                    continue;
+                GetSpell()->SetSpellValue(SpellValueMod(SPELLVALUE_BASE_POINT0 + i),
+                    int32(double(effect.BasePoints + 1) * 1.25));
+            }
+        }
         else if (id == SPELL_GLYPHIC_OVERLOAD && caster->HasAura(id, caster->GetGUID()))
             for (uint32 glyph : {SPELL_FROST_GLYPH, SPELL_FLAME_GLYPH, SPELL_ARCANE_GLYPH})
                 caster->CastSpell(caster, glyph, TRIGGERED_FULL_MASK);
