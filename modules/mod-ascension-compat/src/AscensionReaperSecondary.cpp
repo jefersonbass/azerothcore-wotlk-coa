@@ -31,7 +31,11 @@ enum ReaperSecondarySpells : uint32
     SPELL_CRIMSON_HEAL = 807545,
     SPELL_GRAVESITE_PASSIVE = 572213,
     SPELL_GRAVESITE_AREA = 804722,
-    SPELL_GRAVESITE_HIT = 300979
+    SPELL_GRAVESITE_HIT = 300979,
+    SPELL_SPIRIT_CHASER = 560434,
+    SPELL_REAP = 801327,
+    SPELL_DEATHCHASER = 560351,
+    SPELL_WRAITHBLADE = 805258
 };
 
 void HealFromDamage(Player* player, uint32 reference, uint32 helper, uint32 damage)
@@ -80,7 +84,23 @@ class reaper_secondary_hits : public AllSpellScript
 {
 public:
     reaper_secondary_hits() : AllSpellScript("reaper_secondary_hits",
-        {ALLSPELLHOOK_ON_BEFORE_EFFECTS, ALLSPELLHOOK_ON_CAST, ALLSPELLHOOK_ON_HIT_RESULT}) { }
+        {ALLSPELLHOOK_ON_BEFORE_EFFECTS, ALLSPELLHOOK_ON_CAST, ALLSPELLHOOK_ON_HIT_RESULT,
+         ALLSPELLHOOK_ON_CRIT_CHANCE}) { }
+
+    void OnSpellCritChance(Spell* spell, Unit* target, float& chance) override
+    {
+        Player* player = spell->GetCaster() ? spell->GetCaster()->ToPlayer() : nullptr;
+        if (!player || player->getClass() != CLASS_REAPER || !player->HasAura(SPELL_SPIRIT_CHASER))
+            return;
+        uint32 const root = sSpellMgr->GetFirstSpellInChain(spell->GetSpellInfo()->Id);
+        // Spirit Chaser (560434): "Increases the critical strike chance and
+        // critical damage of Reap, Deathchaser, and Wraithblade by 10%." Those
+        // abilities carry no spell family, so the passive's native Spell Flat
+        // Mod can never match them. The +10% crit damage rides the same
+        // multiplier the engine applies to crits of these abilities.
+        if (root == SPELL_REAP || root == SPELL_DEATHCHASER || root == SPELL_WRAITHBLADE)
+            chance += 10;
+    }
 
     void OnSpellBeforeEffects(Spell* spell, Unit* caster, SpellInfo const* info) override
     {
