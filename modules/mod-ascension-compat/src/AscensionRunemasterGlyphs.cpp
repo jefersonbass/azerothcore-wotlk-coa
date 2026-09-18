@@ -32,6 +32,8 @@ constexpr uint32 SPELL_PHASE_RUSH_PASSIVE = 805724;
 constexpr uint32 SPELL_PHASE_RUSH_BUFF = 805725;
 constexpr uint32 SPELL_UNLEASHED_POWER = 807504;
 constexpr uint32 SPELL_UNLEASHED_POWER_DEBUFF = 504844;
+constexpr uint32 SPELL_PERMAFROST_RUNE = 804060;
+constexpr uint32 SPELL_RUNESHROUD = 500288;
 
 bool IsElementalBurst(uint32 id)
 {
@@ -308,9 +310,84 @@ void ApplyAscensionRunemasterGlyphContracts(SpellInfo* info)
     }
 }
 
+class spell_ascension_runemaster_permafrost_rune : public SpellScript
+{
+    PrepareSpellScript(spell_ascension_runemaster_permafrost_rune);
+
+    bool Validate(SpellInfo const* info) override
+    {
+        return info && info->SpellFamilyName == uint32(CLASS_SPIRIT_MAGE) + 6 &&
+            info->Effects[EFFECT_0].IsAura(SPELL_AURA_MOD_STUN) &&
+            info->Effects[EFFECT_1].IsAura(SPELL_AURA_MOD_ROOT) &&
+            info->Effects[EFFECT_2].IsEffect(SPELL_EFFECT_TRIGGER_SPELL);
+    }
+
+    // "Requires Frozen Target": the DBC carries no cast requirement, so enforce
+    // it on cast. AURA_STATE_FROZEN covers both Freeze mechanics and the
+    // class's Permafrost marker (801747).
+    SpellCastResult CheckFrozenTarget()
+    {
+        Unit* target = GetExplTargetUnit();
+        return target && target->HasAuraState(AURA_STATE_FROZEN)
+            ? SPELL_CAST_OK : SPELL_FAILED_CANT_DO_THAT_RIGHT_NOW;
+    }
+
+    // "Using this while in Runeshroud causes it to incur an 80% reduced cooldown."
+    void ApplyRuneshroudDiscount()
+    {
+        Player* player = GetCaster()->ToPlayer();
+        if (!player || !player->HasAura(SPELL_RUNESHROUD, player->GetGUID()))
+            return;
+        uint32 remaining = player->GetSpellCooldownDelay(SPELL_PERMAFROST_RUNE);
+        if (remaining)
+            player->ModifySpellCooldown(SPELL_PERMAFROST_RUNE, -int32(remaining * 0.8f));
+    }
+
+    void Register() override
+    {
+        OnCheckCast += SpellCheckCastFn(spell_ascension_runemaster_permafrost_rune::CheckFrozenTarget);
+        AfterCast += SpellCastFn(spell_ascension_runemaster_permafrost_rune::ApplyRuneshroudDiscount);
+    }
+};
+
+class aura_ascension_runemaster_permafrost_rune : public AuraScript
+{
+    PrepareAuraScript(aura_ascension_runemaster_permafrost_rune);
+
+    // "Incapacitating them for 40 seconds (8 sec vs players)."
+    void AfterApply(AuraEffect const*, AuraEffectHandleModes)
+    {
+        if (GetTarget()->IsPlayer() && GetAura()->GetMaxDuration() > 8000)
+            GetAura()->SetMaxDuration(8000);
+    }
+
+    void Register() override
+    {
+        AfterEffectApply += AuraEffectApplyFn(aura_ascension_runemaster_permafrost_rune::AfterApply,
+            EFFECT_0, SPELL_AURA_MOD_STUN, AURA_EFFECT_HANDLE_REAL);
+    }
+};
+
+// "Damage taken will end the effect."
+class runemaster_permafrost_damage_break : public UnitScript
+{
+public:
+    runemaster_permafrost_damage_break() : UnitScript("runemaster_permafrost_damage_break", true, {UNITHOOK_ON_DAMAGE}) { }
+
+    void OnDamage(Unit* attacker, Unit* victim, uint32& damage) override
+    {
+        if (!victim || !damage || !victim->HasAura(SPELL_PERMAFROST_RUNE))
+            return;
+        victim->RemoveAurasDueToSpell(SPELL_PERMAFROST_RUNE);
+    }
+};
+
 void AddAscensionRunemasterGlyphScripts()
 {
     RegisterSpellScript(spell_ascension_runemaster_glyph_cast);
     RegisterSpellScript(spell_ascension_runemaster_glyph_payload);
     RegisterSpellScript(spell_ascension_runemaster_overloaded_frost);
+    RegisterSpellScript(spell_ascension_runemaster_permafrost_rune);
+    RegisterSpellScript(aura_ascension_runemaster_permafrost_rune);
+    new runemaster_permafrost_damage_break();
 }
