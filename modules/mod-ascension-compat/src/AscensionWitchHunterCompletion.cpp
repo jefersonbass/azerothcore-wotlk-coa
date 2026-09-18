@@ -102,6 +102,13 @@ void ApplyContracts(SpellInfo* info)
         info->AttributesEx3 &= ~SPELL_ATTR3_REQUIRES_OFF_HAND_WEAPON;
     if (Heartseeking(info))
         info->Effects[EFFECT_2].TriggerSpell = 807316;
+    // Tormenting the Tormented: its "Mod Periodic Damage %" aura with amount 0 carries no mechanic.
+    // Turn it into the periodic-crit aura the engine rolls on DoT ticks, keyed to the Tormentor ranks.
+    if (id == 805758)
+    {
+        info->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_ABILITY_PERIODIC_CRIT;
+        info->Effects[EFFECT_0].SpellClassMask = flag96(0, 0, 268435456);
+    }
     // Quickdraw hands its Rage to Darkslayer (Energize) 680235 through a DUMMY effect, which is
     // scripted-only and never runs. Its sibling Darkslayer authors the identical payload as a trigger
     // effect. Record and text conflict here: Darkslayer's and Sixfold Shot's descriptions name the Rage
