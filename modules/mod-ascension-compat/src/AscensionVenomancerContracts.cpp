@@ -102,6 +102,9 @@ void ApplyContracts(SpellInfo* info)
         info->Effects[0].Effect = SPELL_EFFECT_DUMMY;
     if (id == 504705)
         info->Effects[2].Effect = 0; // The owned hit resource row grants exactly one mark.
+    if (id == 680871)
+        for (auto& effect : info->Effects)
+            effect.Effect = 0; // No native half: venomancer_spells scales with the target's Nerubian Sting stacks.
     if (id == 704264)
         dummy(0); // Owned summons receive Locust Swarm's damage and haste explicitly.
     if (id == 803196 || id == 803192 || id == 800910 || id == 681056 || id == 681417 || id == 706453 ||

@@ -45,6 +45,17 @@ void Finish(Player* player, Spell* spell)
                     aura->Remove();
             }
 }
+uint32 StingStacks(Player* player, Unit* target)
+{
+    uint32 stacks = 0;
+    for (auto const& pair : target->GetAppliedAuras())
+    {
+        Aura* aura = pair.second->GetBase();
+        if (Named(sSpellMgr->GetSpellInfo(aura->GetId()),800882) && aura->GetCasterGUID() == player->GetGUID())
+            stacks = std::max(stacks,aura->GetStackAmount());
+    }
+    return stacks;
+}
 class venomancer_spells : public AllSpellScript
 {
 public:
@@ -148,6 +159,9 @@ public:
                 factor *= spell->GetScriptValue(Brood+1) / 10000.0f;
             if (hit.crit && Any(info,{800880,504705,804961}) && player->HasAura(504704) && HasDispel(target,DISPEL_POISON))
                 factor *= 1 + Amount(504704) / 100.0f;
+            if (player->HasAura(680871) && Any(info,{800880,804961}))
+                if (uint32 sting = StingStacks(player,target))
+                    factor *= 1 + Amount(680871,1) * sting / 100.0f;
         }
         else if (hit.damage < 0)
             factor *= HealingFactor(player,target,info);
