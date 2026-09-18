@@ -16,6 +16,17 @@ void ApplyContracts(SpellInfo* info)
     if (!info || info->SpellFamilyName != 35)
         return;
     uint32 id = info->Id;
+    if (id == 503850)
+    {
+        // Fury of Shadra keys off the sub-35% health aura state; the DBC ships
+        // its two damage-modifier auras without the state and damage-mask keys.
+        for (auto& effect : info->Effects)
+            if (effect.ApplyAuraName == SPELL_AURA_MOD_DAMAGE_DONE_VERSUS_AURASTATE)
+            {
+                effect.MiscValue = AURA_STATE_HEALTHLESS_35_PERCENT;
+                effect.MiscValueB = ASCENSION_CLASSMASK_AURASTATE_DAMAGE;
+            }
+    }
     auto dummy = [info](uint8 slot)
     {
         info->Effects[slot].ApplyAuraName = SPELL_AURA_DUMMY;
