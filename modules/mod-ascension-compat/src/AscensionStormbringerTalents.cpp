@@ -31,14 +31,16 @@ enum StormbringerTalentSpells : uint32
     SPELL_CALL_LIGHTNING = 500040,
     SPELL_TORRENTIAL_WRATH = 503352,
     SPELL_CONDUCTION = 567560,
-    SPELL_STATIC = 803102
+    SPELL_STATIC = 803102,
+    SPELL_UNDERTOW = 705666,
+    SPELL_DROWN_HIT = 806408
 };
 
 class stormbringer_talent_casts : public AllSpellScript
 {
 public:
     stormbringer_talent_casts() : AllSpellScript("stormbringer_talent_casts",
-        {ALLSPELLHOOK_ON_CAST, ALLSPELLHOOK_ON_HIT_RESULT}) { }
+        {ALLSPELLHOOK_ON_CAST, ALLSPELLHOOK_ON_HIT_RESULT, ALLSPELLHOOK_ON_CRIT_CHANCE}) { }
 
     void OnSpellCast(Spell* spell, Unit* caster, SpellInfo const* info, bool) override
     {
@@ -79,6 +81,16 @@ public:
             for (uint8 i = 0; i < stacks; ++i)
                 player->CastSpell(spell->GetUnitTarget(), SPELL_CONDUCTION, true);
         }
+    }
+
+    void OnSpellCritChance(Spell* spell, Unit* target, float& chance) override
+    {
+        // Undertow (705666): Drown's burst component crits 25% more often.
+        Player* player = spell->GetCaster() ? spell->GetCaster()->ToPlayer() : nullptr;
+        SpellInfo const* info = spell->GetSpellInfo();
+        if (!player || !player->HasAura(SPELL_UNDERTOW) || info->Id != SPELL_DROWN_HIT)
+            return;
+        chance += 25.0f;
     }
 
     void OnSpellHitResult(Spell* spell, Unit* target, uint8 miss, uint32 damage, uint32, bool) override
