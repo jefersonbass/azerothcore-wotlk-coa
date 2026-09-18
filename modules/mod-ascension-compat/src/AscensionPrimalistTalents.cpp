@@ -29,6 +29,8 @@ enum PrimalistAbilitySpells : uint32
     SPELL_SHARPENED_CLAWS_STACK = 504225,
     SPELL_SAVAGE_FRENZY = 806549,
     SPELL_SAVAGE_FRENZY_GREATER = 807286,
+    SPELL_CRASHING_OUT = 574313,
+    SPELL_SEISMIC_CRASH = 503258,
     SPELL_BEARSKIN = 800094,
     SPELL_PRIMAL_CONVERGENCE = 800181,
     SPELL_BOULDER_DASH = 500692,
@@ -196,6 +198,10 @@ public:
         if (!spell->IsTriggered() && (info->Id == SPELL_SAVAGE_FRENZY || info->Id == SPELL_SAVAGE_FRENZY_GREATER))
             if (Pet* pet = player->GetPet(); pet && pet->IsAlive())
                 player->CastSpell(pet, info->Id, true);
+        // Crashing Out (574313): Seismic Crash deals thirty percent more damage.
+        if (damage && player->HasAura(SPELL_CRASHING_OUT) &&
+            sSpellMgr->GetFirstSpellInChain(info->Id) == sSpellMgr->GetFirstSpellInChain(SPELL_SEISMIC_CRASH))
+            damage += CalculatePct(damage, 30);
         if (info->Id == SPELL_GEODE_BARRAGE_DAMAGE && !spell->GetScriptValue(SPELL_GEODE_BARRAGE_RAGE))
         {
             // Each channel tick casts this damage helper. Its authored energize
