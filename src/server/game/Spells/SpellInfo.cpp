@@ -3102,6 +3102,12 @@ int32 SpellInfo::CalcPowerCost(Unit const* caster, SpellSchoolMask schoolMask, S
             (caster->HasAura(706032) || caster->HasAura(681321)))
             return 0;
     }
+    // Skin Shedder: reduces the cost of shapeshift spells (Spider, Beetle, Weaver, Vizier forms)
+    // by the percentage carried on the aura, sourced from the talent instead of a flat 50.
+    if (caster->IsPlayer() && caster->getClass() == CLASS_PROPHET &&
+        (Id == 800841 || Id == 803183 || Id == 804980 || Id == 800912))
+        if (AuraEffect const* shedder = caster->GetAuraEffect(705949, EFFECT_2))
+            powerCost += CalculatePct(powerCost, shedder->GetAmount());
     if (powerCost < 0)
         powerCost = 0;
     return powerCost;
