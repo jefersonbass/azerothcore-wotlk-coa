@@ -25,6 +25,8 @@ enum PrimalistAbilitySpells : uint32
     SPELL_MENDING_TOUCH = 524971,
     SPELL_PROTECTOR_OF_THE_GROVE = 504198,
     SPELL_PROTECTIVE_ROAR = 802782,
+    SPELL_SHARPENED_CLAWS = 504226,
+    SPELL_SHARPENED_CLAWS_STACK = 504225,
     SPELL_BEARSKIN = 800094,
     SPELL_PRIMAL_CONVERGENCE = 800181,
     SPELL_BOULDER_DASH = 500692,
@@ -179,6 +181,15 @@ public:
                         member->IsWithinDistInMap(player, 30.0f) &&
                         (member == player || member->IsInPartyWith(player) || member->IsInRaidWith(player)))
                         player->CastSpell(member, SPELL_PROTECTIVE_ROAR, true);
+        // Sharpened Claws (504226): direct critical strikes stack the ten-second
+        // armor penetration buff (three stacks) onto the Wildwalker and the pet.
+        if (critical && player->HasAura(SPELL_SHARPENED_CLAWS) && !spell->IsTriggered() &&
+            !target->IsFriendlyTo(player))
+        {
+            player->CastSpell(player, SPELL_SHARPENED_CLAWS_STACK, true);
+            if (Pet* pet = player->GetPet(); pet && pet->IsAlive())
+                player->CastSpell(pet, SPELL_SHARPENED_CLAWS_STACK, true);
+        }
         if (info->Id == SPELL_GEODE_BARRAGE_DAMAGE && !spell->GetScriptValue(SPELL_GEODE_BARRAGE_RAGE))
         {
             // Each channel tick casts this damage helper. Its authored energize
