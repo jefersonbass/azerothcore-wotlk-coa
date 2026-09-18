@@ -271,6 +271,16 @@ class spell_ascension_throat_clamp : public SpellScript
 };
 }
 
+void ApplyAscensionPrimalistTalentsContract(SpellInfo* info)
+{
+    if (!info || info->Id != 806533)
+        return;
+    // Keen Senses: the third effect ("Unknown 3") is DBC filler that would index
+    // the aura handler table out of range; zeroing the effect leaves the native
+    // crit and haste effects intact.
+    info->Effects[2].Effect = SpellEffects(0);
+}
+
 void AddSC_AscensionPrimalistTalents()
 {
     new primalist_talent_events();
