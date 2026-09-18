@@ -393,6 +393,13 @@ public:
         {
             if (auto* effect = target->GetAuraEffect(804971,EFFECT_0,player->GetGUID()))
                 factor *= 1 + effect->GetAmount() / 100.0f;
+            // Captivation: every Fungal Growth stack adds its percentage to Mycosis damage.
+            if (player->HasAura(503930))
+                if (Aura* fungal = target->GetAura(804971,player->GetGUID()))
+                    if (std::any_of(std::begin(AscensionVenomancerVenomData::MYCOSIS),
+                            std::end(AscensionVenomancerVenomData::MYCOSIS),
+                            [info](auto const& rank) { return info->Id == rank.Id; }))
+                        factor *= 1 + (fungal->GetStackAmount() * Amount(503930)) / 100.0f;
             if (player->HasAura(574353) && Any(info,{800871,804977}) && target->GetHealthPct() > 75)
                 factor *= 1 + Amount(574353) / 100.0f;
         }
