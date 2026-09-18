@@ -152,6 +152,10 @@ void ApplyContracts(SpellInfo* info)
     if (id == 804337)
         // The native DBC targets the ~1.5s global cooldown instead of ability cooldowns.
         info->Effects[EFFECT_0].MiscValue = SPELLMOD_COOLDOWN;
+    if (id == 706353)
+        // Unstoppable Rage extends Unbridled Rage; the engine reads that through
+        // the duration modifier op keyed to the enrage's own family mask.
+        info->Effects[EFFECT_0].MiscValue = SPELLMOD_DURATION;
     if (id == 570235)
         // Bloody Fighter's flat +1 stacks Born in Blood; the engine reads that
         // through the max-aura-stacks modifier op.
