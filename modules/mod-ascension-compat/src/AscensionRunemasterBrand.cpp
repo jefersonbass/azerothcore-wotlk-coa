@@ -1,18 +1,22 @@
 /* Copyright (C) 2016+ AzerothCore, GNU AGPL v3. */
 
 #include "AscensionRunemasterBrand.h"
+#include "ObjectAccessor.h"
 #include "Player.h"
 #include "ScriptMgr.h"
 #include "Spell.h"
 #include "SpellAuras.h"
 #include "SpellMgr.h"
 #include "SpellScript.h"
+#include <limits>
 #include <set>
 
 namespace
 {
 constexpr uint32 SPELL_RUNIC_BRAND_MARK = 712323;
 constexpr uint32 SPELL_RUNIC_EXPLOSION = 712324;
+constexpr uint32 SPELL_GENESIS_BRAND = 500501;
+constexpr uint32 SPELL_GENESIS_DAMAGE = 500502;
 
 bool IsRunicBrand(uint32 id)
 {
@@ -146,6 +150,58 @@ class spell_ascension_runemaster_brand_runeblade : public SpellScript
     std::set<ObjectGuid> _processed;
     std::set<ObjectGuid> _pending;
 };
+
+// Genesis (500501): "Apply a runic brand to an enemy for 8 seconds,
+// accumulating 50% of your damage dealt, and unleashing that accumulated
+// damage as Arcane damage when the brand ends." The aura's School Absorb slot
+// (all schools, value 1) is the accumulator; the Dummy slots mark ownership.
+// Damage is banked here and paid out as 500502 (spell_bonus_data supplies the
+// SP coefficient) when the brand expires.
+class runemaster_genesis_accumulator : public UnitScript
+{
+public:
+    runemaster_genesis_accumulator() : UnitScript("runemaster_genesis_accumulator", true,
+        {UNITHOOK_ON_DAMAGE, UNITHOOK_ON_AURA_REMOVE}) { }
+
+    void OnDamage(Unit* attacker, Unit* victim, uint32& damage) override
+    {
+        Player* player = attacker ? attacker->ToPlayer() : nullptr;
+        if (!player || !damage || !victim)
+            return;
+
+        Aura* brand = victim->GetAura(SPELL_GENESIS_BRAND, player->GetGUID());
+        if (!brand)
+            return;
+
+        uint64 const stored = brand->GetScriptValue(GENESIS_STORED);
+        if (stored >= std::numeric_limits<int32>::max())
+            return;
+        brand->SetScriptValue(GENESIS_STORED, stored + damage);
+    }
+
+    void OnAuraRemove(Unit* unit, AuraApplication* application, AuraRemoveMode) override
+    {
+        Player* player = unit ? unit->ToPlayer() : nullptr;
+        if (!player || !application)
+            return;
+
+        Aura* aura = application->GetBase();
+        if (aura->GetId() != SPELL_GENESIS_BRAND || aura->GetCasterGUID() != player->GetGUID())
+            return;
+
+        // Pay out 50% of everything banked during the brand's lifetime.
+        uint64 const stored = aura->GetScriptValue(GENESIS_STORED);
+        if (!stored)
+            return;
+        CustomSpellValues values;
+        values.AddSpellMod(SPELLVALUE_BASE_POINT0,
+            int32(std::min<uint64>(stored / 2, std::numeric_limits<int32>::max())));
+        player->CastCustomSpell(SPELL_GENESIS_DAMAGE, values, unit, TRIGGERED_FULL_MASK);
+    }
+
+private:
+    static constexpr uint32 GENESIS_STORED = 1;
+};
 }
 
 void ApplyAscensionRunemasterBrandContracts(SpellInfo* info)
@@ -177,4 +233,5 @@ void AddAscensionRunemasterBrandScripts()
 {
     RegisterSpellScript(spell_ascension_runemaster_brand);
     RegisterSpellScript(spell_ascension_runemaster_brand_runeblade);
+    new runemaster_genesis_accumulator();
 }
