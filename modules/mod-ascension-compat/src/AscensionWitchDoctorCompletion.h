@@ -36,6 +36,7 @@ enum DoctorSpells : uint32
     LoaSpiritsTwo = 807904,
     LoaEcho = 705843,
     Reclamation = 806288,
+    VillageWisdom = 680882,
     Volley = 504582,
     VolleyTalent = 503712,
     VolleyReady = 505158,

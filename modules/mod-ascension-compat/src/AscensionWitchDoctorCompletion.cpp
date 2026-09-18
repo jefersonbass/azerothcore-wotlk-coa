@@ -389,6 +389,16 @@ void ApplyContracts(SpellInfo* info)
         info->Effects[EFFECT_1].Effect = 0; // exactly five Spirits from the successful cast
     if (id == SenjinSwiftness)
         info->Effects[EFFECT_1].SpellClassMask = flag96(0, 0, 1073741824); // was empty, so its -60s cooldown mod matched every WD spell instead of just Mirage
+    if (id == VillageWisdom)
+        for (SpellEffectInfo& effect : info->Effects)
+            if (effect.ApplyAuraName == SPELL_AURA_ADD_PCT_MODIFIER)
+            {
+                // The % half must read as the damage op keyed to Reclamation's family bit
+                // (the word Volley copies to inherit Reclamation modifiers); its +5% hit
+                // half is the hit-chance aura and natively supported.
+                effect.MiscValue = SPELLMOD_DAMAGE;
+                effect.SpellClassMask = flag96(0, 4, 0);
+            }
     if (id == SenjinWisdom)
         info->Effects[EFFECT_0].SpellClassMask = flag96(0, 0, 1073741824); // pointed at the wrong classmask word, so its +20s duration mod never matched Mirage
     if (id == RageBrewBuff)
