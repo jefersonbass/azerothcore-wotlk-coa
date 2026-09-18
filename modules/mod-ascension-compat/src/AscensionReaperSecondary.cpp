@@ -37,7 +37,8 @@ enum ReaperSecondarySpells : uint32
     SPELL_DEATHCHASER = 560351,
     SPELL_WRAITHBLADE = 805258,
     SPELL_SOULSTRIDER = 572340,
-    SPELL_VEILWALK = 803990
+    SPELL_VEILWALK = 803990,
+    SPELL_RED_WAKE = 707707
 };
 
 void HealFromDamage(Player* player, uint32 reference, uint32 helper, uint32 damage)
@@ -152,6 +153,10 @@ public:
         // Casting Endbringer marks the caster's position as a Gravesite.
         if (id == SPELL_ENDBRINGER && target == player && player->HasAura(SPELL_GRAVESITE_PASSIVE))
             player->CastSpell(player, SPELL_GRAVESITE_AREA, true);
+        // Red Wake (707707): "Direct damage critical strikes now generate an
+        // additional Soul Fragment." The DBC's Proc Trigger slot is inert.
+        if (critical && damage && player->HasAura(SPELL_RED_WAKE) && !spell->IsTriggered())
+            HandleAscensionReaperResource(player, SPELL_REAPED_SOUL, 1);
         // Gravesite (572213): "Direct critical strikes made against enemies
         // within a Gravesite now deals Shadow damage." The area marker (804722)
         // is dropped by the Endbringer cast below.
