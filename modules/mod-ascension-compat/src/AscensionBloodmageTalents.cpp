@@ -27,7 +27,8 @@ enum BloodmageTalentSpells : uint32
     SPELL_ATHERANNS_ANGUISH = 680680,
     SPELL_ATHERANNS_ANGUISH_BURST = 680681,
     SPELL_HUNTER_AND_HUNTED = 807487,
-    SPELL_HUNTER_AND_HUNTED_NET = 100614
+    SPELL_HUNTER_AND_HUNTED_NET = 100614,
+    SPELL_VAMPYR_LORD = 560259
 };
 
 // Every creature Animated Blood can leave behind: worms, parasites and the rank 3 amalgam.
@@ -103,9 +104,28 @@ class spell_ascension_animated_blood : public SpellScript
                 caster->RemoveAllMinionsByEntry(entry);
     }
 
+    void ApplyVampyrLord()
+    {
+        // Vampyr Lord (560259): the brood inherits the passive's Mod Damage %
+        // aura so its thirty-five percent bonus rides on their attacks.
+        Player* caster = GetCaster()->ToPlayer();
+        if (!caster || !caster->HasAura(SPELL_VAMPYR_LORD))
+            return;
+        std::list<Creature*> brood;
+        for (uint32 entry : AnimatedBloodSummons)
+        {
+            caster->GetCreatureListWithEntryInGrid(brood, entry, 100.0f);
+            for (Creature* worm : brood)
+                if (worm->GetOwnerGUID() == caster->GetGUID() && !worm->HasAura(SPELL_VAMPYR_LORD))
+                    caster->CastSpell(worm, SPELL_VAMPYR_LORD, true);
+            brood.clear();
+        }
+    }
+
     void Register() override
     {
         BeforeCast += SpellCastFn(spell_ascension_animated_blood::ReplacePreviousBrood);
+        AfterCast += SpellCastFn(spell_ascension_animated_blood::ApplyVampyrLord);
         // This destination-only helper is triggered in LAUNCH, before target-specific effects.
         OnEffectLaunch += SpellEffectFn(spell_ascension_animated_blood::HandleExtraWorms,
             EFFECT_1, SPELL_EFFECT_TRIGGER_SPELL);
