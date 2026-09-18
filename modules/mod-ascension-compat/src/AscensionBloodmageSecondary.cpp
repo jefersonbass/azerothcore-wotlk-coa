@@ -44,8 +44,13 @@ enum BloodmageSecondarySpells : uint32
     SPELL_THIRST = 706613,
     SPELL_SATED = 570024,
     SPELL_RAVENOUS = 570025,
-    SPELL_BLOOD_PRINCES_COMMAND = 704641
+    SPELL_BLOOD_PRINCES_COMMAND = 704641,
+    SPELL_FANG_OVER_FANG = 504116
 };
+
+// Every rank of Bloodfang Bite the kit currently teaches.
+constexpr uint32 BloodfangBiteRanks[] = {501695, 501696, 501697, 503613, 503614,
+    503615, 572549, 572550, 572551, 800156};
 
 // Dark Essence (680732): heals a Blood-Rituals-marked ally every 1.5 seconds for
 // three seconds — two scheduled ticks.
@@ -139,6 +144,12 @@ public:
             player->m_Events.AddEvent(new DarkEssenceTick(player->GetGUID(), ally->GetGUID(), amount),
                 player->m_Events.CalculateTime(3000));
         }
+        // Fang Over Fang (504116): Bloodfang Bite has a twenty percent chance to
+        // reset Reave's cooldown.
+        if (player->HasAura(SPELL_FANG_OVER_FANG) && roll_chance_i(20) &&
+            std::find(std::begin(BloodfangBiteRanks), std::end(BloodfangBiteRanks), info->Id) !=
+                std::end(BloodfangBiteRanks))
+            player->RemoveSpellCooldown(SPELL_REAVE, true);
         // Thirst for Blood (570023): mirror the Thirst stack range onto the
         // Sated (1-5) and Ravenous (6-10) bonuses.
         if (player->HasAura(SPELL_THIRST_FOR_BLOOD))
