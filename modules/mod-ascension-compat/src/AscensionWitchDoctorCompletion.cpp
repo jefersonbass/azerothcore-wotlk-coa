@@ -206,6 +206,13 @@ void ApplyContracts(SpellInfo* info)
     };
     if (id == Shadowhunter)
         dummy(EFFECT_1);
+    if (id == 707505)
+    {
+        // Jin'do's Wrath keys both halves to Hexfire Wrath's family mask: the flat
+        // half reads as crit chance and the percent half as crit damage.
+        info->Effects[EFFECT_0].MiscValue = SPELLMOD_CRITICAL_CHANCE;
+        info->Effects[EFFECT_1].MiscValue = SPELLMOD_CRIT_DAMAGE_BONUS;
+    }
     if ((id == ChosenOne || id == MojoHigh) &&
         info->Effects[EFFECT_0].ApplyAuraName == SPELL_AURA_ADD_FLAT_MODIFIER &&
         info->Effects[EFFECT_0].MiscValue == SPELLMOD_EFFECT3)
