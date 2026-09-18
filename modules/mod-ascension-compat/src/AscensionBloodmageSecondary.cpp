@@ -278,7 +278,7 @@ public:
         }
     }
 
-    void OnSpellHitResult(Spell* spell, Unit* target, uint8 miss, uint32 damage, uint32, bool) override
+    void OnSpellHitResult(Spell* spell, Unit* target, uint8 miss, uint32 damage, uint32, bool critical) override
     {
         Player* player = Bloodmage(spell);
         if (!player || spell->IsTriggered() || !target || miss != SPELL_MISS_NONE)

@@ -111,7 +111,7 @@ public:
         Player* player = unit ? unit->ToPlayer() : nullptr;
         if (!player || !aura || !player->IsAlive() || !player->HasAura(SPELL_NATURAL_EFFICIENCY))
             return;
-        if (aura->GetCasterGUID() == player->GetGUID() || aura->IsPositive())
+        if (aura->GetCasterGUID() == player->GetGUID() || aura->GetSpellInfo()->IsPositive())
             return;
         constexpr uint64 ccMechanics = (1ULL << MECHANIC_ROOT) | (1ULL << MECHANIC_STUN) |
             (1ULL << MECHANIC_KNOCKOUT) | (1ULL << MECHANIC_DISORIENTED) | (1ULL << MECHANIC_SLEEP) |
