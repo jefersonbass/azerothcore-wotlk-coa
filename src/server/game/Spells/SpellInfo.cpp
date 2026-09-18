@@ -3112,6 +3112,11 @@ int32 SpellInfo::CalcPowerCost(Unit const* caster, SpellSchoolMask schoolMask, S
     if (caster->IsPlayer() && caster->getClass() == CLASS_PROPHET && caster->HasAura(804993) &&
         sSpellMgr->GetFirstSpellInChain(Id) == sSpellMgr->GetFirstSpellInChain(803570))
         return 0;
+    // Illidan's Favor: Felbane and Manaburn cost no Energy.
+    if (caster->IsPlayer() && caster->getClass() == CLASS_DEMON_HUNTER && caster->HasAura(520592) &&
+        (sSpellMgr->GetFirstSpellInChain(Id) == sSpellMgr->GetFirstSpellInChain(525001) ||
+         sSpellMgr->GetFirstSpellInChain(Id) == sSpellMgr->GetFirstSpellInChain(805248)))
+        return 0;
     if (powerCost < 0)
         powerCost = 0;
     return powerCost;
