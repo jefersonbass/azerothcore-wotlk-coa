@@ -35,7 +35,9 @@ enum ReaperSecondarySpells : uint32
     SPELL_SPIRIT_CHASER = 560434,
     SPELL_REAP = 801327,
     SPELL_DEATHCHASER = 560351,
-    SPELL_WRAITHBLADE = 805258
+    SPELL_WRAITHBLADE = 805258,
+    SPELL_SOULSTRIDER = 572340,
+    SPELL_VEILWALK = 803990
 };
 
 void HealFromDamage(Player* player, uint32 reference, uint32 helper, uint32 damage)
@@ -100,6 +102,23 @@ public:
         // multiplier the engine applies to crits of these abilities.
         if (root == SPELL_REAP || root == SPELL_DEATHCHASER || root == SPELL_WRAITHBLADE)
             chance += 10;
+    }
+
+    void OnSpellCast(Spell* spell, Unit* caster, SpellInfo const* info, bool) override
+    {
+        Player* player = caster ? caster->ToPlayer() : nullptr;
+        if (!player || player->getClass() != CLASS_REAPER || spell->IsTriggered())
+            return;
+        // Soulstrider (572340): "Increases the movement speed granted by
+        // Veilwalk by 25%." The DBC's Add Flat Modifier slot has no family to
+        // match the Veilwalk chain, so top the speed aura up on cast.
+        if (sSpellMgr->GetFirstSpellInChain(info->Id) != SPELL_VEILWALK ||
+            !player->HasAura(SPELL_SOULSTRIDER))
+            return;
+        if (Aura* veil = player->GetAura(SPELL_VEILWALK))
+            if (AuraEffect* speed = veil->GetEffect(EFFECT_0);
+                speed && speed->GetAuraType() == SPELL_AURA_MOD_INCREASE_SPEED)
+                speed->ChangeAmount(speed->GetAmount() + 12); // 50% -> 62.5% rounded to 62
     }
 
     void OnSpellBeforeEffects(Spell* spell, Unit* caster, SpellInfo const* info) override
