@@ -43,7 +43,8 @@ enum BloodmageSecondarySpells : uint32
     SPELL_THIRST_FOR_BLOOD = 570023,
     SPELL_THIRST = 706613,
     SPELL_SATED = 570024,
-    SPELL_RAVENOUS = 570025
+    SPELL_RAVENOUS = 570025,
+    SPELL_BLOOD_PRINCES_COMMAND = 704641
 };
 
 // Dark Essence (680732): heals a Blood-Rituals-marked ally every 1.5 seconds for
@@ -166,6 +167,17 @@ public:
         // Atherann's Anguish: hemoplague damage cannot critically strike.
         if (spell->GetSpellInfo()->Id == SPELL_ATHERANNS_ANGUISH_BURST)
             chance = 0;
+        // Blood Prince's Command (704641): Bloodbolt always crits targets carrying
+        // Taldaram's Torment (any rank of the torment DoT).
+        Player* player = Bloodmage(spell);
+        if (player && target && player->HasAura(SPELL_BLOOD_PRINCES_COMMAND) &&
+            AscensionBloodmage::GetEmpowerment(spell->GetSpellInfo()->Id) == AscensionBloodmage::Bloodbolt)
+            for (uint32 torment : {800772, 802568, 802569, 802570})
+                if (target->HasAura(torment))
+                {
+                    chance = 100;
+                    break;
+                }
     }
 
     void OnSpellCalculatedTarget(Spell* spell, Unit* target, TargetInfo& hit) override
