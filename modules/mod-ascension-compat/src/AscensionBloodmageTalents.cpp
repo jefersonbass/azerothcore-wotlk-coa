@@ -25,7 +25,9 @@ enum BloodmageTalentSpells : uint32
     SPELL_CURSED_FORM_REQUIREMENT_2 = 524861,
     SPELL_BLOODMOON_POWER = 801961,
     SPELL_ATHERANNS_ANGUISH = 680680,
-    SPELL_ATHERANNS_ANGUISH_BURST = 680681
+    SPELL_ATHERANNS_ANGUISH_BURST = 680681,
+    SPELL_HUNTER_AND_HUNTED = 807487,
+    SPELL_HUNTER_AND_HUNTED_NET = 100614
 };
 
 // Every creature Animated Blood can leave behind: worms, parasites and the rank 3 amalgam.
@@ -122,7 +124,22 @@ public:
         if (!player || player->getClass() != CLASS_SON_OF_ARUGAL || !aura)
             return;
         if (IsCursedForm(aura->GetId()))
+        {
             SyncCursedFormRequirement(player);
+            // The Hunter and the Hunted (807487): activating a Cursed Form charges
+            // the Bloodmage to their target inside 20 yards and roots enemies for
+            // two seconds. Net (100614) supplies the clean two-second root.
+            if (player->HasAura(SPELL_HUNTER_AND_HUNTED) &&
+                aura->GetCasterGUID() == player->GetGUID() && player->IsAlive() && player->IsInWorld())
+                if (Unit* target = player->GetSelectedUnit())
+                    if (target != player && !player->IsFriendlyTo(target) && target->IsAlive() &&
+                        player->IsWithinDistInMap(target, 20.0f) && player->IsWithinLOSInMap(target))
+                    {
+                        player->GetMotionMaster()->MoveCharge(target->GetPositionX(),
+                            target->GetPositionY(), target->GetPositionZ(), 42.0f);
+                        player->CastSpell(target, SPELL_HUNTER_AND_HUNTED_NET, true);
+                    }
+        }
     }
 
     void OnAuraRemove(Unit* unit, AuraApplication* application, AuraRemoveMode mode) override
