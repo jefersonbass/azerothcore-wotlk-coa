@@ -36,6 +36,16 @@ void ApplyContracts(SpellInfo* info)
     // Incinerator (807510): the client DBC ships a wrong aura (Mod Spell Damage
     // Taken School -70). The tooltip grants 30 spell penetration, scaling with
     // level via the passive's native level scaling on BasePoints.
+    // Critical Pressure (704804/707789): "Increases your Intellect and critical
+    // strike chance by 3%." The client DBC ships the stat aura without a usable
+    // school/stat pairing and leaves the crit slot unbound; rewrite both.
+    if (id == 704804 || id == 707789)
+    {
+        int32 const amount = id == 704804 ? 3 : 6;
+        mod(0, SPELL_AURA_MOD_TOTAL_STAT_PERCENTAGE, amount, STAT_INTELLECT, flag96());
+        mod(1, SPELL_AURA_MOD_CRIT_PCT, amount, 0, flag96());
+        info->Effects[2].Effect = 0;
+    }
     if (id == 807510)
     {
         auto& e = info->Effects[EFFECT_0];
