@@ -72,7 +72,9 @@ class aura_ascension_xoroth_lifecycle : public AuraScript
         if (id == 524913)
             GetAura()->SetScriptValue(id, 5);
         if (id == 524920)
-            GetAura()->SetScriptValue(id, 6 + State(player).fire);
+            // Burning Swings: the blades strike 4 additional attacks.
+            GetAura()->SetScriptValue(id, 6 + State(player).fire +
+                                          (player->HasAura(707632) ? Amount(707632) : 0));
         if (id == 712294)
             Replace(player, 800340, 504581);
         if (id == 800999 || id == 92104)
