@@ -45,6 +45,31 @@ bool Lunar(SpellInfo const* info, Player* player)
     return Any(info, {575030, 575039, 800370, 574328}) || (Named(info, 680220) && player->HasAura(92134)) ||
            (Named(info, 801978) && (player->HasAura(500205) || player->HasAura(801973)));
 }
+
+// Warden Training (704790): "Reduces the cooldown of Warden's Blade by 25%."
+// Warden's Blade has no spell family, so the passive's native Spell Pct Mod
+// can never match it; refund a quarter of the blade's cooldown after cast.
+class spell_ascension_starcaller_wardens_blade : public SpellScript
+{
+    PrepareSpellScript(spell_ascension_starcaller_wardens_blade);
+
+    static constexpr uint32 SPELL_WARDENS_BLADE = 805508;
+    static constexpr uint32 SPELL_WARDEN_TRAINING = 704790;
+
+    void ApplyWardenTraining()
+    {
+        Player* player = GetCaster()->ToPlayer();
+        if (player && player->HasAura(SPELL_WARDEN_TRAINING))
+            if (uint32 cooldown = player->GetSpellCooldownDelay(SPELL_WARDENS_BLADE))
+                player->ModifySpellCooldown(SPELL_WARDENS_BLADE, -int32(cooldown / 4));
+    }
+
+    void Register() override
+    {
+        AfterCast += SpellCastFn(spell_ascension_starcaller_wardens_blade::ApplyWardenTraining);
+    }
+};
+
 bool Derived(SpellInfo const* info)
 {
     return info && Any(info, {801129, 807672, 524703, 804736, 707759, 805357, 954791});
@@ -393,4 +418,5 @@ class starcaller_player : public PlayerScript
 void AddSC_AscensionStarcaller()
 {
     new starcaller_player();
+    RegisterSpellScript(spell_ascension_starcaller_wardens_blade);
 }
