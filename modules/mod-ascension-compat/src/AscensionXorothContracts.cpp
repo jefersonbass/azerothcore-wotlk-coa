@@ -24,6 +24,10 @@ void ApplyContracts(SpellInfo* info)
     if (!info || info->SpellFamilyName != 23)
         return;
     uint32 id = info->Id;
+    if (id == 704999)
+        // Combusting Blade's flat modifier must land on the cost op to trim
+        // Infernal Strike's Rage price by 5 (DBC stores Rage in tenth-units).
+        info->Effects[EFFECT_1].MiscValue = SPELLMOD_COST;
     if (id == SPELL_WARPATH_PROTECTION && info->Effects[EFFECT_0].ApplyAuraName == SPELL_AURA_MOD_MINIMUM_SPEED)
         info->DurationEntry = sSpellDurationStore.LookupEntry(27); // Three seconds after Unleash Pestilence.
     if (id == SPELL_FLESH_HOOK_PULL)
