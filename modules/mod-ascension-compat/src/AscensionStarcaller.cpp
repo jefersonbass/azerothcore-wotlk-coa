@@ -40,6 +40,34 @@ bool Any(SpellInfo const* info, std::initializer_list<uint32> roots)
             return true;
     return false;
 }
+// Final Prayer (704745): "Your Prayer of Elune now dispels 1 additional
+// effect." The Prayer's native Dispel effect already spent its charge count;
+// strip one more magic aura from the target on the same hit.
+class spell_ascension_starcaller_prayer_of_elune : public SpellScript
+{
+    PrepareSpellScript(spell_ascension_starcaller_prayer_of_elune);
+
+    void AddFinalPrayer()
+    {
+        Player* player = GetCaster()->ToPlayer();
+        if (!player || !GetHitUnit() || !player->HasAura(SPELL_FINAL_PRAYER))
+            return;
+        if (sSpellMgr->GetFirstSpellInChain(GetSpellInfo()->Id) != SPELL_PRAYER_OF_ELUNE)
+            return;
+        DispelChargesList dispelList;
+        GetHitUnit()->GetDispellableAuraList(GetCaster(), DISPEL_MAGIC, dispelList, GetSpellInfo());
+        if (dispelList.empty())
+            return;
+        GetHitUnit()->RemoveAura(dispelList.front().first, AURA_REMOVE_BY_ENEMY_SPELL);
+    }
+
+    void Register() override
+    {
+        OnEffectHitTarget += SpellEffectFn(spell_ascension_starcaller_prayer_of_elune::AddFinalPrayer,
+            EFFECT_ALL, SPELL_EFFECT_DISPEL);
+    }
+};
+
 bool Lunar(SpellInfo const* info, Player* player)
 {
     return Any(info, {575030, 575039, 800370, 574328}) || (Named(info, 680220) && player->HasAura(92134)) ||
@@ -55,6 +83,8 @@ class spell_ascension_starcaller_wardens_blade : public SpellScript
 
     static constexpr uint32 SPELL_WARDENS_BLADE = 805508;
     static constexpr uint32 SPELL_WARDEN_TRAINING = 704790;
+    static constexpr uint32 SPELL_PRAYER_OF_ELUNE = 801987;
+    static constexpr uint32 SPELL_FINAL_PRAYER = 704745;
 
     void ApplyWardenTraining()
     {
@@ -419,4 +449,5 @@ void AddSC_AscensionStarcaller()
 {
     new starcaller_player();
     RegisterSpellScript(spell_ascension_starcaller_wardens_blade);
+    RegisterSpellScript(spell_ascension_starcaller_prayer_of_elune);
 }
