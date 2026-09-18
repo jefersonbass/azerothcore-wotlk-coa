@@ -23,7 +23,8 @@ enum MountainSpells : uint32
     ImprovedUrsocsBellow = 560505,
     EarthenforgedBarrier = 680408,
     RockBarrier = 503630,
-    MountainThane = 680404
+    MountainThane = 680404,
+    ThanesGuidance = 680410
 };
 
 class aura_ascension_blessed_by_earth : public AuraScript
@@ -291,6 +292,43 @@ class aura_ascension_mountain_thane : public AuraScript
     }
 };
 
+// Thane's Guidance (680410): auto attacks trim one second off Mountain
+// Hammer (681130, 681420-681424) and Primal Rush (500696, 500768-500771,
+// 502723-502724). Cooldowns are stored per spell id, so every rank is
+// trimmed; entries that are not on cooldown are untouched no-ops.
+class aura_ascension_thanes_guidance : public AuraScript
+{
+    PrepareAuraScript(aura_ascension_thanes_guidance);
+
+    bool CheckProc(ProcEventInfo& event)
+    {
+        Unit* owner = GetTarget();
+        DamageInfo const* damage = event.GetDamageInfo();
+        return owner->IsPlayer() && owner->getClass() == CLASS_WILDWALKER && owner->IsAlive() &&
+            event.GetActor() == owner && damage && damage->GetDamage() &&
+            (event.GetTypeMask() & PROC_FLAG_DONE_MELEE_AUTO_ATTACK) &&
+            event.GetActionTarget() && !owner->IsFriendlyTo(event.GetActionTarget());
+    }
+
+    void Trim(AuraEffect const*, ProcEventInfo&)
+    {
+        PreventDefaultAction();
+        Player* player = GetTarget()->ToPlayer();
+        if (!player)
+            return;
+        for (uint32 ability : {681130, 681420, 681421, 681422, 681423, 681424,
+            500696, 500768, 500769, 500770, 500771, 502723, 502724})
+            player->ModifySpellCooldown(ability, -1000);
+    }
+
+    void Register() override
+    {
+        DoCheckProc += AuraCheckProcFn(aura_ascension_thanes_guidance::CheckProc);
+        OnEffectProc += AuraEffectProcFn(aura_ascension_thanes_guidance::Trim,
+            EFFECT_0, SPELL_AURA_PROC_TRIGGER_SPELL);
+    }
+};
+
 class mountain_talent_metadata : public GlobalScript
 {
 public:
@@ -323,5 +361,6 @@ void AddSC_AscensionPrimalistMountain()
     RegisterSpellScript(aura_ascension_ursocs_bellow);
     RegisterSpellScript(aura_ascension_earthenforged_barrier);
     RegisterSpellScript(aura_ascension_mountain_thane);
+    RegisterSpellScript(aura_ascension_thanes_guidance);
     new mountain_talent_metadata();
 }
