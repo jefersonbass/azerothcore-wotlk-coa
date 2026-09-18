@@ -26,7 +26,9 @@ enum MountainSpells : uint32
     MountainThane = 680404,
     ThanesGuidance = 680410,
     Earthbreaker = 560147,
-    GeodeBarrageDamage = 803138
+    GeodeBarrageDamage = 803138,
+    Stonebound = 680415,
+    BoonOfTheTurtle = 500935
 };
 
 class aura_ascension_blessed_by_earth : public AuraScript
@@ -353,6 +355,37 @@ class aura_ascension_earthbreaker : public AuraScript
     void Register() override { }
 };
 
+// Stonebound (680415): Boon of the Turtle and Earth's Rage are fifty
+// percent more effective while the passive is held. Both auras' amounts
+// are recalculated from the base on every application, so refreshes
+// never compound. Boon of the Turtle's rank chains (502793-502800) and
+// the shared aura (500935) are bound below.
+class aura_ascension_stonebound : public AuraScript
+{
+    PrepareAuraScript(aura_ascension_stonebound);
+
+    void Amplify(AuraEffect const*, int32& amount, bool& /*canBeRecalculated*/)
+    {
+        Unit const* caster = GetCaster();
+        if (caster && caster->IsPlayer() && caster->HasAura(Stonebound))
+            amount += CalculatePct(amount, 50);
+    }
+
+    void Register() override
+    {
+        DoEffectCalcAmount += AuraEffectCalcAmountFn(aura_ascension_stonebound::Amplify,
+            EFFECT_0, SPELL_AURA_MOD_RESISTANCE);
+        DoEffectCalcAmount += AuraEffectCalcAmountFn(aura_ascension_stonebound::Amplify,
+            EFFECT_1, SPELL_AURA_DAMAGE_SHIELD);
+        DoEffectCalcAmount += AuraEffectCalcAmountFn(aura_ascension_stonebound::Amplify,
+            EFFECT_2, SPELL_AURA_MOD_DAMAGE_PERCENT_TAKEN);
+        DoEffectCalcAmount += AuraEffectCalcAmountFn(aura_ascension_stonebound::Amplify,
+            EFFECT_0, SPELL_AURA_MOD_INCREASE_SPEED);
+        DoEffectCalcAmount += AuraEffectCalcAmountFn(aura_ascension_stonebound::Amplify,
+            EFFECT_1, SPELL_AURA_MOD_MELEE_HASTE);
+    }
+};
+
 class mountain_talent_metadata : public GlobalScript
 {
 public:
@@ -387,5 +420,6 @@ void AddSC_AscensionPrimalistMountain()
     RegisterSpellScript(aura_ascension_mountain_thane);
     RegisterSpellScript(aura_ascension_thanes_guidance);
     RegisterSpellScript(aura_ascension_earthbreaker);
+    RegisterSpellScript(aura_ascension_stonebound);
     new mountain_talent_metadata();
 }
