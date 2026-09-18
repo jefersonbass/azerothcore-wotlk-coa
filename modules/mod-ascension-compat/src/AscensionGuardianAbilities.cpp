@@ -118,6 +118,21 @@ class spell_ascension_guardian_ability : public SpellScript
         }
         if ((AscensionGuardian::Ram(id) || AscensionGuardian::Pulverize(id)) && player->HasAura(807297))
             player->CastSpell(player, 705381, true);
+        // Seasoned Fighter (704421): "Reduces the Energy cost of Pulverize, Ram,
+        // and Broad Sweep by 15%." Those abilities carry no spell family, so the
+        // passive's native SPELLMOD_COST mask can never match; refund the
+        // difference after the standard cost was paid.
+        if (player->HasAura(704421))
+            if (AscensionGuardian::Ram(id) || AscensionGuardian::Pulverize(id) ||
+                id == 504177 || (id >= 504178 && id <= 504182) || id == 805150)
+            {
+                if (SpellInfo const* info = GetSpellInfo();
+                    info && info->PowerType == POWER_ENERGY && info->ManaCost)
+                {
+                    uint32 const refund = uint32(double(info->ManaCost) * 0.15);
+                    player->ModifyPower(POWER_ENERGY, int32(refund));
+                }
+            }
         if (AscensionGuardian::HeavyBlow(id))
             AscensionGuardian::AddParagon(player, 3);
         if (id == 802629)
