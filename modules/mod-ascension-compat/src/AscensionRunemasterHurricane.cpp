@@ -23,7 +23,9 @@ enum HurricaneSpells : uint32
     SPELL_WATER_ENGRAVING_ENABLER = 653214,
     SPELL_WATER_ENGRAVING_DAMAGE = 653215,
     SPELL_ICE_ENGRAVING_ENABLER = 653266,
-    SPELL_ICE_ENGRAVING_DAMAGE = 653217
+    SPELL_ICE_ENGRAVING_DAMAGE = 653217,
+    SPELL_AIR_ENGRAVING_ENABLER = 653223,
+    SPELL_WINDBREAKER = 804094
 };
 
 bool StrikeHurricane(Unit* player, Aura* aura)
@@ -45,8 +47,29 @@ bool StrikeHurricane(Unit* player, Aura* aura)
         else if (player->HasAura(SPELL_ICE_ENGRAVING_ENABLER))
             player->CastSpell(target, SPELL_ICE_ENGRAVING_DAMAGE, true);
     }
+    // Windbreaker (804094): damage boost handled in runemaster_windbreaker
+    // (below) so the +30% applies to the strike's total damage.
     return true;
 }
+
+// Windbreaker (804094): "While Weapon Engraving: Air is active, the damage of
+// each strike of your Hurricane is increased by 30%." Boost the +30% on the
+// strike's damage here so every tick is covered.
+class runemaster_windbreaker : public UnitScript
+{
+public:
+    runemaster_windbreaker() : UnitScript("runemaster_windbreaker", true, {UNITHOOK_MODIFY_SPELL_DAMAGE_TAKEN}) { }
+
+    void ModifySpellDamageTaken(Unit* target, Unit* source, int32& damage, SpellInfo const* spellInfo) override
+    {
+        Player* player = source ? source->ToPlayer() : nullptr;
+        if (!player || !damage || player->getClass() != CLASS_SPIRIT_MAGE ||
+            !spellInfo || sSpellMgr->GetFirstSpellInChain(spellInfo->Id) != SPELL_HURRICANE_HIT)
+            return;
+        if (player->HasAura(SPELL_WINDBREAKER) && player->HasAura(SPELL_AIR_ENGRAVING_ENABLER))
+            damage += CalculatePct(damage, 30);
+    }
+};
 
 class runemaster_hurricane_cast : public AllSpellScript
 {
@@ -168,6 +191,7 @@ public:
 
 void AddSC_AscensionRunemasterHurricane()
 {
+    new runemaster_windbreaker();
     new runemaster_hurricane_cast();
     new runemaster_hurricane_metadata();
     RegisterSpellScript(aura_ascension_runemaster_hurricane);
