@@ -152,6 +152,11 @@ void ApplyContracts(SpellInfo* info)
     if (id == 804337)
         // The native DBC targets the ~1.5s global cooldown instead of ability cooldowns.
         info->Effects[EFFECT_0].MiscValue = SPELLMOD_COOLDOWN;
+    if (id == 705176)
+        // Strong Arm's percent modifier ships without a spell-class key, so it would scale every
+        // Barbarian ability. Key it to the spear family bit shared by all Maiming Spear ranks.
+        info->Effects[EFFECT_1].MiscValue = SPELLMOD_DAMAGE,
+        info->Effects[EFFECT_1].SpellClassMask = flag96(0, 0x00040000, 0);
 }
 }
 
