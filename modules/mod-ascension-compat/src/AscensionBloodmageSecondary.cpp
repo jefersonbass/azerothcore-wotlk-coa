@@ -58,6 +58,7 @@ enum BloodmageSecondarySpells : uint32
     SPELL_SANGUINE_MEND = 504079,
     SPELL_HEMAL_EXCISION = 803681,
     SPELL_HEMAL_EXCISION_HOLD = 803734,
+    SPELL_DISSIPATION = 680730,
     SPELL_ROTCLAW = 804197,
     SPELL_ROTCLAW_ENERGIZE = 805352 // Ravenous Strike (Energize): 30..70 internal, i.e. 3 to 7 Rage
 };
@@ -218,6 +219,9 @@ public:
                 }
             player->CastSpell(player, SPELL_HEMAL_EXCISION_HOLD, true);
         }
+        // Dissipation (680730): Fleshcraft's cooldown starts a minute shorter.
+        if (player->HasAura(SPELL_DISSIPATION) && RankOf(info->Id, SPELL_FLESHCRAFT) && !spell->IsTriggered())
+            player->ModifySpellCooldown(SPELL_FLESHCRAFT, -60000);
         // Thirst for Blood (570023): mirror the Thirst stack range onto the
         // Sated (1-5) and Ravenous (6-10) bonuses.
         if (player->HasAura(SPELL_THIRST_FOR_BLOOD))
