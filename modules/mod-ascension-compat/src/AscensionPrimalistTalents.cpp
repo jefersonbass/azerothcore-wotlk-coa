@@ -20,6 +20,7 @@ enum PrimalistAbilitySpells : uint32
     SPELL_BONES_STACK = 806554,
     SPELL_BONES_DAMAGE = 806553,
     SPELL_FURY_OF_THE_WILD = 801234,
+    SPELL_NATURAL_EFFICIENCY = 706167,
     SPELL_PRIMAL_SHRED = 500940,
     SPELL_RYLAKS_BITE = 706342,
     SPELL_WILDCLAW = 800140,
@@ -80,6 +81,24 @@ public:
         }
         else
             mark->ModStackAmount(1);
+    }
+
+    void OnAuraApply(Unit* unit, Aura* aura) override
+    {
+        // Natural Efficiency (706167): being struck by a root, stun or incapacitate
+        // effect heals for 4% of maximum health. Identified by the spell's crowd
+        // control mechanics so every rank and helper spell triggers it.
+        Player* player = unit ? unit->ToPlayer() : nullptr;
+        if (!player || !aura || !player->IsAlive() || !player->HasAura(SPELL_NATURAL_EFFICIENCY))
+            return;
+        if (aura->GetCasterGUID() == player->GetGUID() || aura->IsPositive())
+            return;
+        constexpr uint64 ccMechanics = (1ULL << MECHANIC_ROOT) | (1ULL << MECHANIC_STUN) |
+            (1ULL << MECHANIC_KNOCKOUT) | (1ULL << MECHANIC_DISORIENTED) | (1ULL << MECHANIC_SLEEP) |
+            (1ULL << MECHANIC_FREEZE) | (1ULL << MECHANIC_POLYMORPH) | (1ULL << MECHANIC_BANISH) |
+            (1ULL << MECHANIC_SHACKLE) | (1ULL << MECHANIC_HORROR);
+        if (aura->GetSpellInfo()->GetSpellMechanicMaskByEffectMask(MAX_EFFECT_MASK) & ccMechanics)
+            player->ModifyHealth(player->CountPctFromMaxHealth(4));
     }
 
     void OnDamage(Unit*, Unit* victim, uint32& damage) override
