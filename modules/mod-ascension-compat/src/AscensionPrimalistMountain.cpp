@@ -1,7 +1,9 @@
 /* Copyright (C) 2016+ AzerothCore, GNU AGPL v3. */
+#include "Log.h"
 #include "Player.h"
 #include "ScriptMgr.h"
 #include "SpellAuraEffects.h"
+#include "SpellMgr.h"
 #include "SpellScript.h"
 
 namespace
@@ -10,7 +12,9 @@ enum MountainSpells : uint32
 {
     EarthsRage = 806068,
     CallOfTheMountain = 680406,
-    MountainBuff = 680472
+    MountainBuff = 680472,
+    Terrasmash = 706220,
+    Geode = 804002
 };
 
 class aura_ascension_blessed_by_earth : public AuraScript
@@ -69,6 +73,41 @@ class aura_ascension_mountain_threshold : public AuraScript
     }
 };
 
+// Terrasmash (706220): damage dealt by the off hand weapon has a thirty
+// percent chance to hurl a Geode (804002), whose damage and Rage energize
+// are native. The proc aura sits on effect 1 per the DBC audit and on
+// effect 0 per the archive dump, so both are bound; only the effect
+// carrying the proc aura type fires.
+class aura_ascension_terrasmash : public AuraScript
+{
+    PrepareAuraScript(aura_ascension_terrasmash);
+
+    bool CheckProc(ProcEventInfo& event)
+    {
+        Unit* owner = GetTarget();
+        DamageInfo const* damage = event.GetDamageInfo();
+        return owner->IsPlayer() && owner->getClass() == CLASS_WILDWALKER && owner->IsAlive() &&
+            event.GetActor() == owner && damage && damage->GetDamage() &&
+            (event.GetTypeMask() & PROC_FLAG_DONE_OFFHAND_ATTACK) &&
+            event.GetActionTarget() && !owner->IsFriendlyTo(event.GetActionTarget());
+    }
+
+    void Hurl(AuraEffect const*, ProcEventInfo& event)
+    {
+        PreventDefaultAction();
+        GetTarget()->CastSpell(event.GetActionTarget(), Geode, true);
+    }
+
+    void Register() override
+    {
+        DoCheckProc += AuraCheckProcFn(aura_ascension_terrasmash::CheckProc);
+        OnEffectProc += AuraEffectProcFn(aura_ascension_terrasmash::Hurl,
+            EFFECT_0, SPELL_AURA_PROC_TRIGGER_SPELL);
+        OnEffectProc += AuraEffectProcFn(aura_ascension_terrasmash::Hurl,
+            EFFECT_1, SPELL_AURA_PROC_TRIGGER_SPELL);
+    }
+};
+
 class mountain_talent_metadata : public GlobalScript
 {
 public:
@@ -79,6 +118,25 @@ public:
         // Old trigger granted Mountain on the first stack without its talent.
         if (info->Id == EarthsRage && info->SpellFamilyName == 37)
             info->Effects[EFFECT_2].Effect = 0;
+
+        // Terrasmash (706220): the DBC ships the off-hand proc without flags
+        // or chance, leaving the aura inert. Restore both so the aura procs
+        // on off-hand swings and the script above hurls the Geode.
+        if (info->Id == Terrasmash && info->SpellFamilyName == 37)
+        {
+            bool hasProcAura = false;
+            for (uint8 i = 0; i < MAX_SPELL_EFFECTS; ++i)
+                if (info->Effects[i].IsEffect() && info->Effects[i].Effect == SPELL_EFFECT_APPLY_AURA &&
+                    info->Effects[i].ApplyAuraName == SPELL_AURA_PROC_TRIGGER_SPELL)
+                    hasProcAura = true;
+            if (hasProcAura)
+            {
+                info->ProcFlags = PROC_FLAG_DONE_OFFHAND_ATTACK;
+                info->ProcChance = 30;
+            }
+            else
+                LOG_ERROR("module.ascension_compat", "Skipped unexpected Terrasmash record {}", info->Id);
+        }
     }
 };
 }
@@ -87,5 +145,6 @@ void AddSC_AscensionPrimalistMountain()
 {
     RegisterSpellScript(aura_ascension_blessed_by_earth);
     RegisterSpellScript(aura_ascension_mountain_threshold);
+    RegisterSpellScript(aura_ascension_terrasmash);
     new mountain_talent_metadata();
 }
