@@ -152,6 +152,10 @@ void ApplyContracts(SpellInfo* info)
     if (id == 804337)
         // The native DBC targets the ~1.5s global cooldown instead of ability cooldowns.
         info->Effects[EFFECT_0].MiscValue = SPELLMOD_COOLDOWN;
+    if (id == 570235)
+        // Bloody Fighter's flat +1 stacks Born in Blood; the engine reads that
+        // through the max-aura-stacks modifier op.
+        info->Effects[EFFECT_0].MiscValue = SPELLMOD_MAX_AURA_STACKS;
     if (id == 705176)
         // Strong Arm's percent modifier ships without a spell-class key, so it would scale every
         // Barbarian ability. Key it to the spear family bit shared by all Maiming Spear ranks.
