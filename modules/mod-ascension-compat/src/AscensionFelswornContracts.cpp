@@ -214,6 +214,14 @@ void ApplyContracts(SpellInfo* info)
         info->Effects[1].MiscValue = SPELLMOD_COST;
         info->Effects[1].BasePoints = -50;
     }
+    if (id == 803645)
+    {
+        // Unphased: its flat cost half trims Felblade's Energy price (tenths) and its
+        // percent half reads through the crit chance op keyed to Felblade's mask.
+        info->Effects[0].MiscValue = SPELLMOD_COST;
+        info->Effects[0].BasePoints = 10;
+        info->Effects[1].MiscValue = SPELLMOD_CRITICAL_CHANCE;
+    }
     if (id == 807424)
     {
         info->Effects[2].MiscValue = SPELLMOD_CASTING_TIME;
