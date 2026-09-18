@@ -410,6 +410,13 @@ void ApplyContracts(SpellInfo* info)
         info->Effects[EFFECT_0].SpellClassMask = flag96(256, 0, 16777216);
         info->Effects[EFFECT_1].SpellClassMask = flag96(0, 0, 16777216);
     }
+    if (id == 705856 || id == 707858)
+        // Fresh Ingredients: the pct-modifier aura ships with op 0 (damage) and
+        // an empty mask, so it never engages. Point it at every effect of the
+        // Voodoo Cauldron (word 1, bit 24) so the cauldron's healing pulse
+        // (VoodooCauldron EFFECT_2 read via CalcValue) gains the rank bonus.
+        info->Effects[EFFECT_0].MiscValue = SPELLMOD_ALL_EFFECTS,
+        info->Effects[EFFECT_0].SpellClassMask = flag96(0, 16777216, 0);
     if (id == RageBrewBuff)
         info->Effects[EFFECT_1].BasePoints = 14;
     if (id == Voice)
