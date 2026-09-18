@@ -73,6 +73,13 @@ void ApplyContracts(SpellInfo* info)
     }
     if (id == 706301)
         dummy(0);
+    if (id == 680775)
+    {
+        // Wrath of the Moon: "Increases your Arcane critical damage dealt by 20%."
+        // The DBC's crit-damage slot carries TriggerSpell as its school mask, which
+        // resolves to Physical; rebind it to Arcane with the tooltip amount.
+        mod(1, SPELL_AURA_MOD_CRIT_DAMAGE_BONUS, 20, SPELL_SCHOOL_MASK_ARCANE, flag96());
+    }
     if (id == 800386)
     {
         mod(0, SPELL_AURA_ADD_PCT_MODIFIER, -100, SPELLMOD_CASTING_TIME, flag96(537133056, 8, 0));
