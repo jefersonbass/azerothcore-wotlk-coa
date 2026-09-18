@@ -16,6 +16,9 @@ namespace
 enum ChronomancerSecondarySpells : uint32
 {
     SPELL_MELT_REALITY = 806335,
+    SPELL_BLACK_HOLE = 707557,
+    SPELL_CHROMATIC_SHARD = 801292,
+    SPELL_UNMAKE = 804418,
     SPELL_MELT_COPY_VALUE = 504727,
     SPELL_MELT_COPY = 807570,
     SPELL_DESYNCHRONIZATION = 561310,
@@ -236,6 +239,29 @@ public:
         if (SecondaryChronomancer(caster) && !spell->IsTriggered() && info->Id == SPELL_ARC_COLLISION)
             // Arc Collision is immediate: every target has received its duration before this callback.
             caster->RemoveAurasDueToSpell(SPELL_ECHO_FRAGMENT, caster->GetGUID());
+    }
+};
+
+// Black Hole (707557): "Increases the damage of Chromatic Shard, Melt Reality
+// and Unmake by 15% against slowed enemies." The DBC's Override Class Scripts
+// slot carries no target list, so the boost is applied here.
+class chronomancer_black_hole : public UnitScript
+{
+public:
+    chronomancer_black_hole() : UnitScript("chronomancer_black_hole", true,
+        {UNITHOOK_MODIFY_SPELL_DAMAGE_TAKEN}) { }
+
+    void ModifySpellDamageTaken(Unit* target, Unit* source, int32& damage, SpellInfo const* spellInfo) override
+    {
+        Player* player = source ? source->ToPlayer() : nullptr;
+        if (!player || !damage || player->getClass() != CLASS_CHRONOMANCER ||
+            !spellInfo || !player->HasAura(SPELL_BLACK_HOLE))
+            return;
+        uint32 const root = sSpellMgr->GetFirstSpellInChain(spellInfo->Id);
+        if (root != SPELL_CHROMATIC_SHARD && root != SPELL_MELT_REALITY && root != SPELL_UNMAKE)
+            return;
+        if (target->HasAuraType(SPELL_AURA_MOD_DECREASE_SPEED))
+            damage += CalculatePct(damage, 15);
     }
 };
 
