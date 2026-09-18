@@ -16,7 +16,9 @@ enum HurricaneSpells : uint32
     SPELL_HURRICANE_HIT = 645437,
     SPELL_HURRICANE_DODGE = 645440,
     SPELL_WAVEFORGED = 705565,
-    SPELL_WAVEFORGED_READY = 500469
+    SPELL_WAVEFORGED_READY = 500469,
+    SPELL_SWIFT_ETCHING = 705600,
+    SPELL_SWIFT_ETCHING_BUFF = 500506
 };
 
 bool StrikeHurricane(Unit* player, Aura* aura)
@@ -76,9 +78,15 @@ class aura_ascension_runemaster_hurricane : public AuraScript
         Unit* player = GetTarget();
         player->RemoveAurasDueToSpell(SPELL_HURRICANE_DODGE, player->GetGUID());
         if (player->IsAlive() && player->IsInWorld() &&
-            GetTargetApplication()->GetRemoveMode() != AURA_REMOVE_BY_DEATH &&
-            player->HasAura(SPELL_WAVEFORGED, player->GetGUID()))
-            player->CastSpell(player, SPELL_WAVEFORGED_READY, true);
+            GetTargetApplication()->GetRemoveMode() != AURA_REMOVE_BY_DEATH)
+        {
+            // Swift Etching: "After Hurricane ends, your melee attack speed is
+            // increased by 15% and critical strike chance by 10% for 10 seconds."
+            if (player->HasAura(SPELL_SWIFT_ETCHING))
+                player->CastSpell(player, SPELL_SWIFT_ETCHING_BUFF, true);
+            if (player->HasAura(SPELL_WAVEFORGED, player->GetGUID()))
+                player->CastSpell(player, SPELL_WAVEFORGED_READY, true);
+        }
     }
 
     void Register() override
