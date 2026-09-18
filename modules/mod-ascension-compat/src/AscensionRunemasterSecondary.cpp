@@ -38,7 +38,10 @@ enum RunemasterSecondarySpells : uint32
     SPELL_ARCANE_SIGIL_SILENCE = 808020,
     SPELL_FIRE_ENGRAVING = 653211,
     SPELL_FIREBRAND = 653210,
-    SPELL_FIREBRAND_EXPLOSION = 653212
+    SPELL_FIREBRAND_EXPLOSION = 653212,
+    SPELL_PRIMORDIAL_FURY = 806543,
+    PRIMORDIAL_FURY_CLEAVE_RADIUS = 10,
+    PRIMORDIAL_FURY_CLEAVE_TARGETS = 5
 };
 
 bool HasTattoo(Player* player, uint32 root)
@@ -187,6 +190,56 @@ public:
     }
 };
 
+// Primordial Fury (806543): "Your runic tattoos flare up for 15 sec, causing
+// Runeblade to strike up to 5 additional enemies." The 15 s DBC aura cannot
+// turn a single-target melee hit into cleaves, so the first Runeblade damage
+// of each cast strikes nearby enemies through the same melee helper the
+// Fists of Power strike uses, at full damage with the main hand. The 100%
+// Runic Tattoo effectiveness half rides the DBC's native Add % Modifier slot.
+class runemaster_primordial_fury : public AllSpellScript
+{
+public:
+    runemaster_primordial_fury() : AllSpellScript("runemaster_primordial_fury",
+        {ALLSPELLHOOK_ON_HIT_RESULT}) { }
+
+    void OnSpellHitResult(Spell* spell, Unit* target, uint8 miss, uint32 damage, uint32, bool) override
+    {
+        Player* player = spell->GetCaster()->ToPlayer();
+        if (!player || player->getClass() != CLASS_SPIRIT_MAGE || !player->IsAlive() || !player->IsInWorld() ||
+            spell->IsTriggered() || !damage ||
+            miss != SPELL_MISS_NONE || !target || !target->IsAlive() || target == player ||
+            player->IsFriendlyTo(target) ||
+            sSpellMgr->GetFirstSpellInChain(spell->GetSpellInfo()->Id) != SPELL_RUNEBLADE ||
+            !player->HasAura(SPELL_PRIMORDIAL_FURY) || spell->GetScriptValue(SPELL_PRIMORDIAL_FURY))
+            return;
+        SpellInfo const* helper = sSpellMgr->GetSpellInfo(SPELL_FISTS_HIT);
+        if (!helper)
+            return;
+        spell->SetScriptValue(SPELL_PRIMORDIAL_FURY, 1);
+
+        std::list<Unit*> enemies;
+        Acore::AnyUnitInObjectRangeCheck check(target, PRIMORDIAL_FURY_CLEAVE_RADIUS);
+        Acore::UnitListSearcher<Acore::AnyUnitInObjectRangeCheck> search(target, enemies, check);
+        Cell::VisitObjects(target, search, PRIMORDIAL_FURY_CLEAVE_RADIUS);
+        uint32 struck = 0;
+        for (Unit* enemy : enemies)
+        {
+            if (struck >= PRIMORDIAL_FURY_CLEAVE_TARGETS)
+                break;
+            if (enemy == target || !enemy->IsAlive() || !player->IsValidAttackTarget(enemy) ||
+                !target->IsWithinLOSInMap(enemy))
+                continue;
+            SpellCastTargets targets;
+            targets.SetUnitTarget(enemy);
+            CustomSpellValues values;
+            values.AddSpellMod(SPELLVALUE_BASE_POINT0, int32(std::min<uint64>(damage, std::numeric_limits<int32>::max())));
+            values.AddSpellMod(SPELLVALUE_MELEE_ATTACK_TYPE, BASE_ATTACK);
+            player->CastSpell(targets, helper, &values, TRIGGERED_FULL_MASK);
+            ++struck;
+        }
+    }
+};
+
 class aura_ascension_arcane_palm_sigil : public AuraScript
 {
     PrepareAuraScript(aura_ascension_arcane_palm_sigil);
@@ -316,6 +369,7 @@ void AddSC_AscensionRunemasterSecondary()
 {
     new runemaster_secondary_auras();
     new runemaster_secondary_casts();
+    new runemaster_primordial_fury();
     new runemaster_secondary_metadata();
     RegisterSpellScript(aura_ascension_arcane_palm_sigil);
     RegisterSpellScript(aura_ascension_runemaster_fire_engraving);
