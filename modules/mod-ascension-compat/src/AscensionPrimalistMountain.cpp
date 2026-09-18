@@ -1,5 +1,4 @@
 /* Copyright (C) 2016+ AzerothCore, GNU AGPL v3. */
-#include "Log.h"
 #include "Player.h"
 #include "ScriptMgr.h"
 #include "SpellAuraEffects.h"
@@ -161,45 +160,6 @@ public:
         // Old trigger granted Mountain on the first stack without its talent.
         if (info->Id == EarthsRage && info->SpellFamilyName == 37)
             info->Effects[EFFECT_2].Effect = 0;
-
-        // Terrasmash (706220): the DBC ships the off-hand proc without flags
-        // or chance, leaving the aura inert. Restore both so the aura procs
-        // on off-hand swings and the script above hurls the Geode.
-        if (info->Id == Terrasmash && info->SpellFamilyName == 37)
-        {
-            bool hasProcAura = false;
-            for (uint8 i = 0; i < MAX_SPELL_EFFECTS; ++i)
-                if (info->Effects[i].IsEffect() && info->Effects[i].Effect == SPELL_EFFECT_APPLY_AURA &&
-                    info->Effects[i].ApplyAuraName == SPELL_AURA_PROC_TRIGGER_SPELL)
-                    hasProcAura = true;
-            if (hasProcAura)
-            {
-                info->ProcFlags = PROC_FLAG_DONE_OFFHAND_ATTACK;
-                info->ProcChance = 30;
-            }
-            else
-                LOG_ERROR("module.ascension_compat", "Skipped unexpected Terrasmash record {}", info->Id);
-        }
-
-        // Resources of the Earth (560548): the DBC's proc trigger is garbage,
-        // so the aura cannot fire on its own. Restore the done-damage proc
-        // flags and the archived full chance so the script above grants
-        // Replenishment on critical strikes.
-        if (info->Id == ResourcesOfTheEarth && info->SpellFamilyName == 37)
-        {
-            bool hasProcAura = false;
-            for (uint8 i = 0; i < MAX_SPELL_EFFECTS; ++i)
-                if (info->Effects[i].IsEffect() && info->Effects[i].Effect == SPELL_EFFECT_APPLY_AURA &&
-                    info->Effects[i].ApplyAuraName == SPELL_AURA_PROC_TRIGGER_SPELL)
-                    hasProcAura = true;
-            if (hasProcAura)
-            {
-                info->ProcFlags = DONE_HIT_PROC_FLAG_MASK;
-                info->ProcChance = 100;
-            }
-            else
-                LOG_ERROR("module.ascension_compat", "Skipped unexpected Resources of the Earth record {}", info->Id);
-        }
     }
 };
 }
