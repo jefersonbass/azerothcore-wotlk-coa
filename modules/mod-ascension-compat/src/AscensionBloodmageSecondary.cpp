@@ -196,7 +196,7 @@ public:
         // reactivation window is banked here so the second cast can reapply them.
         if (info->Id == SPELL_HEMAL_EXCISION && !spell->IsTriggered())
         {
-            if (Unit* target = spell->GetUnitTarget())
+            if (Unit* target = spell->m_targets.GetUnitTarget())
                 if (std::vector<Aura*> curses = CollectCurses(target); !curses.empty())
                 {
                     spell->SetScriptValue(SPELL_HEMAL_EXCISION_HOLD, 1);
