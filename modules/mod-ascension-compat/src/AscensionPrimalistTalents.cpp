@@ -37,7 +37,6 @@ enum PrimalistAbilitySpells : uint32
     SPELL_GEODE = 804002,
     SPELL_TILLING_THE_EARTH = 680409,
     SPELL_BASH = 680964,
-    SPELL_BASHED = 680949,
     SPELL_BEARSKIN = 800094,
     SPELL_PRIMAL_CONVERGENCE = 800181,
     SPELL_BOULDER_DASH = 500692,
@@ -227,11 +226,6 @@ public:
         if (damage && player->HasAura(SPELL_TILLING_THE_EARTH) && !spell->IsTriggered() &&
             roll_chance_f(3.0f))
             player->CastSpell(player, SPELL_BASH, true);
-        // Bash (680964): auto attacks roll a thirty percent chance to Bash the
-        // victim for half a weapon swing plus a one-second stun (680949).
-        if (damage && player->HasAura(SPELL_BASH) && !spell->IsTriggered() &&
-            (info->Id == 6603 || info->Id == 75 || info->Id == 5019) && roll_chance_i(30))
-            player->CastSpell(target, SPELL_BASHED, true);
         if (info->Id == SPELL_GEODE_BARRAGE_DAMAGE && !spell->GetScriptValue(SPELL_GEODE_BARRAGE_RAGE))
         {
             // Each channel tick casts this damage helper. Its authored energize

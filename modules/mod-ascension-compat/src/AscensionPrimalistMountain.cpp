@@ -17,7 +17,9 @@ enum MountainSpells : uint32
     ResourcesOfTheEarth = 560548,
     Replenishment = 1257670,
     MountainMover = 805643,
-    MountainMoverStacks = 805644
+    MountainMoverStacks = 805644,
+    Bash = 680964,
+    Bashed = 680949
 };
 
 class aura_ascension_blessed_by_earth : public AuraScript
@@ -186,6 +188,38 @@ class aura_ascension_mountain_mover : public AuraScript
     }
 };
 
+// Bash (680964): auto attacks roll a thirty percent chance to Bash the
+// victim for half a weapon swing plus a one-second stun (680949), whose
+// weapon damage and stun are native. Auto attacks never reach the spell
+// hit-result hooks, so the roll rides the proc system instead.
+class aura_ascension_bash : public AuraScript
+{
+    PrepareAuraScript(aura_ascension_bash);
+
+    bool CheckProc(ProcEventInfo& event)
+    {
+        Unit* owner = GetTarget();
+        DamageInfo const* damage = event.GetDamageInfo();
+        return owner->IsPlayer() && owner->getClass() == CLASS_WILDWALKER && owner->IsAlive() &&
+            event.GetActor() == owner && damage && damage->GetDamage() &&
+            (event.GetTypeMask() & PROC_FLAG_DONE_MELEE_AUTO_ATTACK) &&
+            event.GetActionTarget() && !owner->IsFriendlyTo(event.GetActionTarget());
+    }
+
+    void Strike(AuraEffect const*, ProcEventInfo& event)
+    {
+        PreventDefaultAction();
+        GetTarget()->CastSpell(event.GetActionTarget(), Bashed, true);
+    }
+
+    void Register() override
+    {
+        DoCheckProc += AuraCheckProcFn(aura_ascension_bash::CheckProc);
+        OnEffectProc += AuraEffectProcFn(aura_ascension_bash::Strike,
+            EFFECT_0, SPELL_AURA_PROC_TRIGGER_SPELL);
+    }
+};
+
 class mountain_talent_metadata : public GlobalScript
 {
 public:
@@ -214,5 +248,6 @@ void AddSC_AscensionPrimalistMountain()
     RegisterSpellScript(aura_ascension_terrasmash);
     RegisterSpellScript(aura_ascension_resources_of_the_earth);
     RegisterSpellScript(aura_ascension_mountain_mover);
+    RegisterSpellScript(aura_ascension_bash);
     new mountain_talent_metadata();
 }
