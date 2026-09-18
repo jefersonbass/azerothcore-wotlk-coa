@@ -13,6 +13,7 @@ namespace
 {
 using namespace AscensionBloodmage;
 constexpr uint32 VitalityCost = 10;
+constexpr uint32 RagingHunger = 681336;
 
 bool IsBloodmage(Player const* player)
 {
@@ -76,7 +77,13 @@ public:
                 player->CastSpell(player, VitalityHeal, true);
         }
         else if (info->PowerType == POWER_HEALTH && player->HasAura(PooledVitalityTalent))
+        {
             player->CastSpell(player, PooledVitality, true);
+            // Raging Hunger (681336): triggering Pooled Vitality also pays out
+            // three Rage.
+            if (player->HasAura(RagingHunger))
+                player->ModifyPower(POWER_RAGE, 30);
+        }
     }
 
     void OnSpellHitResult(Spell* spell, Unit*, uint8 miss, uint32, uint32 healing, bool) override
