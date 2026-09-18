@@ -31,6 +31,8 @@ enum PrimalistAbilitySpells : uint32
     SPELL_SAVAGE_FRENZY_GREATER = 807286,
     SPELL_CRASHING_OUT = 574313,
     SPELL_SEISMIC_CRASH = 503258,
+    SPELL_ONE_WITH_THE_EARTH = 704402,
+    SPELL_STONESHARD = 680448,
     SPELL_BEARSKIN = 800094,
     SPELL_PRIMAL_CONVERGENCE = 800181,
     SPELL_BOULDER_DASH = 500692,
@@ -202,6 +204,20 @@ public:
         if (damage && player->HasAura(SPELL_CRASHING_OUT) &&
             sSpellMgr->GetFirstSpellInChain(info->Id) == sSpellMgr->GetFirstSpellInChain(SPELL_SEISMIC_CRASH))
             damage += CalculatePct(damage, 30);
+        // One With The Earth (704402): Stoneshard and Geode Barrage deal twenty-five
+        // percent more damage, and Stoneshard restores four percent of maximum mana.
+        if (damage && player->HasAura(SPELL_ONE_WITH_THE_EARTH))
+        {
+            uint32 const root = sSpellMgr->GetFirstSpellInChain(info->Id);
+            if (root == sSpellMgr->GetFirstSpellInChain(SPELL_STONESHARD) ||
+                root == sSpellMgr->GetFirstSpellInChain(SPELL_GEODE_BARRAGE_DAMAGE))
+            {
+                damage += CalculatePct(damage, 25);
+                if (root == sSpellMgr->GetFirstSpellInChain(SPELL_STONESHARD))
+                    player->ModifyPower(POWER_MANA,
+                        CalculatePct(player->GetMaxPower(POWER_MANA), 4));
+            }
+        }
         if (info->Id == SPELL_GEODE_BARRAGE_DAMAGE && !spell->GetScriptValue(SPELL_GEODE_BARRAGE_RAGE))
         {
             // Each channel tick casts this damage helper. Its authored energize
