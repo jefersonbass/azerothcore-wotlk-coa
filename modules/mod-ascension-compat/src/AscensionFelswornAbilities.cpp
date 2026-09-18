@@ -212,6 +212,15 @@ class felsworn_casts : public AllSpellScript
             State(player).spenderCrit = uint32(previous - 1);
         if (uint32 refund = spell->GetScriptValue(800355))
             player->EnergizeBySpell(player, 800355, refund, POWER_ENERGY);
+        // Outland Slaver: Felrend and Fel Fireball cost 3 less Energy; refund the
+        // discount after the spend since the engine stores Energy in tenths.
+        if (player->HasAura(705123))
+            for (uint32 root : {563268, 802405, 501281})
+                if (sSpellMgr->GetFirstSpellInChain(info->Id) == sSpellMgr->GetFirstSpellInChain(root))
+                {
+                    player->EnergizeBySpell(player, 705123, 3, POWER_ENERGY);
+                    break;
+                }
         if (Spender(info))
         {
             talent(807431, 521234);

@@ -365,6 +365,13 @@ class felsworn_scaling : public UnitScript
             if (target && info && player->HasAura(804610) && target->HasAuraType(SPELL_AURA_MOD_DECREASE_SPEED) &&
                 (Named(info, 801904) || Named(info, 801903) || Twin(info) || info->Id == 520262 || info->Id == 572585))
                 factor *= 1.15f;
+            // Outland Slaver: Felrend and Fel Fireball deal 10% more damage.
+            if (player->HasAura(705123) &&
+                (Named(info, 563268) || sSpellMgr->GetFirstSpellInChain(info->Id) == sSpellMgr->GetFirstSpellInChain(563268) ||
+                 sSpellMgr->GetFirstSpellInChain(info->Id) == sSpellMgr->GetFirstSpellInChain(501281) ||
+                 sSpellMgr->GetFirstSpellInChain(info->Id) == sSpellMgr->GetFirstSpellInChain(802405)))
+                if (AuraEffect const* slaver = player->GetAuraEffect(705123, EFFECT_1))
+                    factor *= 1 + std::abs(slaver->GetAmount()) / 100.0f;
         }
         return factor;
     }
