@@ -120,6 +120,15 @@ class pyromancer_spells : public AllSpellScript
             Cast(player, player, 706895);
         if (spell->IsTriggered())
             return;
+        // Flames of Fate (707325): Aspect's Blessing "cooldown is doubled, and
+        // its mana cost is increased by 50%." The power hook runs after the
+        // native 15% base mana charge, so the extra half is taken here.
+        if (id == 802168 && player->HasAura(707325))
+        {
+            player->ModifyPower(POWER_MANA, -int32(CalculatePct(player->GetCreateMana(), 7.5f)));
+            if (uint32 remaining = player->GetSpellCooldownDelay(id))
+                player->ModifySpellCooldown(id, int32(remaining));
+        }
         if (Named(info, 800790))
         {
             if (player->HasAura(524875))
