@@ -107,6 +107,17 @@ public:
             IsArtificerCast(info->Id) && roll_chance_i(RESONANCE_CHANCE))
             if (uint32 cooldown = player->GetSpellCooldownDelay(SPELL_HASTEN))
                 player->ModifySpellCooldown(SPELL_HASTEN, -std::min<uint32>(cooldown, RESONANCE_REDUCTION));
+
+        // Incarnation of Chaos (570067): "instantly resetting the cooldown of
+        // Chromatic Shard, allowing you to cast it while moving, and causing
+        // your next cast to not incur a cooldown." The transform, the move
+        // casting (via the buff's own DBC spellmods) and the 15% damage aura
+        // run natively; the reset and free-cast handling live here. The buff
+        // lasts 15 sec, matching its Add Flat/Add % Modifier cooldown slots.
+        if (info->Id == SPELL_INCARNATION_OF_CHAOS)
+            player->RemoveSpellCooldown(SPELL_CHROMATIC_SHARD);
+        else if (info->Id == SPELL_CHROMATIC_SHARD && player->HasAura(SPELL_INCARNATION_OF_CHAOS))
+            player->RemoveSpellCooldown(SPELL_CHROMATIC_SHARD);
     }
 
 private:
@@ -120,6 +131,8 @@ private:
     static constexpr uint32 SPELL_HASTEN = 801304;
     static constexpr uint32 RESONANCE_CHANCE = 35;
     static constexpr uint32 RESONANCE_REDUCTION = 1000;
+    static constexpr uint32 SPELL_INCARNATION_OF_CHAOS = 570067;
+    static constexpr uint32 SPELL_CHROMATIC_SHARD = 801292;
 };
 }
 
