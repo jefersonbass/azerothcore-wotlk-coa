@@ -431,6 +431,11 @@ public:
             factor *= 1 + Amount(804984) / 100.0f;
         if (player->HasAura(805933) && Named(info,804961) && target->GetHealthPct() < 35)
             factor *= 1 + Amount(805933,1) / 100.0f;
+        // Vile Fury: Hivebreak and Carapace Crash deal 2% more damage.
+        if (player->HasAura(706006))
+            if (Any(info, {503149, 573061}))
+                if (AuraEffect const* fury = player->GetAuraEffect(706006, EFFECT_1))
+                    factor *= 1 + std::abs(fury->GetAmount()) / 100.0f;
         if (player->HasAura(705973) && Named(info,803570))
             factor *= 1 + std::abs(Amount(705973,1)) / 100.0f;
         return factor;

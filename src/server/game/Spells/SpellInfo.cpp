@@ -3117,6 +3117,11 @@ int32 SpellInfo::CalcPowerCost(Unit const* caster, SpellSchoolMask schoolMask, S
         (sSpellMgr->GetFirstSpellInChain(Id) == sSpellMgr->GetFirstSpellInChain(525001) ||
          sSpellMgr->GetFirstSpellInChain(Id) == sSpellMgr->GetFirstSpellInChain(805248)))
         return 0;
+    // Vile Fury: Hivebreak and Carapace Crash cost 3 less Rage.
+    if (caster->IsPlayer() && caster->getClass() == CLASS_PROPHET && caster->HasAura(706006) &&
+        (sSpellMgr->GetFirstSpellInChain(Id) == sSpellMgr->GetFirstSpellInChain(503149) ||
+         sSpellMgr->GetFirstSpellInChain(Id) == sSpellMgr->GetFirstSpellInChain(573061)))
+        powerCost += 30;
     if (powerCost < 0)
         powerCost = 0;
     return powerCost;
