@@ -222,6 +222,17 @@ void ApplyContracts(SpellInfo* info)
         info->Effects[0].BasePoints = 10;
         info->Effects[1].MiscValue = SPELLMOD_CRITICAL_CHANCE;
     }
+    if (id == 500067)
+    {
+        // Fel Monstrosity: the shipped stat aura covers Stamina only; the stray
+        // periodic and damage-taken slots become the Agility share and the size bump.
+        info->Effects[EFFECT_1].ApplyAuraName = SPELL_AURA_MOD_TOTAL_STAT_PERCENTAGE;
+        info->Effects[EFFECT_1].MiscValue = STAT_AGILITY;
+        info->Effects[EFFECT_1].BasePoints = 10;
+        info->Effects[EFFECT_1].TriggerSpell = 0;
+        info->Effects[EFFECT_2].ApplyAuraName = SPELL_AURA_MOD_SCALE;
+        info->Effects[EFFECT_2].BasePoints = 10;
+    }
     if (id == 807424)
     {
         info->Effects[2].MiscValue = SPELLMOD_CASTING_TIME;
