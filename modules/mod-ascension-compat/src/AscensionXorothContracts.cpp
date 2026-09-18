@@ -47,6 +47,14 @@ void ApplyContracts(SpellInfo* info)
         info->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_MOD_DAMAGE_PERCENT_DONE;
         info->Effects[EFFECT_0].MiscValue = SPELL_SCHOOL_MASK_NORMAL;
     }
+    if (id == 680723)
+    {
+        // Brute Strength: the crit half keys to physical schools via the crit-damage
+        // op's school mask; the range half reads as the radius op keyed to the hooks.
+        info->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_MOD_CRIT_DAMAGE_BONUS;
+        info->Effects[EFFECT_0].MiscValue = SPELL_SCHOOL_MASK_NORMAL;
+        info->Effects[EFFECT_1].MiscValue = SPELLMOD_RADIUS;
+    }
     if (id == 704986)
     {
         // Warden of Hellfire's percent modifier must read as the damage op so the engine

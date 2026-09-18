@@ -172,6 +172,10 @@ void ApplyContracts(SpellInfo* info)
         // the 5% half is a damage modifier on the same chain, consumed per cast.
         info->Effects[EFFECT_0].MiscValue = SPELLMOD_DURATION,
         info->Effects[EFFECT_1].MiscValue = SPELLMOD_DAMAGE;
+    if (id == 707583)
+        // Bloody Onslaught's flat modifier must read as the duration op so the engine
+        // extends Onslaught; the DBC mask already keys that chain.
+        info->Effects[EFFECT_0].MiscValue = SPELLMOD_DURATION;
     if (id == 707661)
         // Sen'jin's Guidance's crit half reads through the crit chance op keyed to
         // the Javelin Toss chain; the replacement half is handled in the cast hook.
