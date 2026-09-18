@@ -18,7 +18,12 @@ enum HurricaneSpells : uint32
     SPELL_WAVEFORGED = 705565,
     SPELL_WAVEFORGED_READY = 500469,
     SPELL_SWIFT_ETCHING = 705600,
-    SPELL_SWIFT_ETCHING_BUFF = 500506
+    SPELL_SWIFT_ETCHING_BUFF = 500506,
+    SPELL_WATER_RUNES = 707150,
+    SPELL_WATER_ENGRAVING_ENABLER = 653214,
+    SPELL_WATER_ENGRAVING_DAMAGE = 653215,
+    SPELL_ICE_ENGRAVING_ENABLER = 653266,
+    SPELL_ICE_ENGRAVING_DAMAGE = 653217
 };
 
 bool StrikeHurricane(Unit* player, Aura* aura)
@@ -29,6 +34,17 @@ bool StrikeHurricane(Unit* player, Aura* aura)
         !player->IsValidAttackTarget(target))
         return false;
     player->CastSpell(target, SPELL_HURRICANE_HIT, true);
+    // Water Runes: "Each strike from Hurricane is now guaranteed to apply
+    // Weapon Engraving: Water or Weapon Engraving: Ice to your target while
+    // they are active." The engraving enablers normally proc by chance; skip
+    // the roll and cast their damage spell directly.
+    if (player->HasAura(SPELL_WATER_RUNES, player->GetGUID()))
+    {
+        if (player->HasAura(SPELL_WATER_ENGRAVING_ENABLER))
+            player->CastSpell(target, SPELL_WATER_ENGRAVING_DAMAGE, true);
+        else if (player->HasAura(SPELL_ICE_ENGRAVING_ENABLER))
+            player->CastSpell(target, SPELL_ICE_ENGRAVING_DAMAGE, true);
+    }
     return true;
 }
 
