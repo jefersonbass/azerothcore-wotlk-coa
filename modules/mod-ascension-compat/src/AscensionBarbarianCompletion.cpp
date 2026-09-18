@@ -156,6 +156,14 @@ void ApplyContracts(SpellInfo* info)
         // Unstoppable Rage extends Unbridled Rage; the engine reads that through
         // the duration modifier op keyed to the enrage's own family mask.
         info->Effects[EFFECT_0].MiscValue = SPELLMOD_DURATION;
+    if (id == 560938)
+    {
+        // Fury of the North's flat modifiers read through the duration op for the
+        // Ramhorn enrage; its third slot becomes a dormant speed effect the enrage
+        // lifecycle script toggles while the enrage runs.
+        info->Effects[EFFECT_0].MiscValue = SPELLMOD_DURATION;
+        info->Effects[EFFECT_2].ApplyAuraName = SPELL_AURA_MOD_INCREASE_SPEED;
+    }
     if (id == 570235)
         // Bloody Fighter's flat +1 stacks Born in Blood; the engine reads that
         // through the max-aura-stacks modifier op.
@@ -210,7 +218,23 @@ class aura_ascension_barbarian_lifecycle : public AuraScript
             return;
         if (GetId() == 805804)
             if (Unit* caster = GetCaster())
+            {
                 caster->AddAura(805843, GetTarget());
+                // Fury of the North: the enrage lasts 6 more seconds and, while it runs,
+                // the owner's dormant speed slot carries the talent's 40% bonus.
+                if (Player* owner = Owner(caster))
+                    if (owner->HasAura(560938))
+                    {
+                        if (AuraEffect const* fury = owner->GetAuraEffect(560938, EFFECT_0))
+                            if (Aura* enrage = GetAura())
+                            {
+                                enrage->SetMaxDuration(enrage->GetMaxDuration() + fury->GetAmount());
+                                enrage->SetDuration(enrage->GetDuration() + fury->GetAmount());
+                            }
+                        if (AuraEffect* speed = owner->GetAuraEffect(560938, EFFECT_2))
+                            speed->ChangeAmount(40);
+                    }
+            }
         if (Family(GetSpellInfo(), 0, 262144))
             if (Player* caster = Owner(GetCaster()))
             {
@@ -251,7 +275,12 @@ class aura_ascension_barbarian_lifecycle : public AuraScript
         if (effect->GetEffIndex() != EFFECT_0)
             return;
         if (GetId() == 805804)
+        {
             GetTarget()->RemoveAurasDueToSpell(805843, GetCasterGUID());
+            if (Player* owner = Owner(GetTarget()))
+                if (AuraEffect* speed = owner->GetAuraEffect(560938, EFFECT_2))
+                    speed->ChangeAmount(0);
+        }
         if (Family(GetSpellInfo(), 0, 262144))
         {
             GetTarget()->RemoveAurasDueToSpell(560626, GetCasterGUID());
