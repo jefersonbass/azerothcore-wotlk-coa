@@ -87,6 +87,10 @@ void ApplyContracts(SpellInfo* info)
         // shared crit-percent aura the engine reads for both melee and spell crits.
         info->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_MOD_CRIT_PCT,
         info->Effects[EFFECT_1].ApplyAuraName = SPELL_AURA_MOD_CRIT_PCT;
+    if (id == 705453)
+        // Darkrider's flat discount (-100 tenths = 10 Rage) must read as the cost op so
+        // the engine trims Shadowblast, Vault, and Unleash the Hounds; the mask keys them.
+        info->Effects[EFFECT_0].MiscValue = SPELLMOD_COST;
     if (Family(info, 1, 4194304)) // Witchbane and its ranks.
     {
         info->InterruptFlags |= SPELL_INTERRUPT_FLAG_MOVEMENT;
