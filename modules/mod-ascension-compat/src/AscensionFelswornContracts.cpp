@@ -222,6 +222,10 @@ void ApplyContracts(SpellInfo* info)
         info->Effects[0].BasePoints = 10;
         info->Effects[1].MiscValue = SPELLMOD_CRITICAL_CHANCE;
     }
+    if (id == 560057)
+        // Chaos Soldier's flat modifier must read as the crit chance op keyed to
+        // Azzinoth's Assault and Sargeron Smite; the mask already keys them.
+        info->Effects[EFFECT_0].MiscValue = SPELLMOD_CRITICAL_CHANCE;
     if (id == 803905)
     {
         // Shadow Magi's two flat modifiers read as cooldown trims keyed to

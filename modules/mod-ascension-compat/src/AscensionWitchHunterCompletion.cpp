@@ -96,6 +96,17 @@ void ApplyContracts(SpellInfo* info)
         info->Effects[EFFECT_1].MiscValue = CR_HIT_MELEE;
         info->Effects[EFFECT_1].MiscValueB = STAT_AGILITY;
     }
+    if (id == 680247)
+    {
+        // Low Dawn keys its halves to the Sixfold Shot chain: the percent half as the
+        // damage op and the flat half (a negative -500ms) as the activation-time op.
+        info->Effects[EFFECT_0].MiscValue = SPELLMOD_DAMAGE;
+        info->Effects[EFFECT_1].MiscValue = SPELLMOD_ACTIVATION_TIME;
+    }
+    if (id == 681180)
+        // Trapper's percent modifier must read as the cooldown op so the engine
+        // trims the Trap spells; the DBC mask already keys them.
+        info->Effects[EFFECT_0].MiscValue = SPELLMOD_COOLDOWN;
     if (id == 504677 || id == 504891)
         // Duskwood Renegade's flat modifier must read as the cooldown op so the
         // engine trims Burrow Bolt; the DBC mask already keys that chain.

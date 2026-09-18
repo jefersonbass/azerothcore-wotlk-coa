@@ -40,6 +40,13 @@ void ApplyContracts(SpellInfo* info)
         // Knight of Pestilence's percent modifier must read as the crit-damage op so the
         // engine adds it to crit bonuses; the DBC family mask already keys the Pestilences.
         info->Effects[EFFECT_0].MiscValue = SPELLMOD_CRIT_DAMAGE_BONUS;
+    if (id == 705020)
+    {
+        // War Pig's damage bonus ships as an untyped school-immunity slot; map it to
+        // the percent-damage aura with the physical school mask.
+        info->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_MOD_DAMAGE_PERCENT_DONE;
+        info->Effects[EFFECT_0].MiscValue = SPELL_SCHOOL_MASK_NORMAL;
+    }
     if (id == 704986)
     {
         // Warden of Hellfire's percent modifier must read as the damage op so the engine
