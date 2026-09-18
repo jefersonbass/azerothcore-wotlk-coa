@@ -28,6 +28,13 @@ void ApplyContracts(SpellInfo* info)
         // Knight of Pestilence's percent modifier must read as the crit-damage op so the
         // engine adds it to crit bonuses; the DBC family mask already keys the Pestilences.
         info->Effects[EFFECT_0].MiscValue = SPELLMOD_CRIT_DAMAGE_BONUS;
+    if (id == 707388)
+    {
+        // Consuming Blade's crit chance reads through the crit chance op keyed to the
+        // Gore ranks; its expertise half is a plain expertise aura, not a spell mod.
+        info->Effects[EFFECT_0].MiscValue = SPELLMOD_CRITICAL_CHANCE;
+        info->Effects[EFFECT_1].ApplyAuraName = SPELL_AURA_MOD_EXPERTISE;
+    }
     if (id == 704999)
         // Combusting Blade's flat modifier must land on the cost op to trim
         // Infernal Strike's Rage price by 5 (DBC stores Rage in tenth-units).
