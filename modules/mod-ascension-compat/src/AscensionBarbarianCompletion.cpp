@@ -167,6 +167,15 @@ void ApplyContracts(SpellInfo* info)
         // Mounting Fury extends Born in Blood the same way, through the duration op
         // whose mask the DBC already keys to the stacking aura.
         info->Effects[EFFECT_0].MiscValue = SPELLMOD_DURATION;
+    if (id == 705242)
+        // Savage: the +3s half reads through the duration op keyed to Born in Blood;
+        // the 5% half is a damage modifier on the same chain, consumed per cast.
+        info->Effects[EFFECT_0].MiscValue = SPELLMOD_DURATION,
+        info->Effects[EFFECT_1].MiscValue = SPELLMOD_DAMAGE;
+    if (id == 707661)
+        // Sen'jin's Guidance's crit half reads through the crit chance op keyed to
+        // the Javelin Toss chain; the replacement half is handled in the cast hook.
+        info->Effects[EFFECT_1].MiscValue = SPELLMOD_CRITICAL_CHANCE;
     if (id == 560938)
     {
         // Fury of the North's flat modifiers read through the duration op for the

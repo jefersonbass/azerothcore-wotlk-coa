@@ -97,6 +97,13 @@ void HandleAscensionBarbarianCast(Spell* spell)
             player->RemoveAurasDueToSpell(TANKARD);
     }
 
+    // Sen'jin's Guidance: Throw Weapon is thrown as a Javelin Toss.
+    if (player->HasAura(707661) && info->SpellFamilyName == 18 &&
+        (info->SpellFamilyFlags[1] & 0x00040000))
+        if (SpellInfo const* javelin = sSpellMgr->GetSpellInfo(504217))
+            if (Unit* victim = spell->m_targets.GetUnitTarget())
+                player->CastSpell(victim, javelin->Id, TRIGGERED_FULL_MASK);
+
     // Bloodbound: trims the cooldowns of Warband (Headhunting) and Ancestral Roar (Ancestry).
     if (player->HasAura(801767))
     {

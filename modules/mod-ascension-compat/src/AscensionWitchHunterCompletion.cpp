@@ -96,6 +96,10 @@ void ApplyContracts(SpellInfo* info)
         info->Effects[EFFECT_1].MiscValue = CR_HIT_MELEE;
         info->Effects[EFFECT_1].MiscValueB = STAT_AGILITY;
     }
+    if (id == 504677 || id == 504891)
+        // Duskwood Renegade's flat modifier must read as the cooldown op so the
+        // engine trims Burrow Bolt; the DBC mask already keys that chain.
+        info->Effects[EFFECT_0].MiscValue = SPELLMOD_COOLDOWN;
     if (id == 705453)
         // Darkrider's flat discount (-100 tenths = 10 Rage) must read as the cost op so
         // the engine trims Shadowblast, Vault, and Unleash the Hounds; the mask keys them.
