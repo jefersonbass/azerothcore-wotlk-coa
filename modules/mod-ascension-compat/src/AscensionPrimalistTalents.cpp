@@ -27,6 +27,8 @@ enum PrimalistAbilitySpells : uint32
     SPELL_PROTECTIVE_ROAR = 802782,
     SPELL_SHARPENED_CLAWS = 504226,
     SPELL_SHARPENED_CLAWS_STACK = 504225,
+    SPELL_SAVAGE_FRENZY = 806549,
+    SPELL_SAVAGE_FRENZY_GREATER = 807286,
     SPELL_BEARSKIN = 800094,
     SPELL_PRIMAL_CONVERGENCE = 800181,
     SPELL_BOULDER_DASH = 500692,
@@ -190,6 +192,10 @@ public:
             if (Pet* pet = player->GetPet(); pet && pet->IsAlive())
                 player->CastSpell(pet, SPELL_SHARPENED_CLAWS_STACK, true);
         }
+        // Savage Frenzy (806549/807286): enrages the pet as well as the caster.
+        if (!spell->IsTriggered() && (info->Id == SPELL_SAVAGE_FRENZY || info->Id == SPELL_SAVAGE_FRENZY_GREATER))
+            if (Pet* pet = player->GetPet(); pet && pet->IsAlive())
+                player->CastSpell(pet, info->Id, true);
         if (info->Id == SPELL_GEODE_BARRAGE_DAMAGE && !spell->GetScriptValue(SPELL_GEODE_BARRAGE_RAGE))
         {
             // Each channel tick casts this damage helper. Its authored energize
@@ -295,12 +301,24 @@ class spell_ascension_throat_clamp : public SpellScript
 
 void ApplyAscensionPrimalistTalentsContract(SpellInfo* info)
 {
-    if (!info || info->Id != 806533)
+    if (!info)
         return;
-    // Keen Senses: the third effect ("Unknown 3") is DBC filler that would index
-    // the aura handler table out of range; zeroing the effect leaves the native
-    // crit and haste effects intact.
-    info->Effects[2].Effect = SpellEffects(0);
+    if (info->Id == 806533)
+    {
+        // Keen Senses: the third effect ("Unknown 3") is DBC filler that would index
+        // the aura handler table out of range; zeroing the effect leaves the native
+        // crit and haste effects intact.
+        info->Effects[2].Effect = SpellEffects(0);
+        return;
+    }
+    if (info->Id == 806549 || info->Id == 807286)
+    {
+        // Savage Frenzy: the second effect ("Unknown 30") is the melee/ranged
+        // attack-speed haste; its aura id sits outside the dump's mapping and
+        // would index the handler table out of range. Pin it explicitly.
+        if (uint32(info->Effects[1].ApplyAuraName) >= TOTAL_AURAS)
+            info->Effects[1].ApplyAuraName = SPELL_AURA_MOD_MELEE_RANGED_HASTE;
+    }
 }
 
 void AddSC_AscensionPrimalistTalents()
