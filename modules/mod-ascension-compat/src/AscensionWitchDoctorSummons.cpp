@@ -377,6 +377,10 @@ class npc_ascension_witch_doctor : public ScriptedAI
             {
                 me->CastSpell(target, SerpentAttackSpell, true, nullptr, nullptr, _owner);
                 float chance = player->HasAura(VoodooFireTwo) ? 40 : player->HasAura(VoodooFireOne) ? 20 : 0;
+                // Spirit Striker: wards bite with Voodoo Fire 10% more often.
+                if (chance && player->HasAura(806286))
+                    if (AuraEffect const* striker = player->GetAuraEffect(806286, EFFECT_0))
+                        chance += std::abs(striker->GetAmount());
                 if (chance && roll_chance_f(chance))
                 {
                     uint32 cap = 3;
