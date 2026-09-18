@@ -34,6 +34,10 @@ constexpr uint32 SPELL_UNLEASHED_POWER = 807504;
 constexpr uint32 SPELL_UNLEASHED_POWER_DEBUFF = 504844;
 constexpr uint32 SPELL_PERMAFROST_RUNE = 804060;
 constexpr uint32 SPELL_RUNESHROUD = 500288;
+constexpr uint32 SPELL_PRIMORDIAL_SALVOS = 800752;
+constexpr uint32 SPELL_FLAME_SALVO = 800729;
+constexpr uint32 SPELL_FROST_SALVO = 800730;
+constexpr uint32 SPELL_ARCANE_SALVO = 800731;
 
 bool IsElementalBurst(uint32 id)
 {
@@ -218,6 +222,23 @@ class spell_ascension_runemaster_glyph_payload : public SpellScript
                 TRIGGERED_FULL_MASK);
         else if (GetSpellInfo()->Id == SPELL_UNLEASHED_FLAME && _overloaded)
             GetCaster()->CastSpell(target, SPELL_OVERLOADED_FLAME, TRIGGERED_FULL_MASK);
+
+        // Primordial Salvos: "Unleashing a Glyph now deals an additional 115 +
+        // 6% SP damage of the same magic school to all enemies within 8 yds of
+        // the target." Salvo spells resolve the 6% SP scaling through
+        // spell_bonus_data, so just mirror the payload's school.
+        if (GetCaster()->HasAura(SPELL_PRIMORDIAL_SALVOS))
+        {
+            uint32 salvo = 0;
+            if (GetSpellInfo()->Id == SPELL_UNLEASHED_FROST)
+                salvo = SPELL_FROST_SALVO;
+            else if (GetSpellInfo()->Id == SPELL_UNLEASHED_FLAME)
+                salvo = SPELL_FLAME_SALVO;
+            else if (GetSpellInfo()->Id == SPELL_UNLEASHED_ARCANE)
+                salvo = SPELL_ARCANE_SALVO;
+            if (salvo)
+                GetCaster()->CastSpell(target, salvo, TRIGGERED_FULL_MASK);
+        }
     }
 
     void PreventRepeatedFlameChains(std::list<WorldObject*>& targets)
