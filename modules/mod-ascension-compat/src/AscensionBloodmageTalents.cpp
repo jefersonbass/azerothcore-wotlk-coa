@@ -30,7 +30,8 @@ enum BloodmageTalentSpells : uint32
     SPELL_HUNTER_AND_HUNTED_NET = 100614,
     SPELL_VAMPYR_LORD = 560259,
     SPELL_COAGULATION = 706258,
-    SPELL_SHADOWS_IN_THE_NIGHT = 704662
+    SPELL_SHADOWS_IN_THE_NIGHT = 704662,
+    SPELL_ENDURE_THE_CURSE = 681190
 };
 
 // Every creature Animated Blood can leave behind: worms, parasites and the rank 3 amalgam.
@@ -138,7 +139,8 @@ class bloodmage_talent_events : public UnitScript
 {
 public:
     bloodmage_talent_events() : UnitScript("bloodmage_talent_events", true,
-        {UNITHOOK_MODIFY_SPELL_DAMAGE_TAKEN, UNITHOOK_ON_AURA_APPLY, UNITHOOK_ON_AURA_REMOVE}) { }
+        {UNITHOOK_MODIFY_SPELL_DAMAGE_TAKEN, UNITHOOK_ON_DAMAGE, UNITHOOK_ON_AURA_APPLY,
+        UNITHOOK_ON_AURA_REMOVE}) { }
 
     void OnAuraApply(Unit* unit, Aura* aura) override
     {
@@ -234,6 +236,24 @@ class bloodmage_talent_contracts : public GlobalScript
 public:
     bloodmage_talent_contracts() : GlobalScript("bloodmage_talent_contracts",
         {GLOBALHOOK_ON_LOAD_SPELL_CUSTOM_ATTR}) { }
+
+    void OnDamage(Unit* attacker, Unit* victim, uint32& damage) override
+    {
+        // Endure the Curse (681190): while the ten-second guard is up, a hit that
+        // would drop the Bloodmage below ten percent health instead heals for
+        // thirty percent of maximum health. Once per activation.
+        Player* player = victim ? victim->ToPlayer() : nullptr;
+        if (!player || player->getClass() != CLASS_SON_OF_ARUGAL || !damage)
+            return;
+        Aura* guard = player->GetAura(SPELL_ENDURE_THE_CURSE);
+        if (!guard || !guard->GetEffect(EFFECT_0) || guard->GetEffect(EFFECT_0)->GetAmount() != 0)
+            return;
+        if (int64(player->GetHealth()) - int64(damage) >= int64(player->GetMaxHealth() / 10))
+            return;
+        guard->GetEffect(EFFECT_0)->ChangeAmount(1);
+        damage = 0;
+        player->ModifyHealth(int32(player->CountPctFromMaxHealth(30)));
+    }
 
     void OnLoadSpellCustomAttr(SpellInfo* info) override
     {
