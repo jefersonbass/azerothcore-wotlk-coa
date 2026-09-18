@@ -88,7 +88,8 @@ class spell_ascension_dimensional_divergence : public SpellScript
 class chronomancer_talent_casts : public AllSpellScript
 {
 public:
-    chronomancer_talent_casts() : AllSpellScript("chronomancer_talent_casts", {ALLSPELLHOOK_ON_CAST}) { }
+    chronomancer_talent_casts() : AllSpellScript("chronomancer_talent_casts",
+        {ALLSPELLHOOK_ON_CAST, ALLSPELLHOOK_ON_HIT_RESULT}) { }
 
     void OnSpellCast(Spell* spell, Unit* caster, SpellInfo const* info, bool) override
     {
@@ -120,6 +121,22 @@ public:
             player->RemoveSpellCooldown(SPELL_CHROMATIC_SHARD);
     }
 
+    void OnSpellHitResult(Spell* spell, Unit* target, uint8 missInfo,
+        uint32 damage, uint32, bool) override
+    {
+        Player* player = spell->GetCaster() ? spell->GetCaster()->ToPlayer() : nullptr;
+        if (!player || !damage || missInfo != SPELL_MISS_NONE ||
+            player->getClass() != CLASS_CHRONOMANCER ||
+            !spell->GetSpellInfo()->IsPeriodic() || !player->HasAura(SPELL_CHAOTIC_TIME))
+            return;
+        // Chaotic Time (583245): "periodic damage dealt now reduces the
+        // cooldown of Incarnation of Chaos by 1 sec." The DBC's Proc Trigger
+        // slot is inert; every periodic tick pays out here.
+        if (uint32 cooldown = player->GetSpellCooldownDelay(SPELL_INCARNATION_OF_CHAOS))
+            player->ModifySpellCooldown(SPELL_INCARNATION_OF_CHAOS,
+                -std::min<uint32>(cooldown, CHAOTIC_TIME_REDUCTION));
+    }
+
 private:
     static bool IsArtificerCast(uint32 id)
     {
@@ -133,6 +150,8 @@ private:
     static constexpr uint32 RESONANCE_REDUCTION = 1000;
     static constexpr uint32 SPELL_INCARNATION_OF_CHAOS = 570067;
     static constexpr uint32 SPELL_CHROMATIC_SHARD = 801292;
+    static constexpr uint32 SPELL_CHAOTIC_TIME = 583245;
+    static constexpr uint32 CHAOTIC_TIME_REDUCTION = 1000;
 };
 }
 
