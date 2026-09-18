@@ -16,6 +16,9 @@ enum PrimalistAbilitySpells : uint32
     SPELL_GEODE_BARRAGE_DAMAGE = 803138,
     SPELL_GEODE_BARRAGE_RAGE = 802885,
     SPELL_LEGACY_OF_REXXAR = 800184,
+    SPELL_BONES_MARK = 806552,
+    SPELL_BONES_STACK = 806554,
+    SPELL_BONES_DAMAGE = 806553,
     SPELL_PRIMAL_SHRED = 500940,
     SPELL_RYLAKS_BITE = 706342,
     SPELL_WILDCLAW = 800140,
@@ -34,7 +37,31 @@ class primalist_talent_events : public UnitScript
 {
 public:
     primalist_talent_events() : UnitScript("primalist_talent_events", true,
-        {UNITHOOK_ON_DAMAGE, UNITHOOK_ON_AURA_REMOVE}) { }
+        {UNITHOOK_MODIFY_SPELL_DAMAGE_TAKEN, UNITHOOK_ON_DAMAGE, UNITHOOK_ON_AURA_REMOVE}) { }
+
+    void ModifySpellDamageTaken(Unit* target, Unit* attacker, int32& damage, SpellInfo const* spellInfo) override
+    {
+        // Bring Me Their Bones (806552): pet ability damage on the marked target
+        // stacks the debuff; at 5 stacks the pet consumes it for armor-ignoring damage.
+        if (!target || !attacker || attacker == target || !spellInfo || !damage)
+            return;
+        Unit* ownerUnit = attacker->GetOwner();
+        if (!ownerUnit || ownerUnit->ToPlayer())
+            return;
+        Player* player = Primalist(ownerUnit);
+        if (!player || !player->IsAlive() || attacker->GetOwnerGUID() != player->GetGUID())
+            return;
+        Aura* mark = target->GetAura(SPELL_BONES_STACK, player->GetGUID());
+        if (!mark)
+            return;
+        if (mark->GetStackAmount() >= 5)
+        {
+            mark->Remove();
+            attacker->CastSpell(target, SPELL_BONES_DAMAGE, true);
+        }
+        else
+            mark->ModStackAmount(1);
+    }
 
     void OnDamage(Unit*, Unit* victim, uint32& damage) override
     {
