@@ -14,6 +14,10 @@ bool IsEarthTattoo(uint32 id)
     return id == 801094 || (id >= 803754 && id <= 803758);
 }
 
+// Guarding Rune (500464): the 2 min Engravement defensive whose cooldown
+// Protective Warding shaves on critical hits taken.
+constexpr uint32 SPELL_RUNE_OF_GUARDING = 500464;
+
 bool EarthTattooActive(Unit* unit)
 {
     if (!unit || !unit->IsAlive())
@@ -102,6 +106,36 @@ public:
     }
 };
 
+// Protective Warding (800756): "Critical damage taken reduces the cooldown of
+// Rune of Guarding by 10%." Gaining damage has no standalone proc event, so the
+// load-time contract arms the passive with PROC_FLAG_TAKEN_DAMAGE and this
+// script filters to critical hits before shaving the Guarding Rune cooldown.
+class aura_runemaster_protective_warding : public AuraScript
+{
+    PrepareAuraScript(aura_runemaster_protective_warding);
+
+    bool Check(ProcEventInfo& event)
+    {
+        Unit* victim = GetTarget();
+        return victim && event.GetActionTarget() == victim &&
+            event.GetTypeMask() & (PROC_FLAG_TAKEN_DAMAGE | PROC_FLAG_TAKEN_PERIODIC) &&
+            event.GetHitMask() & PROC_HIT_CRITICAL;
+    }
+
+    void Proc(ProcEventInfo& /*event*/)
+    {
+        if (Player* player = GetTarget()->ToPlayer())
+            if (uint32 remaining = player->GetSpellCooldownDelay(SPELL_RUNE_OF_GUARDING))
+                player->ModifySpellCooldown(SPELL_RUNE_OF_GUARDING, -int32(remaining * 0.1f));
+    }
+
+    void Register() override
+    {
+        DoCheckProc += AuraCheckProcFn(aura_runemaster_protective_warding::Check);
+        OnProc += AuraProcFn(aura_runemaster_protective_warding::Proc);
+    }
+};
+
 // Granite Shield (806996): "While Runic Tattoos: Earth is active, you now periodically gain
 // Granite Shield every 20 sec." The load-time contract repoints the dead DBC trigger at the
 // real absorb (520822); this gate keeps the tick silent while no Earth tattoo is active.
@@ -146,10 +180,18 @@ void ApplyAscensionRunemasterTalentContracts(SpellInfo* info)
         effect.Amplitude = 20000;
         effect.TriggerSpell = 520822;
     }
+    else if (info->Id == 800756)
+    {
+        // Issue 905: the DBC ships a dead Proc Trigger Spell with no proc flags, so
+        // "critical damage taken" never reached any handler. Arm the taken-damage
+        // proc; the bound script filters to crits and shaves the Guarding Rune CD.
+        info->ProcFlags = PROC_FLAG_TAKEN_DAMAGE | PROC_FLAG_TAKEN_PERIODIC;
+    }
 }
 
 void AddSC_AscensionRunemasterTalents()
 {
     new runemaster_talent_events();
     RegisterSpellScript(aura_runemaster_granite_shield);
+    RegisterSpellScript(aura_runemaster_protective_warding);
 }

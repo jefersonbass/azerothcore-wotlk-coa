@@ -341,7 +341,10 @@ void Aspect(Player* player, Unit* target, uint32 damage, bool guaranteed)
         return;
     bool previous = State(player).event;
     State(player).event = true;
-    for (uint32 index = 0; index < 4 && target->IsAlive(); ++index)
+    // Flames of Fate (707325): "Aspect's Blessing now affects 2 additional
+    // casts of Echo of Nozdormu."
+    uint32 const strikes = player->HasAura(707325) ? 6 : 4;
+    for (uint32 index = 0; index < strikes && target->IsAlive(); ++index)
     {
         damage = CalculatePct(damage, Amount(504750));
         State(player).aspectDamage = 0;

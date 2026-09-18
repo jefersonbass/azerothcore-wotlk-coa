@@ -32,7 +32,11 @@ enum ReaperTalentSpells : uint32
     SPELL_REAPER_FATESEALER = 705442,
     SPELL_REAPER_FATESEALER_STACK = 705443,
     SPELL_BEYOND_THE_VEIL = 804053,
-    SPELL_BEYOND_THE_VEIL_BUFF = 560591
+    SPELL_BEYOND_THE_VEIL_BUFF = 560591,
+    SPELL_JAILERS_WILL = 524939,
+    SPELL_SOUL_STRIKE_FIRST = 500517,
+    SPELL_SOUL_STRIKE_FIFTH = 500521,
+    SPELL_SOUL_STRIKE_SIXTH = 500646
 };
 
 class spell_ascension_reaper_limbo : public SpellScript
@@ -208,9 +212,23 @@ public:
 
     void ModifySpellEffectBaseValue(Unit const* caster, SpellInfo const* info, uint8 index, float& value) override
     {
-        if (caster && caster->IsPlayer() && caster->getClass() == CLASS_REAPER && info->Id == SPELL_SOUL_SPLINTER &&
-            info->SpellFamilyName == 36 && index == EFFECT_0 && info->Effects[index].IsAura(SPELL_AURA_PERIODIC_DAMAGE))
-            value += std::max(0.0f, caster->GetStat(STAT_STAMINA)) * 0.035f;
+        Player const* player = caster && caster->IsPlayer() ? caster->ToPlayer() : nullptr;
+        if (!player || player->getClass() != CLASS_REAPER || !info || info->SpellFamilyName != 36)
+            return;
+        if (info->Id == SPELL_SOUL_SPLINTER && index == EFFECT_0 &&
+            info->Effects[index].IsAura(SPELL_AURA_PERIODIC_DAMAGE))
+            value += std::max(0.0f, player->GetStat(STAT_STAMINA)) * 0.035f;
+        // Jailer's Will (524939): "Soul Strike now deals 30% Strength increased
+        // damage, scaling with Strength." The client splits this into a 2.5 s
+        // flat-modifier scaling aura (578264) with no usable engine mod; feed
+        // the Strength term straight into Soul Strike's normalized weapon
+        // damage base, mirroring the Soul Splinter Stamina contract above.
+        else if (player->HasAura(SPELL_JAILERS_WILL) && index == EFFECT_1 &&
+            info->Effects[index].Effect == SPELL_EFFECT_NORMALIZED_WEAPON_DMG &&
+            info->SpellFamilyFlags == flag96(0, 2048, 0) &&
+            ((info->Id >= SPELL_SOUL_STRIKE_FIRST && info->Id <= SPELL_SOUL_STRIKE_FIFTH) ||
+                info->Id == SPELL_SOUL_STRIKE_SIXTH))
+            value += std::max(0.0f, player->GetStat(STAT_STRENGTH)) * 0.3f;
     }
 };
 }

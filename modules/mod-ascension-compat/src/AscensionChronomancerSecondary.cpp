@@ -1,4 +1,7 @@
 /* Copyright (C) 2016+ AzerothCore, GNU AGPL v3. */
+#include "Cell.h"
+#include "GridNotifiers.h"
+#include "GridNotifiersImpl.h"
 #include "ObjectAccessor.h"
 #include "Player.h"
 #include "ScriptMgr.h"
@@ -33,7 +36,11 @@ enum ChronomancerSecondarySpells : uint32
     SPELL_ARC_COLLISION = 524853,
     SPELL_ECHO_DURATION = 807711,
     SPELL_INFINITE_HORIZON = 560528,
-    SPELL_TIMEREND = 707430
+    SPELL_TIMEREND = 707430,
+    SPELL_SHIFTING_CHAOS = 706059,
+    SPELL_ANOMALY_SPIKE_HIT = 503826,
+    SPELL_PURE_CHAOS_TRIGGER = 583426,
+    CHAOS_CLEAVE_RADIUS = 10
 };
 
 Player* SecondaryChronomancer(Unit* unit)
@@ -267,6 +274,42 @@ public:
     }
 };
 
+// Shifting Chaos (706059): "Your Chromatic Shard and Anomaly Spikes now deal
+// an additional 20% of their damage dealt as Chromatic Damage to all nearby
+// enemies." The extra hit rides the Pure Chaos Trigger dummy (583426, the
+// chromatic-school School Damage 1 carrier) so SP scaling applies natively.
+class chronomancer_shifting_chaos : public UnitScript
+{
+public:
+    chronomancer_shifting_chaos() : UnitScript("chronomancer_shifting_chaos", true,
+        {UNITHOOK_MODIFY_SPELL_DAMAGE_TAKEN}) { }
+
+    void ModifySpellDamageTaken(Unit* target, Unit* source, int32& damage, SpellInfo const* spellInfo) override
+    {
+        Player* player = source ? source->ToPlayer() : nullptr;
+        if (!player || !damage || player->getClass() != CLASS_CHRONOMANCER ||
+            !spellInfo || !player->HasAura(SPELL_SHIFTING_CHAOS) || !target)
+            return;
+        uint32 const root = sSpellMgr->GetFirstSpellInChain(spellInfo->Id);
+        if (root != SPELL_CHROMATIC_SHARD && root != SPELL_ANOMALY_SPIKE_HIT)
+            return;
+        int32 const amount = CalculatePct(damage, 20);
+        if (!amount)
+            return;
+        std::list<Unit*> enemies;
+        Acore::AnyUnitInObjectRangeCheck check(target, CHAOS_CLEAVE_RADIUS);
+        Acore::UnitListSearcher<Acore::AnyUnitInObjectRangeCheck> search(target, enemies, check);
+        Cell::VisitObjects(target, search, CHAOS_CLEAVE_RADIUS);
+        for (Unit* enemy : enemies)
+        {
+            if (enemy == target || !enemy->IsAlive() || !player->IsValidAttackTarget(enemy) ||
+                !target->IsWithinLOSInMap(enemy))
+                continue;
+            player->CastCustomSpell(SPELL_PURE_CHAOS_TRIGGER, SPELLVALUE_BASE_POINT0, amount, enemy, true);
+        }
+    }
+};
+
 // Infinite Horizon (560528): "your Unmake and Timerend gain an additional 20%
 // bonus spell scaling." The raid-wide 3% damage aura comes from the DBC's
 // area-aura slot natively; the scaling part has no engine support.
@@ -318,6 +361,7 @@ void AddSC_AscensionChronomancerSecondary()
     new chronomancer_melt_periodic();
     new chronomancer_secondary_casts();
     new chronomancer_black_hole();
+    new chronomancer_shifting_chaos();
     new chronomancer_infinite_horizon();
     new chronomancer_secondary_metadata();
     RegisterSpellScript(spell_ascension_melt_copy);
