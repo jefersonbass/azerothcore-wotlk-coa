@@ -236,6 +236,16 @@ public:
         if (id == 800841 || id == 803183 || id == 804980 || id == 800912)
             if (player->HasAura(503907))
                 player->RemoveMovementImpairingAuras(true);
+        // Master of Venoms: extends the duration of every Venom applied by the caster.
+        if (Venom(info))
+            if (AuraEffect const* master = player->GetAuraEffect(504326, EFFECT_0))
+                if (Unit* victim = spell->m_targets.GetUnitTarget())
+                    if (Aura* aura = victim->GetAura(id, player->GetGUID()))
+                    {
+                        int32 extra = CalculatePct(aura->GetMaxDuration(), master->GetAmount());
+                        aura->SetMaxDuration(aura->GetMaxDuration() + extra);
+                        aura->SetDuration(aura->GetDuration() + extra);
+                    }
         Refresh(player);
     }
     void OnSpellHitResult(Spell* spell, Unit* target, uint8 miss, uint32 damage, uint32, bool) override
