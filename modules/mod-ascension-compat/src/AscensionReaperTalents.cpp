@@ -1,5 +1,6 @@
 /* Copyright (C) 2016+ AzerothCore, GNU AGPL v3. */
 #include "AscensionReaperTalents.h"
+#include "AscensionReaperDeathwind.h"
 #include "CellImpl.h"
 #include "GridNotifiersImpl.h"
 #include "ObjectAccessor.h"
@@ -25,7 +26,34 @@ enum ReaperTalentSpells : uint32
     SPELL_REAPED_SOUL = 500363,
     SPELL_SOUL_CAPTURED = 572887,
     SPELL_SOUL_SPLINTERS = 805719,
-    SPELL_SOUL_SPLINTER = 805720
+    SPELL_SOUL_SPLINTER = 805720,
+    SPELL_LIMBO = 800845,
+    SPELL_LIMBO_SHELL = 805872,
+    SPELL_REAPER_FATESEALER = 705442,
+    SPELL_REAPER_FATESEALER_STACK = 705443,
+    SPELL_BEYOND_THE_VEIL = 804053,
+    SPELL_BEYOND_THE_VEIL_BUFF = 560591
+};
+
+class spell_ascension_reaper_limbo : public SpellScript
+{
+    PrepareSpellScript(spell_ascension_reaper_limbo);
+
+    // Limbo: "Rip out of your mortal shell for 5 seconds, making you immune to
+    // all harmful spell effects and instantly restoring 30% of your maximum
+    // health and Runic Power." Heal %, Energize % and School Immunity run
+    // natively; the shell aura (805872, carrying the immunity and its client
+    // visual) is the missing cast.
+    void AfterCast()
+    {
+        if (Unit* caster = GetCaster())
+            caster->CastSpell(caster, SPELL_LIMBO_SHELL, true);
+    }
+
+    void Register() override
+    {
+        AfterCast += SpellCastFn(spell_ascension_reaper_limbo::AfterCast);
+    }
 };
 
 class spell_ascension_soul_capture : public SpellScript
@@ -150,7 +178,21 @@ class reaper_talent_events : public UnitScript
 {
 public:
     reaper_talent_events() : UnitScript("reaper_talent_events", true,
-        {UNITHOOK_ON_AURA_REMOVE, UNITHOOK_MODIFY_SPELL_EFFECT_BASE_VALUE}) { }
+        {UNITHOOK_ON_AURA_APPLY, UNITHOOK_ON_AURA_REMOVE, UNITHOOK_MODIFY_SPELL_EFFECT_BASE_VALUE}) { }
+
+    void OnAuraApply(Unit* unit, Aura* aura) override
+    {
+        Player* player = unit ? unit->ToPlayer() : nullptr;
+        if (!player || player->getClass() != CLASS_REAPER || !aura || !player->IsAlive())
+            return;
+
+        // Beyond the Veil (804053): "Entering Underwalk now grants you Beyond
+        // the Veil, increasing movement speed by 30% and allowing you to walk
+        // on water." The buff (560591) carries both effects natively.
+        if (aura->GetId() == SPELL_UNDERWALK && aura->GetCasterGUID() == player->GetGUID() &&
+            player->HasAura(SPELL_BEYOND_THE_VEIL))
+            player->CastSpell(player, SPELL_BEYOND_THE_VEIL_BUFF, true);
+    }
 
     void OnAuraRemove(Unit* unit, AuraApplication* application, AuraRemoveMode mode) override
     {
@@ -189,6 +231,14 @@ bool HandleAscensionReaperResource(Player* player, uint32 spellId, int32 amount)
     aura = player->GetAura(spellId, player->GetGUID());
     if (aura && aura->GetStackAmount() > previous && player->IsAlive() && player->HasAura(SPELL_SOUL_SPLINTERS))
         player->CastSpell(player, SPELL_SOUL_SPLINTER, true);
+    if (aura && aura->GetStackAmount() > previous && player->IsAlive())
+    {
+        HandleAscensionReaperEaterOfSouls(player);
+        // Fatesealer: each freshly harvested Reaped Soul adds one 15 sec
+        // -2% damage-taken stack, capped at 3 by the aura's own stack limit.
+        if (player->HasAura(SPELL_REAPER_FATESEALER))
+            player->CastSpell(player, SPELL_REAPER_FATESEALER_STACK, true);
+    }
     return true;
 }
 
@@ -197,5 +247,6 @@ void AddSC_AscensionReaperTalents()
     RegisterSpellScript(spell_ascension_soul_capture);
     RegisterSpellScript(aura_ascension_harvester);
     RegisterSpellScript(aura_ascension_jailers_call);
+    RegisterSpellScript(spell_ascension_reaper_limbo);
     new reaper_talent_events();
 }

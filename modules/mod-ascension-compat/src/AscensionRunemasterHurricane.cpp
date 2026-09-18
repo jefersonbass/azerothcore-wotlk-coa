@@ -16,7 +16,16 @@ enum HurricaneSpells : uint32
     SPELL_HURRICANE_HIT = 645437,
     SPELL_HURRICANE_DODGE = 645440,
     SPELL_WAVEFORGED = 705565,
-    SPELL_WAVEFORGED_READY = 500469
+    SPELL_WAVEFORGED_READY = 500469,
+    SPELL_SWIFT_ETCHING = 705600,
+    SPELL_SWIFT_ETCHING_BUFF = 500506,
+    SPELL_WATER_RUNES = 707150,
+    SPELL_WATER_ENGRAVING_ENABLER = 653214,
+    SPELL_WATER_ENGRAVING_DAMAGE = 653215,
+    SPELL_ICE_ENGRAVING_ENABLER = 653266,
+    SPELL_ICE_ENGRAVING_DAMAGE = 653217,
+    SPELL_AIR_ENGRAVING_ENABLER = 653223,
+    SPELL_WINDBREAKER = 804094
 };
 
 bool StrikeHurricane(Unit* player, Aura* aura)
@@ -27,8 +36,40 @@ bool StrikeHurricane(Unit* player, Aura* aura)
         !player->IsValidAttackTarget(target))
         return false;
     player->CastSpell(target, SPELL_HURRICANE_HIT, true);
+    // Water Runes: "Each strike from Hurricane is now guaranteed to apply
+    // Weapon Engraving: Water or Weapon Engraving: Ice to your target while
+    // they are active." The engraving enablers normally proc by chance; skip
+    // the roll and cast their damage spell directly.
+    if (player->HasAura(SPELL_WATER_RUNES, player->GetGUID()))
+    {
+        if (player->HasAura(SPELL_WATER_ENGRAVING_ENABLER))
+            player->CastSpell(target, SPELL_WATER_ENGRAVING_DAMAGE, true);
+        else if (player->HasAura(SPELL_ICE_ENGRAVING_ENABLER))
+            player->CastSpell(target, SPELL_ICE_ENGRAVING_DAMAGE, true);
+    }
+    // Windbreaker (804094): damage boost handled in runemaster_windbreaker
+    // (below) so the +30% applies to the strike's total damage.
     return true;
 }
+
+// Windbreaker (804094): "While Weapon Engraving: Air is active, the damage of
+// each strike of your Hurricane is increased by 30%." Boost the +30% on the
+// strike's damage here so every tick is covered.
+class runemaster_windbreaker : public UnitScript
+{
+public:
+    runemaster_windbreaker() : UnitScript("runemaster_windbreaker", true, {UNITHOOK_MODIFY_SPELL_DAMAGE_TAKEN}) { }
+
+    void ModifySpellDamageTaken(Unit* target, Unit* source, int32& damage, SpellInfo const* spellInfo) override
+    {
+        Player* player = source ? source->ToPlayer() : nullptr;
+        if (!player || !damage || player->getClass() != CLASS_SPIRIT_MAGE ||
+            !spellInfo || sSpellMgr->GetFirstSpellInChain(spellInfo->Id) != SPELL_HURRICANE_HIT)
+            return;
+        if (player->HasAura(SPELL_WINDBREAKER) && player->HasAura(SPELL_AIR_ENGRAVING_ENABLER))
+            damage += CalculatePct(damage, 30);
+    }
+};
 
 class runemaster_hurricane_cast : public AllSpellScript
 {
@@ -76,9 +117,15 @@ class aura_ascension_runemaster_hurricane : public AuraScript
         Unit* player = GetTarget();
         player->RemoveAurasDueToSpell(SPELL_HURRICANE_DODGE, player->GetGUID());
         if (player->IsAlive() && player->IsInWorld() &&
-            GetTargetApplication()->GetRemoveMode() != AURA_REMOVE_BY_DEATH &&
-            player->HasAura(SPELL_WAVEFORGED, player->GetGUID()))
-            player->CastSpell(player, SPELL_WAVEFORGED_READY, true);
+            GetTargetApplication()->GetRemoveMode() != AURA_REMOVE_BY_DEATH)
+        {
+            // Swift Etching: "After Hurricane ends, your melee attack speed is
+            // increased by 15% and critical strike chance by 10% for 10 seconds."
+            if (player->HasAura(SPELL_SWIFT_ETCHING))
+                player->CastSpell(player, SPELL_SWIFT_ETCHING_BUFF, true);
+            if (player->HasAura(SPELL_WAVEFORGED, player->GetGUID()))
+                player->CastSpell(player, SPELL_WAVEFORGED_READY, true);
+        }
     }
 
     void Register() override
@@ -144,6 +191,7 @@ public:
 
 void AddSC_AscensionRunemasterHurricane()
 {
+    new runemaster_windbreaker();
     new runemaster_hurricane_cast();
     new runemaster_hurricane_metadata();
     RegisterSpellScript(aura_ascension_runemaster_hurricane);

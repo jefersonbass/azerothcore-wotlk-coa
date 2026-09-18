@@ -10,6 +10,7 @@
 namespace
 {
 using namespace AscensionPyromancer;
+constexpr uint32 FLARE_BOLT_ROOT = 502011;
 bool First(AuraEffect const* effect)
 {
     for (uint8 i = 0; i < effect->GetEffIndex(); ++i)
@@ -222,9 +223,33 @@ class aura_ascension_pyromancer_phoenix : public AuraScript
         OnEffectAbsorb += AuraEffectAbsorbFn(aura_ascension_pyromancer_phoenix::Absorb, EFFECT_0);
     }
 };
+// Magnitude 10 (520485): "Increases the critical strike chance of Flare Bolt by
+// 5%." Flare Bolt carries no spell family, so the copied SPELLMOD_CRITICAL_CHANCE
+// modifier can never match it through family/mask checks; pin the modifier to
+// the Flare Bolt chain root so only that ability is affected.
+class aura_ascension_pyromancer_magnitude : public AuraScript
+{
+    PrepareAuraScript(aura_ascension_pyromancer_magnitude);
+    void RetargetCritMod(AuraEffect const* effect, SpellModifier*& modifier)
+    {
+        Player* player = GetUnitOwner() ? GetUnitOwner()->ToPlayer() : nullptr;
+        if (!player || !modifier || modifier->ownerAura != GetAura() ||
+            modifier->spellId != m_scriptSpellId ||
+            modifier->op != SPELLMOD_CRITICAL_CHANCE || modifier->type != SPELLMOD_FLAT)
+            return;
+        modifier->targetSpellId = FLARE_BOLT_ROOT;
+    }
+
+    void Register() override
+    {
+        DoEffectCalcSpellMod += AuraEffectCalcSpellModFn(aura_ascension_pyromancer_magnitude::RetargetCritMod,
+            EFFECT_0, SPELL_AURA_ADD_FLAT_MODIFIER);
+    }
+};
 } // namespace
 void AddSC_AscensionPyromancerAuras()
 {
+    RegisterSpellScript(aura_ascension_pyromancer_magnitude);
     RegisterSpellScript(aura_ascension_pyromancer_lifecycle);
     RegisterSpellScript(aura_ascension_pyromancer_phoenix);
 }

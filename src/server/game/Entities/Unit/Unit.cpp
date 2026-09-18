@@ -4587,6 +4587,13 @@ bool Unit::CanCastSpellWhileMoving(SpellInfo const* info) const
          sSpellMgr->GetFirstSpellInChain(info->Id) == 504527 ||
          sSpellMgr->GetFirstSpellInChain(info->Id) == 801387))
         return true;
+    // Runic Tempest (560036): Runeshroud-gated Runemaster sigils become
+    // castable while moving for its duration.
+    if (IsPlayer() && getClass() == CLASS_SPIRIT_MAGE && HasAura(560036) &&
+        (sSpellMgr->GetFirstSpellInChain(info->Id) == 805380 ||
+            sSpellMgr->GetFirstSpellInChain(info->Id) == 805381 ||
+            sSpellMgr->GetFirstSpellInChain(info->Id) == 805382))
+        return true;
     // Copied aura 313 grants movement only to spells selected by its family mask.
     return HasAuraTypeWithAffectMask(SPELL_AURA_313, info);
 }

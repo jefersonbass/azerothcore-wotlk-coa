@@ -1,8 +1,10 @@
 /* Copyright (C) 2016+ AzerothCore, GNU AGPL v3. */
 #include "AscensionChronomancerTalents.h"
 #include "Player.h"
+#include "Random.h"
 #include "ScriptMgr.h"
 #include "Spell.h"
+#include "SpellMgr.h"
 #include "SpellScript.h"
 
 namespace
@@ -86,15 +88,78 @@ class spell_ascension_dimensional_divergence : public SpellScript
 class chronomancer_talent_casts : public AllSpellScript
 {
 public:
-    chronomancer_talent_casts() : AllSpellScript("chronomancer_talent_casts", {ALLSPELLHOOK_ON_CAST}) { }
+    chronomancer_talent_casts() : AllSpellScript("chronomancer_talent_casts",
+        {ALLSPELLHOOK_ON_CAST, ALLSPELLHOOK_ON_HIT_RESULT}) { }
 
     void OnSpellCast(Spell* spell, Unit* caster, SpellInfo const* info, bool) override
     {
         Player* player = caster ? caster->ToPlayer() : nullptr;
-        if (player && player->getClass() == CLASS_CHRONOMANCER && info->SpellFamilyName == 28 &&
-            !spell->IsTriggered() && IsAeonActivation(info->Id) && player->HasAura(SPELL_SHIMMERING_SHARD))
+        if (!player || player->getClass() != CLASS_CHRONOMANCER || !info)
+            return;
+        if (info->SpellFamilyName == 28 && !spell->IsTriggered() &&
+            IsAeonActivation(info->Id) && player->HasAura(SPELL_SHIMMERING_SHARD))
             player->CastSpell(player, SPELL_SHIMMER, true);
+
+        // Resonance (706079): "Casting Artificer's Wand or Crystal Cannon now
+        // has a 35% chance to reduce the cooldown of Hasten by 1 sec." Those
+        // abilities carry no spell family, so the passive's native Proc
+        // Trigger Spell can never match them.
+        if (player->HasAura(SPELL_RESONANCE) && !spell->IsTriggered() &&
+            IsArtificerCast(info->Id) && roll_chance_i(RESONANCE_CHANCE))
+            if (uint32 cooldown = player->GetSpellCooldownDelay(SPELL_HASTEN))
+                player->ModifySpellCooldown(SPELL_HASTEN, -std::min<uint32>(cooldown, RESONANCE_REDUCTION));
+
+        // Incarnation of Chaos (570067): "instantly resetting the cooldown of
+        // Chromatic Shard, allowing you to cast it while moving, and causing
+        // your next cast to not incur a cooldown." The transform, the move
+        // casting (via the buff's own DBC spellmods) and the 15% damage aura
+        // run natively; the reset and free-cast handling live here. The buff
+        // lasts 15 sec, matching its Add Flat/Add % Modifier cooldown slots.
+        if (info->Id == SPELL_INCARNATION_OF_CHAOS)
+            player->RemoveSpellCooldown(SPELL_CHROMATIC_SHARD);
+        else if (info->Id == SPELL_CHROMATIC_SHARD && player->HasAura(SPELL_INCARNATION_OF_CHAOS))
+            player->RemoveSpellCooldown(SPELL_CHROMATIC_SHARD);
     }
+
+    void OnSpellHitResult(Spell* spell, Unit* target, uint8 missInfo,
+        uint32 damage, uint32, bool) override
+    {
+        Player* player = spell->GetCaster() ? spell->GetCaster()->ToPlayer() : nullptr;
+        if (!player || !damage || missInfo != SPELL_MISS_NONE ||
+            player->getClass() != CLASS_CHRONOMANCER ||
+            !spell->GetSpellInfo()->IsPeriodic() || !player->HasAura(SPELL_CHAOTIC_TIME))
+            return;
+        // Chaotic Time (583245): "periodic damage dealt now reduces the
+        // cooldown of Incarnation of Chaos by 1 sec." The DBC's Proc Trigger
+        // slot is inert; every periodic tick pays out here.
+        if (uint32 cooldown = player->GetSpellCooldownDelay(SPELL_INCARNATION_OF_CHAOS))
+            player->ModifySpellCooldown(SPELL_INCARNATION_OF_CHAOS,
+                -std::min<uint32>(cooldown, CHAOTIC_TIME_REDUCTION));
+        // Anomaly Spikes (503825): "Periodic damage dealt now has a 8% chance
+        // to launch an Anomaly Spike at your target." The spike (503826)
+        // carries the damage natively; the proc roll lives here.
+        if (player->HasAura(SPELL_ANOMALY_SPIKES) && roll_chance_i(ANOMALY_CHANCE))
+            spell->GetCaster()->CastSpell(target, SPELL_ANOMALY_SPIKE_HIT, true);
+    }
+
+private:
+    static bool IsArtificerCast(uint32 id)
+    {
+        uint32 const root = sSpellMgr->GetFirstSpellInChain(id);
+        return root == 804478 || root == 806204;
+    }
+
+    static constexpr uint32 SPELL_RESONANCE = 706079;
+    static constexpr uint32 SPELL_HASTEN = 801304;
+    static constexpr uint32 RESONANCE_CHANCE = 35;
+    static constexpr uint32 RESONANCE_REDUCTION = 1000;
+    static constexpr uint32 SPELL_INCARNATION_OF_CHAOS = 570067;
+    static constexpr uint32 SPELL_CHROMATIC_SHARD = 801292;
+    static constexpr uint32 SPELL_CHAOTIC_TIME = 583245;
+    static constexpr uint32 CHAOTIC_TIME_REDUCTION = 1000;
+    static constexpr uint32 SPELL_ANOMALY_SPIKES = 503825;
+    static constexpr uint32 SPELL_ANOMALY_SPIKE_HIT = 503826;
+    static constexpr uint32 ANOMALY_CHANCE = 8;
 };
 }
 

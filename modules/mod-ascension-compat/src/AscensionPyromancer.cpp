@@ -150,7 +150,8 @@ void Spent(Player* player, uint32 count)
     {
         if (Chance(player, 681196))
             Cast(player, player, 681366);
-        if (player->HasAura(503915))
+        if (player->HasAura(503915) && (Chance(player, 806783) ||
+            (player->HasAura(707482) && roll_chance_i(30))))
             Cast(player, player, 806783);
         if (player->HasAura(504394))
             for (uint32 root : {803950, 805496})

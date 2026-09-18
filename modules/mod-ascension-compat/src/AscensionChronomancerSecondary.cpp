@@ -16,6 +16,9 @@ namespace
 enum ChronomancerSecondarySpells : uint32
 {
     SPELL_MELT_REALITY = 806335,
+    SPELL_BLACK_HOLE = 707557,
+    SPELL_CHROMATIC_SHARD = 801292,
+    SPELL_UNMAKE = 804418,
     SPELL_MELT_COPY_VALUE = 504727,
     SPELL_MELT_COPY = 807570,
     SPELL_DESYNCHRONIZATION = 561310,
@@ -28,7 +31,9 @@ enum ChronomancerSecondarySpells : uint32
     SPELL_RIPPLE_HEAL = 806298,
     SPELL_ECHO_FRAGMENT = 804455,
     SPELL_ARC_COLLISION = 524853,
-    SPELL_ECHO_DURATION = 807711
+    SPELL_ECHO_DURATION = 807711,
+    SPELL_INFINITE_HORIZON = 560528,
+    SPELL_TIMEREND = 707430
 };
 
 Player* SecondaryChronomancer(Unit* unit)
@@ -239,6 +244,50 @@ public:
     }
 };
 
+// Black Hole (707557): "Increases the damage of Chromatic Shard, Melt Reality
+// and Unmake by 15% against slowed enemies." The DBC's Override Class Scripts
+// slot carries no target list, so the boost is applied here.
+class chronomancer_black_hole : public UnitScript
+{
+public:
+    chronomancer_black_hole() : UnitScript("chronomancer_black_hole", true,
+        {UNITHOOK_MODIFY_SPELL_DAMAGE_TAKEN}) { }
+
+    void ModifySpellDamageTaken(Unit* target, Unit* source, int32& damage, SpellInfo const* spellInfo) override
+    {
+        Player* player = source ? source->ToPlayer() : nullptr;
+        if (!player || !damage || player->getClass() != CLASS_CHRONOMANCER ||
+            !spellInfo || !player->HasAura(SPELL_BLACK_HOLE))
+            return;
+        uint32 const root = sSpellMgr->GetFirstSpellInChain(spellInfo->Id);
+        if (root != SPELL_CHROMATIC_SHARD && root != SPELL_MELT_REALITY && root != SPELL_UNMAKE)
+            return;
+        if (target->HasAuraType(SPELL_AURA_MOD_DECREASE_SPEED))
+            damage += CalculatePct(damage, 15);
+    }
+};
+
+// Infinite Horizon (560528): "your Unmake and Timerend gain an additional 20%
+// bonus spell scaling." The raid-wide 3% damage aura comes from the DBC's
+// area-aura slot natively; the scaling part has no engine support.
+class chronomancer_infinite_horizon : public UnitScript
+{
+public:
+    chronomancer_infinite_horizon() : UnitScript("chronomancer_infinite_horizon", true,
+        {UNITHOOK_MODIFY_SPELL_DAMAGE_TAKEN}) { }
+
+    void ModifySpellDamageTaken(Unit* target, Unit* source, int32& damage, SpellInfo const* spellInfo) override
+    {
+        Player* player = source ? source->ToPlayer() : nullptr;
+        if (!player || !damage || !spellInfo || !player->HasAura(SPELL_INFINITE_HORIZON))
+            return;
+        uint32 const root = sSpellMgr->GetFirstSpellInChain(spellInfo->Id);
+        if (root != SPELL_UNMAKE && root != SPELL_TIMEREND)
+            return;
+        damage += CalculatePct(damage, 20);
+    }
+};
+
 class chronomancer_secondary_metadata : public GlobalScript
 {
 public:
@@ -268,6 +317,8 @@ void AddSC_AscensionChronomancerSecondary()
 {
     new chronomancer_melt_periodic();
     new chronomancer_secondary_casts();
+    new chronomancer_black_hole();
+    new chronomancer_infinite_horizon();
     new chronomancer_secondary_metadata();
     RegisterSpellScript(spell_ascension_melt_copy);
     RegisterSpellScript(aura_ascension_desynchronization);

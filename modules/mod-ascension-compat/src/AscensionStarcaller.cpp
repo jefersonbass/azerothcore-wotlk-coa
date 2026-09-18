@@ -44,11 +44,66 @@ bool Any(SpellInfo const* info, std::initializer_list<uint32> roots)
             return true;
     return false;
 }
+// Final Prayer (704745): "Your Prayer of Elune now dispels 1 additional
+// effect." The Prayer's native Dispel effect already spent its charge count;
+// strip one more magic aura from the target on the same hit.
+class spell_ascension_starcaller_prayer_of_elune : public SpellScript
+{
+    PrepareSpellScript(spell_ascension_starcaller_prayer_of_elune);
+
+    void AddFinalPrayer()
+    {
+        Player* player = GetCaster()->ToPlayer();
+        if (!player || !GetHitUnit() || !player->HasAura(SPELL_FINAL_PRAYER))
+            return;
+        if (sSpellMgr->GetFirstSpellInChain(GetSpellInfo()->Id) != SPELL_PRAYER_OF_ELUNE)
+            return;
+        DispelChargesList dispelList;
+        GetHitUnit()->GetDispellableAuraList(GetCaster(), DISPEL_MAGIC, dispelList, GetSpellInfo());
+        if (dispelList.empty())
+            return;
+        GetHitUnit()->RemoveAura(dispelList.front().first, AURA_REMOVE_BY_ENEMY_SPELL);
+    }
+
+    void Register() override
+    {
+        OnEffectHitTarget += SpellEffectFn(spell_ascension_starcaller_prayer_of_elune::AddFinalPrayer,
+            EFFECT_ALL, SPELL_EFFECT_DISPEL);
+    }
+};
+
 bool Lunar(SpellInfo const* info, Player* player)
 {
     return Any(info, {575030, 575039, 800370, 574328}) || (Named(info, 680220) && player->HasAura(92134)) ||
-           (Named(info, 801978) && player->HasAura(500205));
+           (Named(info, 801978) && (player->HasAura(500205) || player->HasAura(801973)));
 }
+
+// Warden Training (704790): "Reduces the cooldown of Warden's Blade by 25%."
+// Warden's Blade has no spell family, so the passive's native Spell Pct Mod
+// can never match it; refund a quarter of the blade's cooldown after cast.
+class spell_ascension_starcaller_wardens_blade : public SpellScript
+{
+    PrepareSpellScript(spell_ascension_starcaller_wardens_blade);
+
+    static constexpr uint32 SPELL_WARDENS_BLADE = 805508;
+    static constexpr uint32 SPELL_WARDEN_TRAINING = 704790;
+    static constexpr uint32 SPELL_PRAYER_OF_ELUNE = 801987;
+    static constexpr uint32 SPELL_FINAL_PRAYER = 704745;
+
+    void ApplyWardenTraining()
+    {
+        Player* player = GetCaster()->ToPlayer();
+        if (player && player->HasAura(SPELL_WARDEN_TRAINING))
+            if (uint32 cooldown = player->GetSpellCooldownDelay(SPELL_WARDENS_BLADE))
+                player->ModifySpellCooldown(SPELL_WARDENS_BLADE, -int32(cooldown / 4));
+    }
+
+    void Register() override
+    {
+        AfterCast += SpellCastFn(spell_ascension_starcaller_wardens_blade::ApplyWardenTraining);
+    }
+};
+
 bool Derived(SpellInfo const* info)
 {
     return info && Any(info, {801129, 807672, 524703, 804736, 707759, 805357, 954791});
@@ -229,7 +284,10 @@ bool Consume(Player* player, Unit* target)
     // Reserve before the triggered hit: a miss still consumes this exact star, never another caster's.
     stars->ModStackAmount(-1);
     Cast(player, target, 804995);
-    float effectiveness = (player->HasAura(807659) ? 1.5f : 1) * (player->HasAura(805524) ? 1.5f : 1);
+    // Celestial Shot (574348): "Increases the effectiveness of consuming
+    // Scattered Stars by 40%."
+    float effectiveness = (player->HasAura(807659) ? 1.5f : 1) * (player->HasAura(805524) ? 1.5f : 1) *
+        (player->HasAura(574348) ? 1.4f : 1);
     Mana(player, uint32(player->GetMaxPower(POWER_MANA) * .08f * effectiveness * (player->HasAura(574360) ? 2 : 1)));
     for (uint32 helper : {804994, 504024, 706573})
         if (SpellInfo const* info = sSpellMgr->GetSpellInfo(helper))
@@ -285,7 +343,20 @@ void Aspect(Player* player, Unit* target, uint32 damage, bool forced)
         }
         else
         {
-            Copy(player, target, 800507, std::max(0, Amount(id, 1, player)));
+            uint32 amount = std::max(0, Amount(id, 1, player));
+            Copy(player, target, 800507, amount);
+            if (player->HasAura(680788)) // Will of Elune: Aspect damage strikes 2 additional nearby enemies.
+            {
+                uint32 extra = 2;
+                for (Unit* enemy : Nearby(target, 10))
+                {
+                    if (enemy == target || !player->IsValidAttackTarget(enemy))
+                        continue;
+                    Copy(player, enemy, 800507, amount);
+                    if (!--extra)
+                        break;
+                }
+            }
         }
         break;
     }
@@ -394,4 +465,6 @@ class starcaller_player : public PlayerScript
 void AddSC_AscensionStarcaller()
 {
     new starcaller_player();
+    RegisterSpellScript(spell_ascension_starcaller_wardens_blade);
+    RegisterSpellScript(spell_ascension_starcaller_prayer_of_elune);
 }

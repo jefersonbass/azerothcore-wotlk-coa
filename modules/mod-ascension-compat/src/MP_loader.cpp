@@ -2,6 +2,7 @@
  * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license: https://github.com/azerothcore/azerothcore-wotlk/blob/master/LICENSE-AGPL3
  */
 
+#include "AscensionReaperDeathwind.h"
 #include "AscensionReaperDirge.h"
 #include "AscensionTinkerOverload.h"
 #include "AscensionRunemasterGlyphs.h"
@@ -157,6 +158,7 @@ void AddSC_AscensionChronomancerSecondary();
 void AddSC_AscensionVenomancerSerpentFang();
 void AddSC_AscensionSunClericBattleCleric();
 void AddSC_AscensionReaperTalents();
+void AddSC_AscensionReaperDeathwind();
 void AddSC_AscensionReaperSecondary();
 void AddSC_AscensionPrimalistSecondary();
 void AddSC_AscensionRunemasterSecondary();
@@ -271,6 +273,7 @@ void Addmod_ascension_compatScripts()
     AddAscensionRunemasterGlyphScripts();
     AddSC_AscensionVenomancerCatalyst();
     AddAscensionRunemasterBrandScripts();
+    AddSC_AscensionReaperDeathwind();
     AddAscensionRunemasterScalingScripts();
     AddAscensionTinkerRockadierScripts();
     AddSC_AscensionPrimalistSpiritBeast();

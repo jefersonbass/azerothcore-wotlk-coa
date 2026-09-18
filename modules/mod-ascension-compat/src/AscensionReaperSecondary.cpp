@@ -28,7 +28,43 @@ enum ReaperSecondarySpells : uint32
     SPELL_CRIMSON_THIRST = 807415,
     SPELL_CRIMSON_STACK = 807416,
     SPELL_CRIMSON_AMOUNT = 807417,
-    SPELL_CRIMSON_HEAL = 807545
+    SPELL_CRIMSON_HEAL = 807545,
+    SPELL_GRAVESITE_PASSIVE = 572213,
+    SPELL_GRAVESITE_AREA = 804722,
+    SPELL_GRAVESITE_HIT = 300979,
+    SPELL_SPIRIT_CHASER = 560434,
+    SPELL_REAP = 801327,
+    SPELL_DEATHCHASER = 560351,
+    SPELL_WRAITHBLADE = 805258,
+    SPELL_SOULSTRIDER = 572340,
+    SPELL_VEILWALK = 803990,
+    SPELL_RED_WAKE = 707707,
+    SPELL_HAUNTER = 705410,
+    SPELL_SOULREND = 572341,
+    HAUNTER_BONUS = 10000,
+    SPELL_ESSENCE_HARVEST = 707908,
+    SPELL_GHOSTLY_WEAPON_HIT = 804474,
+    ESSENCE_HARVEST_BONUS = 10
+};
+
+// Essence Harvest (707908): "Increases the additional Frost damage dealt by
+// Ghostly Weapon by 10%." The weapon's proc damage spell (804474) has no
+// family for the passive's Spell Flat Mod to match, so boost its damage here.
+class reaper_essence_harvest : public UnitScript
+{
+public:
+    reaper_essence_harvest() : UnitScript("reaper_essence_harvest", true,
+        {UNITHOOK_MODIFY_SPELL_DAMAGE_TAKEN}) { }
+
+    void ModifySpellDamageTaken(Unit* target, Unit* source, int32& damage, SpellInfo const* spellInfo) override
+    {
+        Player* player = source ? source->ToPlayer() : nullptr;
+        if (!player || !damage || player->getClass() != CLASS_REAPER ||
+            !spellInfo || sSpellMgr->GetFirstSpellInChain(spellInfo->Id) != SPELL_GHOSTLY_WEAPON_HIT ||
+            !player->HasAura(SPELL_ESSENCE_HARVEST))
+            return;
+        damage += CalculatePct(damage, ESSENCE_HARVEST_BONUS);
+    }
 };
 
 void HealFromDamage(Player* player, uint32 reference, uint32 helper, uint32 damage)
@@ -77,7 +113,40 @@ class reaper_secondary_hits : public AllSpellScript
 {
 public:
     reaper_secondary_hits() : AllSpellScript("reaper_secondary_hits",
-        {ALLSPELLHOOK_ON_BEFORE_EFFECTS, ALLSPELLHOOK_ON_CAST, ALLSPELLHOOK_ON_HIT_RESULT}) { }
+        {ALLSPELLHOOK_ON_BEFORE_EFFECTS, ALLSPELLHOOK_ON_CAST, ALLSPELLHOOK_ON_HIT_RESULT,
+         ALLSPELLHOOK_ON_CRIT_CHANCE}) { }
+
+    void OnSpellCritChance(Spell* spell, Unit* target, float& chance) override
+    {
+        Player* player = spell->GetCaster() ? spell->GetCaster()->ToPlayer() : nullptr;
+        if (!player || player->getClass() != CLASS_REAPER || !player->HasAura(SPELL_SPIRIT_CHASER))
+            return;
+        uint32 const root = sSpellMgr->GetFirstSpellInChain(spell->GetSpellInfo()->Id);
+        // Spirit Chaser (560434): "Increases the critical strike chance and
+        // critical damage of Reap, Deathchaser, and Wraithblade by 10%." Those
+        // abilities carry no spell family, so the passive's native Spell Flat
+        // Mod can never match them. The +10% crit damage rides the same
+        // multiplier the engine applies to crits of these abilities.
+        if (root == SPELL_REAP || root == SPELL_DEATHCHASER || root == SPELL_WRAITHBLADE)
+            chance += 10;
+    }
+
+    void OnSpellCast(Spell* spell, Unit* caster, SpellInfo const* info, bool) override
+    {
+        Player* player = caster ? caster->ToPlayer() : nullptr;
+        if (!player || player->getClass() != CLASS_REAPER || spell->IsTriggered())
+            return;
+        // Soulstrider (572340): "Increases the movement speed granted by
+        // Veilwalk by 25%." The DBC's Add Flat Modifier slot has no family to
+        // match the Veilwalk chain, so top the speed aura up on cast.
+        if (sSpellMgr->GetFirstSpellInChain(info->Id) != SPELL_VEILWALK ||
+            !player->HasAura(SPELL_SOULSTRIDER))
+            return;
+        if (Aura* veil = player->GetAura(SPELL_VEILWALK))
+            if (AuraEffect* speed = veil->GetEffect(EFFECT_0);
+                speed && speed->GetAuraType() == SPELL_AURA_MOD_INCREASE_SPEED)
+                speed->ChangeAmount(speed->GetAmount() + 12); // 50% -> 62.5% rounded to 62
+    }
 
     void OnSpellBeforeEffects(Spell* spell, Unit* caster, SpellInfo const* info) override
     {
@@ -96,7 +165,7 @@ public:
             caster->RemoveAurasDueToSpell(SPELL_CRIMSON_STACK, caster->GetGUID());
     }
 
-    void OnSpellHitResult(Spell* spell, Unit* target, uint8 miss, uint32 damage, uint32, bool) override
+    void OnSpellHitResult(Spell* spell, Unit* target, uint8 miss, uint32 damage, uint32, bool critical) override
     {
         Player* player = spell->GetCaster()->ToPlayer();
         if (!player || player->getClass() != CLASS_REAPER || !player->IsAlive() || !player->IsInWorld() ||
@@ -107,6 +176,27 @@ public:
             HealFromDamage(player, SPELL_ENDBRINGER_AMOUNT, SPELL_ENDBRINGER_HEAL, damage);
         if (id == SPELL_SPECTRE_HIT && target->IsAlive())
             player->CastSpell(target, SPELL_SPECTRE_ROOT, true);
+        // Casting Endbringer marks the caster's position as a Gravesite.
+        if (id == SPELL_ENDBRINGER && target == player && player->HasAura(SPELL_GRAVESITE_PASSIVE))
+            player->CastSpell(player, SPELL_GRAVESITE_AREA, true);
+        // Red Wake (707707): "Direct damage critical strikes now generate an
+        // additional Soul Fragment." The DBC's Proc Trigger slot is inert.
+        if (critical && damage && player->HasAura(SPELL_RED_WAKE) && !spell->IsTriggered())
+            HandleAscensionReaperResource(player, SPELL_REAPED_SOUL, 1);
+        // Haunter (705410): "Increases the duration of Soulrend by 10 sec."
+        // The passive's Spell Flat Mod slot has no family to match the
+        // Soulrend chain, so stretch the aura on application instead.
+        if (sSpellMgr->GetFirstSpellInChain(id) == SPELL_SOULREND && player->HasAura(SPELL_HAUNTER))
+            if (Aura* rend = target->GetAura(spell->GetSpellInfo()->Id, player->GetGUID()))
+                rend->SetDuration(rend->GetDuration() + HAUNTER_BONUS);
+        // Essence Harvest (707908): handled in reaper_essence_harvest below —
+        // OnSpellHitResult cannot adjust the final damage.
+        // Gravesite (572213): "Direct critical strikes made against enemies
+        // within a Gravesite now deals Shadow damage." The area marker (804722)
+        // is dropped by the Endbringer cast below.
+        if (critical && damage && player->HasAura(SPELL_GRAVESITE_PASSIVE) &&
+            target->HasAura(SPELL_GRAVESITE_AREA, player->GetGUID()))
+            player->CastSpell(target, SPELL_GRAVESITE_HIT, true);
         if (spell->IsTriggered())
             return;
         uint32 root = sSpellMgr->GetFirstSpellInChain(id);
@@ -187,5 +277,6 @@ void AddSC_AscensionReaperSecondary()
     new reaper_ghost_speed();
     new reaper_secondary_hits();
     new reaper_secondary_metadata();
+    new reaper_essence_harvest();
     RegisterSpellScript(aura_ascension_crimson_thirst);
 }

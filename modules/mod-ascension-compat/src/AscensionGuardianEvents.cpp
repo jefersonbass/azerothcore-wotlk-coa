@@ -42,6 +42,28 @@ void CarryBleed(Unit* caster, Unit* target, uint32 id, uint32 damage, uint32 per
         TriggerCastFlags(TRIGGERED_FULL_MASK & ~TRIGGERED_NO_PERIODIC_RESET));
 }
 
+// Experienced Soldier (570713): "Melee attacks now reduce the cooldown of
+// Brace by 1 sec." Auto-attacks never enter the module's cast path, so watch
+// physical damage here instead.
+class guardian_experienced_soldier : public UnitScript
+{
+public:
+    guardian_experienced_soldier() : UnitScript("guardian_experienced_soldier", true, {UNITHOOK_ON_DAMAGE}) { }
+
+    void OnDamage(Unit* attacker, Unit* victim, uint32& damage) override
+    {
+        Player* player = attacker ? attacker->ToPlayer() : nullptr;
+        if (!player || !damage || !victim || player->getClass() != CLASS_GUARDIAN ||
+            !player->HasAura(SPELL_GUARDIAN_EXPERIENCED_SOLDIER))
+            return;
+        player->ModifySpellCooldown(SPELL_GUARDIAN_BRACE, -1000);
+    }
+
+private:
+    static constexpr uint32 SPELL_GUARDIAN_EXPERIENCED_SOLDIER = 570713;
+    static constexpr uint32 SPELL_GUARDIAN_BRACE = 800313;
+};
+
 class aura_ascension_guardian_event : public AuraScript
 {
     PrepareAuraScript(aura_ascension_guardian_event);
@@ -297,4 +319,5 @@ void AddAscensionGuardianEventScripts()
     RegisterSpellScript(spell_ascension_guardian_converted_damage);
     RegisterSpellScript(aura_ascension_guardian_converted_bleed);
     new guardian_echo();
+    new guardian_experienced_soldier();
 }

@@ -45,7 +45,11 @@ enum TimeSpells : uint32
     Decelerate = 572632,
     TimeOut = 802229,
     TimeOutRankTwo = 803896,
-    TimeOutRankThree = 803897
+    TimeOutRankThree = 803897,
+    ContinuumRestoration = 801271,
+    Unmake = 804418,
+    BuyTime = 520185,
+    BuyTimeStasis = 520186
 };
 
 Player* Chronomancer(Unit* caster)
@@ -298,6 +302,15 @@ void ApplyTimeContracts(SpellInfo* info)
         info->StackAmount = 5;
     if (info->Id == TimeOut || info->Id == TimeOutRankTwo || info->Id == TimeOutRankThree)
         info->Effects[EFFECT_1].ApplyAuraName = SPELL_AURA_OBS_MOD_POWER;
+    if (info->Id == ContinuumRestoration)
+    {
+        // "This dispel is potent enough to remove magic effects that are normally
+        // undispellable": Unit::GetDispellableAuraList skips auras whose own spell
+        // is immune to dispel (Banish and friends) unless the dispelling spell
+        // carries SPELL_ATTR0_NO_IMMUNITIES, and EffectDispel rolls CalcDispelChance
+        // per aura unless the same attribute is set. Mass Dispel uses both shortcuts.
+        info->Attributes |= SPELL_ATTR0_NO_IMMUNITIES;
+    }
     for (uint32 id : {RenewalAeon, ResilienceAeon, ProtectionAeon, KeepAccelerating, CadenceTalent,
         OrderlyTalent, EndlessSandsTalent, EpicRecovery, TimelineTether})
         if (info->Id == id)
@@ -321,6 +334,27 @@ void ApplyTimeContracts(SpellInfo* info)
     }
 }
 
+class spell_ascension_chronomancer_unmake : public SpellScript
+{
+    PrepareSpellScript(spell_ascension_chronomancer_unmake);
+
+    // "Casting Unmake on a target will remove this effect" (Buy Time).
+    // Unmake's DBC carries a Dummy slot for exactly this interaction; stock
+    // AzerothCore leaves it inert, so pop the stasis aura here.
+    void HandleUnmake(SpellEffIndex effIndex)
+    {
+        if (effIndex != EFFECT_1 || !GetHitUnit())
+            return;
+        GetHitUnit()->RemoveAurasDueToSpell(BuyTime);
+        GetHitUnit()->RemoveAurasDueToSpell(BuyTimeStasis);
+    }
+
+    void Register() override
+    {
+        OnEffectHitTarget += SpellEffectFn(spell_ascension_chronomancer_unmake::HandleUnmake, EFFECT_1, SPELL_EFFECT_DUMMY);
+    }
+};
+
 class chronomancer_time_contracts : public GlobalScript
 {
 public:
@@ -339,4 +373,5 @@ void AddSC_AscensionChronomancerTime()
     new chronomancer_time_casts();
     new chronomancer_time_contracts();
     RegisterSpellScript(aura_ascension_timeline_tether);
+    RegisterSpellScript(spell_ascension_chronomancer_unmake);
 }
