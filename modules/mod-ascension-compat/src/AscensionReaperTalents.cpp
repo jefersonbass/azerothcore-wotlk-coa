@@ -1,5 +1,6 @@
 /* Copyright (C) 2016+ AzerothCore, GNU AGPL v3. */
 #include "AscensionReaperTalents.h"
+#include "AscensionReaperDeathwind.h"
 #include "CellImpl.h"
 #include "GridNotifiersImpl.h"
 #include "ObjectAccessor.h"
@@ -212,6 +213,8 @@ bool HandleAscensionReaperResource(Player* player, uint32 spellId, int32 amount)
     aura = player->GetAura(spellId, player->GetGUID());
     if (aura && aura->GetStackAmount() > previous && player->IsAlive() && player->HasAura(SPELL_SOUL_SPLINTERS))
         player->CastSpell(player, SPELL_SOUL_SPLINTER, true);
+    if (aura && aura->GetStackAmount() > previous && player->IsAlive())
+        HandleAscensionReaperEaterOfSouls(player);
     return true;
 }
 
