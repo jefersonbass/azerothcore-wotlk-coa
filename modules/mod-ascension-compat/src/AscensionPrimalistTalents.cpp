@@ -44,6 +44,9 @@ enum PrimalistAbilitySpells : uint32
     SPELL_RYLAKS_BITE = 706342,
     SPELL_WILDCLAW = 800140,
     SPELL_MOUNTAIN_MOVER_STACKS = 805644,
+    SPELL_EARTHMOTHERS_PROTECTION = 560298,
+    SPELL_ROCK_BARRIER = 503630,
+    SPELL_HAND_OF_THE_EARTHMOTHER = 800135,
     SPELL_MISHAS_RAGE = 504227,
     SPELL_LEOKKS_FURY = 560974,
     SPELL_HUFFERS_SPEED = 560973
@@ -71,6 +74,21 @@ Player* Primalist(Unit* unit)
 {
     Player* player = unit ? unit->ToPlayer() : nullptr;
     return player && player->getClass() == CLASS_WILDWALKER ? player : nullptr;
+}
+
+// Hand of the Earthmother (800135) and its later ranks (502802-502808).
+bool IsHandOfTheEarthmother(SpellInfo const* info)
+{
+    if (sSpellMgr->GetFirstSpellInChain(info->Id) == sSpellMgr->GetFirstSpellInChain(SPELL_HAND_OF_THE_EARTHMOTHER))
+        return true;
+    switch (info->Id)
+    {
+        case 502802: case 502803: case 502804: case 502805:
+        case 502806: case 502807: case 502808:
+            return true;
+        default:
+            return false;
+    }
 }
 
 class primalist_talent_events : public UnitScript
@@ -171,6 +189,13 @@ public:
                     player->ModifyPower(POWER_RAGE, CalculatePct(cost, 10 * stacks->GetStackAmount()));
                 player->RemoveAura(SPELL_MOUNTAIN_MOVER_STACKS);
             }
+        // Earthmother's Protection (560298): while Rock Barrier is active, Hand
+        // of the Earthmother costs fifty percent less Rage, refunded here after
+        // the power is taken.
+        if (player->HasAura(SPELL_EARTHMOTHERS_PROTECTION) && player->HasAura(SPELL_ROCK_BARRIER) &&
+            IsHandOfTheEarthmother(info))
+            if (int32 cost = spell->GetPowerCost())
+                player->ModifyPower(POWER_RAGE, CalculatePct(cost, 50));
         // Fury of the Wild (801234): casting a Boon also casts the same Boon on the
         // pet at 50% effectiveness. The DBC aura is an inert Dummy, so the mirror
         // cast happens here. The Boons' pet-visible values come from their auras;
