@@ -127,7 +127,7 @@ public:
         Player* player = spell->GetCaster() ? spell->GetCaster()->ToPlayer() : nullptr;
         if (!player || !damage || missInfo != SPELL_MISS_NONE ||
             player->getClass() != CLASS_CHRONOMANCER ||
-            !spell->GetSpellInfo()->IsPeriodic() || !player->HasAura(SPELL_CHAOTIC_TIME))
+            !spell->GetSpellInfo()->HasAura(SPELL_AURA_PERIODIC_DAMAGE) || !player->HasAura(SPELL_CHAOTIC_TIME))
             return;
         // Chaotic Time (583245): "periodic damage dealt now reduces the
         // cooldown of Incarnation of Chaos by 1 sec." The DBC's Proc Trigger

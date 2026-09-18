@@ -231,11 +231,11 @@ public:
     }
 };
 
-class bloodmage_talent_contracts : public GlobalScript
+class bloodmage_talent_guard : public UnitScript
 {
 public:
-    bloodmage_talent_contracts() : GlobalScript("bloodmage_talent_contracts",
-        {GLOBALHOOK_ON_LOAD_SPELL_CUSTOM_ATTR}) { }
+    bloodmage_talent_guard() : UnitScript("bloodmage_talent_guard", true,
+        {UNITHOOK_ON_DAMAGE}) { }
 
     void OnDamage(Unit* attacker, Unit* victim, uint32& damage) override
     {
@@ -254,6 +254,13 @@ public:
         damage = 0;
         player->ModifyHealth(int32(player->CountPctFromMaxHealth(30)));
     }
+};
+
+class bloodmage_talent_contracts : public GlobalScript
+{
+public:
+    bloodmage_talent_contracts() : GlobalScript("bloodmage_talent_contracts",
+        {GLOBALHOOK_ON_LOAD_SPELL_CUSTOM_ATTR}) { }
 
     void OnLoadSpellCustomAttr(SpellInfo* info) override
     {
@@ -279,6 +286,7 @@ public:
 void AddSC_AscensionBloodmageTalents()
 {
     new bloodmage_talent_events();
+    new bloodmage_talent_guard();
     new bloodmage_talent_contracts();
     RegisterSpellScript(spell_ascension_animated_blood);
 }

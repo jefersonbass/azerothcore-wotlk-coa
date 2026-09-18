@@ -184,7 +184,8 @@ public:
             player->RemoveSpellCooldown(SPELL_REAVE, true);
         // Aortic Aegis (806274): Blood Veil spreads to the target's party members.
         if (player->HasAura(SPELL_AORTIC_AEGIS) && RankOf(info->Id, SPELL_BLOOD_VEIL) && !spell->IsTriggered())
-            if (Player* target = spell->GetUnitTarget() ? spell->GetUnitTarget()->ToPlayer() : nullptr)
+            if (Unit* hitTarget = spell->m_targets.GetUnitTarget())
+                if (Player* target = hitTarget->ToPlayer())
                 for (auto const& reference : target->GetMap()->GetPlayers())
                     if (Player* member = reference.GetSource())
                         if (member->IsInWorld() && member != target &&
