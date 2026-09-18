@@ -2,14 +2,28 @@
 #include "AscensionRunemasterTalents.h"
 #include "Player.h"
 #include "ScriptMgr.h"
+#include "SpellAuraEffects.h"
 #include "SpellAuras.h"
 #include "SpellInfo.h"
+#include "SpellScript.h"
 
 namespace
 {
 bool IsEarthTattoo(uint32 id)
 {
     return id == 801094 || (id >= 803754 && id <= 803758);
+}
+
+bool EarthTattooActive(Unit* unit)
+{
+    if (!unit || !unit->IsAlive())
+        return false;
+    if (unit->HasAura(801094, unit->GetGUID()))
+        return true;
+    for (uint32 id = 803754; id <= 803758; ++id)
+        if (unit->HasAura(id, unit->GetGUID()))
+            return true;
+    return false;
 }
 
 bool StonePetroglyphActive(Player* player)
@@ -87,23 +101,55 @@ public:
             SyncRuneshroudOrWaveforged(player);
     }
 };
+
+// Granite Shield (806996): "While Runic Tattoos: Earth is active, you now periodically gain
+// Granite Shield every 20 sec." The load-time contract repoints the dead DBC trigger at the
+// real absorb (520822); this gate keeps the tick silent while no Earth tattoo is active.
+class aura_runemaster_granite_shield : public AuraScript
+{
+    PrepareAuraScript(aura_runemaster_granite_shield);
+
+    void Tick(AuraEffect const*)
+    {
+        if (!EarthTattooActive(GetTarget()))
+            PreventDefaultAction();
+    }
+
+    void Register() override
+    {
+        OnEffectPeriodic += AuraEffectPeriodicFn(aura_runemaster_granite_shield::Tick,
+            EFFECT_1, SPELL_AURA_PERIODIC_TRIGGER_SPELL);
+    }
+};
 }
 
 void ApplyAscensionRunemasterTalentContracts(SpellInfo* info)
 {
-    if (info->Id != 712310 || info->SpellFamilyName != 38)
-        return;
-    // The native periodic heal and effect-98 immunity already exist. Complete
-    // knockback immunity for the separate destination-based effect as well.
-    auto& effect = info->Effects[EFFECT_1];
-    effect.Effect = SPELL_EFFECT_APPLY_AURA;
-    effect.ApplyAuraName = SPELL_AURA_EFFECT_IMMUNITY;
-    effect.MiscValue = SPELL_EFFECT_KNOCK_BACK_DEST;
-    effect.BasePoints = 0;
-    effect.DieSides = 0;
+    if (info->Id == 712310 && info->SpellFamilyName == 38)
+    {
+        // The native periodic heal and effect-98 immunity already exist. Complete
+        // knockback immunity for the separate destination-based effect as well.
+        auto& effect = info->Effects[EFFECT_1];
+        effect.Effect = SPELL_EFFECT_APPLY_AURA;
+        effect.ApplyAuraName = SPELL_AURA_EFFECT_IMMUNITY;
+        effect.MiscValue = SPELL_EFFECT_KNOCK_BACK_DEST;
+        effect.BasePoints = 0;
+        effect.DieSides = 0;
+    }
+    else if (info->Id == 806996)
+    {
+        // Issue 883: the shipped periodic trigger targets a dead spell, so the passive
+        // never granted anything. Point the 20 s tick at the real Granite Shield absorb.
+        auto& effect = info->Effects[EFFECT_1];
+        effect.Effect = SPELL_EFFECT_APPLY_AURA;
+        effect.ApplyAuraName = SPELL_AURA_PERIODIC_TRIGGER_SPELL;
+        effect.Amplitude = 20000;
+        effect.TriggerSpell = 520822;
+    }
 }
 
 void AddSC_AscensionRunemasterTalents()
 {
     new runemaster_talent_events();
+    RegisterSpellScript(aura_runemaster_granite_shield);
 }
