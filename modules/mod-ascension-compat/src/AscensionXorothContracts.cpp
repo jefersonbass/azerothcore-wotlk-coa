@@ -24,6 +24,62 @@ void ApplyContracts(SpellInfo* info)
     if (!info || info->SpellFamilyName != 23)
         return;
     uint32 id = info->Id;
+    if (id == 707835)
+    {
+        // Mounted Reaver's percent modifier must read as the cooldown op so the engine
+        // trims every Mounted Combat ability; the DBC mask already keys that skill.
+        for (auto& effect : info->Effects)
+            if (effect.ApplyAuraName == SPELL_AURA_ADD_PCT_MODIFIER)
+                effect.MiscValue = SPELLMOD_COOLDOWN;
+    }
+    if (id == 804947)
+        // Screamin' Demon's flat modifier must read as the cooldown op so the engine
+        // trims Unleash Pestilence; the DBC mask already keys the Unleash button.
+        info->Effects[EFFECT_0].MiscValue = SPELLMOD_COOLDOWN;
+    if (id == 704981)
+        // Knight of Pestilence's percent modifier must read as the crit-damage op so the
+        // engine adds it to crit bonuses; the DBC family mask already keys the Pestilences.
+        info->Effects[EFFECT_0].MiscValue = SPELLMOD_CRIT_DAMAGE_BONUS;
+    if (id == 705020)
+    {
+        // War Pig's damage bonus ships as an untyped school-immunity slot; map it to
+        // the percent-damage aura with the physical school mask.
+        info->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_MOD_DAMAGE_PERCENT_DONE;
+        info->Effects[EFFECT_0].MiscValue = SPELL_SCHOOL_MASK_NORMAL;
+    }
+    if (id == 680723)
+    {
+        // Brute Strength: the crit half keys to physical schools via the crit-damage
+        // op's school mask; the range half reads as the radius op keyed to the hooks.
+        info->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_MOD_CRIT_DAMAGE_BONUS;
+        info->Effects[EFFECT_0].MiscValue = SPELL_SCHOOL_MASK_NORMAL;
+        info->Effects[EFFECT_1].MiscValue = SPELLMOD_RADIUS;
+    }
+    if (id == 704986)
+    {
+        // Warden of Hellfire's percent modifier must read as the damage op so the engine
+        // scales Skulltaker, Flames of Xoroth, and Meatsaw; the mask already keys them.
+        info->Effects[EFFECT_0].MiscValue = SPELLMOD_DAMAGE;
+    }
+    if (id == 707388)
+    {
+        // Consuming Blade's crit chance reads through the crit chance op keyed to the
+        // Gore ranks; its expertise half is a plain expertise aura, not a spell mod.
+        info->Effects[EFFECT_0].MiscValue = SPELLMOD_CRITICAL_CHANCE;
+        info->Effects[EFFECT_1].ApplyAuraName = SPELL_AURA_MOD_EXPERTISE;
+    }
+    if (id == 704966)
+    {
+        // Demonfire Plating's halves ship untyped: map them to damage-taken reduction
+        // and the flat stamina aura the engine sums into base stats.
+        info->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_MOD_DAMAGE_PERCENT_TAKEN;
+        info->Effects[EFFECT_1].ApplyAuraName = SPELL_AURA_MOD_STAT;
+        info->Effects[EFFECT_1].MiscValue = STAT_STAMINA;
+    }
+    if (id == 704999)
+        // Combusting Blade's flat modifier must land on the cost op to trim
+        // Infernal Strike's Rage price by 5 (DBC stores Rage in tenth-units).
+        info->Effects[EFFECT_1].MiscValue = SPELLMOD_COST;
     if (id == SPELL_WARPATH_PROTECTION && info->Effects[EFFECT_0].ApplyAuraName == SPELL_AURA_MOD_MINIMUM_SPEED)
         info->DurationEntry = sSpellDurationStore.LookupEntry(27); // Three seconds after Unleash Pestilence.
     if (id == SPELL_FLESH_HOOK_PULL)
@@ -384,6 +440,17 @@ class xoroth_scaling : public UnitScript
     void ModifySpellDamageTaken(Unit* target, Unit* caster, int32& damage, SpellInfo const* info) override
     {
         damage = int32(damage * Factor(target, caster, info));
+        // Absolutism: Meatsaw's damage ignores a tenth of the target's armor.
+        if (Player* player = Owner(caster); player && player == caster && target && damage > 0 &&
+            player->HasAura(706501) &&
+            sSpellMgr->GetFirstSpellInChain(info->Id) == sSpellMgr->GetFirstSpellInChain(501508))
+        {
+            uint32 probe = 10000;
+            uint32 unsoaked = Unit::CalcArmorReducedDamage(caster, target, probe, info, caster->GetLevel());
+            float a = 1.f - float(unsoaked) / float(probe);
+            if (a > 0.f && a < 1.f)
+                damage = int32(float(damage) * (1.f - 0.9f * a) / (1.f - a));
+        }
     }
     void ModifyPeriodicDamageAurasTick(Unit* target, Unit* caster, uint32& damage, SpellInfo const* info) override
     {

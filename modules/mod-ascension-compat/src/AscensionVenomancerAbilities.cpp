@@ -45,6 +45,17 @@ void Finish(Player* player, Spell* spell)
                     aura->Remove();
             }
 }
+uint32 StingStacks(Player* player, Unit* target)
+{
+    uint32 stacks = 0;
+    for (auto const& pair : target->GetAppliedAuras())
+    {
+        Aura* aura = pair.second->GetBase();
+        if (Named(sSpellMgr->GetSpellInfo(aura->GetId()),800882) && aura->GetCasterGUID() == player->GetGUID())
+            stacks = std::max(stacks,aura->GetStackAmount());
+    }
+    return stacks;
+}
 class venomancer_spells : public AllSpellScript
 {
 public:
@@ -148,6 +159,9 @@ public:
                 factor *= spell->GetScriptValue(Brood+1) / 10000.0f;
             if (hit.crit && Any(info,{800880,504705,804961}) && player->HasAura(504704) && HasDispel(target,DISPEL_POISON))
                 factor *= 1 + Amount(504704) / 100.0f;
+            if (player->HasAura(680871) && Any(info,{800880,804961}))
+                if (uint32 sting = StingStacks(player,target))
+                    factor *= 1 + Amount(680871,1) * sting / 100.0f;
         }
         else if (hit.damage < 0)
             factor *= HealingFactor(player,target,info);
@@ -236,6 +250,19 @@ public:
         if (id == 800841 || id == 803183 || id == 804980 || id == 800912)
             if (player->HasAura(503907))
                 player->RemoveMovementImpairingAuras(true);
+        // Master of Venoms: extends the duration of every Venom applied by the caster.
+        if (Venom(info))
+            if (AuraEffect const* master = player->GetAuraEffect(504326, EFFECT_0))
+                if (Unit* victim = spell->m_targets.GetUnitTarget())
+                    if (Aura* aura = victim->GetAura(id, player->GetGUID()))
+                    {
+                        int32 extra = CalculatePct(aura->GetMaxDuration(), master->GetAmount());
+                        aura->SetMaxDuration(aura->GetMaxDuration() + extra);
+                        aura->SetDuration(aura->GetDuration() + extra);
+                    }
+        // Chitinous Surge: reduces the cooldown of Chitin Rush.
+        if (player->HasAura(705973) && Named(info, 803570))
+            player->ModifySpellCooldown(info->Id, -std::abs(Amount(705973)));
         Refresh(player);
     }
     void OnSpellHitResult(Spell* spell, Unit* target, uint8 miss, uint32 damage, uint32, bool) override

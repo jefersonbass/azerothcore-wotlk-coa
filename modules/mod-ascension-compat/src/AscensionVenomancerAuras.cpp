@@ -38,6 +38,11 @@ class aura_ascension_venomancer_lifecycle : public AuraScript
                 GetAura()->SetCharges(id == 504737 ? 2 : id == 505203 ? 5 : id == 808083 ? 12 : 1);
             GetAura()->SetUsingCharges(false);
         }
+        // Versatile and Deadly: Spider Form moves 5% faster.
+        if (id == Spider && player->HasAura(681052))
+            if (AuraEffect* speed = GetAura()->GetEffect(EFFECT_0))
+                if (speed->GetAuraType() == SPELL_AURA_MOD_INCREASE_SPEED)
+                    speed->ChangeAmount(speed->GetAmount() + 5);
         if (Named(GetSpellInfo(),804983) && (mode & AURA_EFFECT_HANDLE_REAPPLY))
             GetAura()->GetEffect(EFFECT_2)->SetAmount(0);
         if (Named(GetSpellInfo(),706962))

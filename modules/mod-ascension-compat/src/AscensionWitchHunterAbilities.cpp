@@ -62,6 +62,13 @@ class witch_hunter_casts : public AllSpellScript
             Cast(player, player, SPELL_ARBALEST_MASTERY_PROGRESS);
         if (info->Id == SPELL_SIXFOLD_SHOT_DAMAGE && channel->Id == SPELL_SIXFOLD_SHOT)
             Cast(player, player, SPELL_SIXFOLD_SHOT_ENERGIZE);
+        // Rearmament: the rearm resets Trap and Decimate cooldowns and suspends them.
+        if (info->Id == 805738)
+        {
+            player->RemoveSpellCooldown(804194, true);
+            for (uint32 trap : {680238, 680253})
+                player->RemoveSpellCooldown(trap, true);
+        }
     }
 
     void OnSpellBeforeEffects(Spell* spell, Unit* caster, SpellInfo const* info) override

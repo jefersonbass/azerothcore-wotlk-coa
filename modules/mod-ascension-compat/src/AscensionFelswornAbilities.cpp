@@ -212,6 +212,15 @@ class felsworn_casts : public AllSpellScript
             State(player).spenderCrit = uint32(previous - 1);
         if (uint32 refund = spell->GetScriptValue(800355))
             player->EnergizeBySpell(player, 800355, refund, POWER_ENERGY);
+        // Outland Slaver: Felrend and Fel Fireball cost 3 less Energy; refund the
+        // discount after the spend since the engine stores Energy in tenths.
+        if (player->HasAura(705123))
+            for (uint32 root : {563268, 802405, 501281})
+                if (sSpellMgr->GetFirstSpellInChain(info->Id) == sSpellMgr->GetFirstSpellInChain(root))
+                {
+                    player->EnergizeBySpell(player, 705123, 3, POWER_ENERGY);
+                    break;
+                }
         if (Spender(info))
         {
             talent(807431, 521234);
@@ -362,6 +371,25 @@ class felsworn_casts : public AllSpellScript
 class spell_ascension_felsworn_ability : public SpellScript
 {
     PrepareSpellScript(spell_ascension_felsworn_ability);
+    void ManaburnHit(SpellEffIndex effect)
+    {
+        Player* player = Owner(GetCaster());
+        if (!player || !player->HasAura(520592))
+            return;
+        // Illidan's Favor: Manaburn also strikes 4 enemies near the primary target.
+        if (Unit* target = GetHitUnit())
+        {
+            uint32 additional = 4;
+            for (Unit* near : player->getAttackers())
+                if (near != target && near->IsWithinDist(target, 8.f) &&
+                    player->IsValidAttackTarget(near) && !near->HasAura(805248, player->GetGUID()))
+                {
+                    near->CastSpell(near, 805248, true);
+                    if (!--additional)
+                        break;
+                }
+        }
+    }
     void Hit(SpellEffIndex effect)
     {
         Player* player = Owner(GetCaster());
@@ -429,6 +457,8 @@ class spell_ascension_felsworn_ability : public SpellScript
             OnEffectHit += SpellEffectFn(spell_ascension_felsworn_ability::SummonHit, EFFECT_0, SPELL_EFFECT_SUMMON);
         if (info->Id == 807942 || info->Id == 705121)
             OnEffectHitTarget += SpellEffectFn(spell_ascension_felsworn_ability::Hit, EFFECT_0, SPELL_EFFECT_DUMMY);
+        if (info->Id == 805248)
+            OnEffectHitTarget += SpellEffectFn(spell_ascension_felsworn_ability::ManaburnHit, EFFECT_0, SPELL_EFFECT_POWER_BURN);
     }
 };
 } // namespace

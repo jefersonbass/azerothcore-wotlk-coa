@@ -378,6 +378,9 @@ class witch_hunter_state : public UnitScript
         {
             if (!player->HasAura(578336))
                 Cast(player, player, 578336);
+            // Houndfeeder: the hound inherits the talent's own crit aura.
+            if (player->HasAura(705477) && !Hound(player)->HasAura(705477))
+                Hound(player)->AddAura(705477, Hound(player));
         }
         else if (player->HasAura(578336))
             player->RemoveAurasDueToSpell(578336);
@@ -402,6 +405,12 @@ class witch_hunter_state : public UnitScript
                 }
         if (attacker)
             attacker->RemoveAurasDueToSpell(802281);
+        // Contract Killing: extra damage against targets above 75% or below 35% health.
+        if (attacker && attacker->IsPlayer() && attacker->getClass() == CLASS_WITCH_HUNTER &&
+            attacker->HasAura(705506) && victim &&
+            (victim->HealthAbovePct(75) || victim->HealthBelowPct(35)))
+            if (AuraEffect const* contract = attacker->GetAuraEffect(705506, EFFECT_0))
+                damage = uint32(CalculatePct(uint64(damage), 100 + contract->GetAmount()));
         Player* player = Owner(victim);
         if (player && player->HasAura(681173) && !player->HasSpellCooldown(681173) &&
             uint64(damage) + player->CountPctFromMaxHealth(35) >= player->GetHealth())

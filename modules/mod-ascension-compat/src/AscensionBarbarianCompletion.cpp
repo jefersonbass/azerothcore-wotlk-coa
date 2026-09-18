@@ -54,6 +54,13 @@ void ApplyContracts(SpellInfo* info)
     if (!info || info->SpellFamilyName != 18)
         return;
     uint32 id = info->Id;
+    if (id == 705173)
+    {
+        // Pure Power's damage half reads through the damage op (the DBC mask already
+        // keys Smash); its expertise half is a plain expertise aura, not a spell mod.
+        info->Effects[EFFECT_0].MiscValue = SPELLMOD_DAMAGE;
+        info->Effects[EFFECT_1].ApplyAuraName = SPELL_AURA_MOD_EXPERTISE;
+    }
     if (id == 705186)
         info->Effects[EFFECT_0].SpellClassMask = flag96(0, 64 | 2 | 2048, 0);
     if (id == 705234 || id == 707779)
@@ -152,6 +159,44 @@ void ApplyContracts(SpellInfo* info)
     if (id == 804337)
         // The native DBC targets the ~1.5s global cooldown instead of ability cooldowns.
         info->Effects[EFFECT_0].MiscValue = SPELLMOD_COOLDOWN;
+    if (id == 706353)
+        // Unstoppable Rage extends Unbridled Rage; the engine reads that through
+        // the duration modifier op keyed to the enrage's own family mask.
+        info->Effects[EFFECT_0].MiscValue = SPELLMOD_DURATION;
+    if (id == 805927)
+        // Mounting Fury extends Born in Blood the same way, through the duration op
+        // whose mask the DBC already keys to the stacking aura.
+        info->Effects[EFFECT_0].MiscValue = SPELLMOD_DURATION;
+    if (id == 705242)
+        // Savage: the +3s half reads through the duration op keyed to Born in Blood;
+        // the 5% half is a damage modifier on the same chain, consumed per cast.
+        info->Effects[EFFECT_0].MiscValue = SPELLMOD_DURATION,
+        info->Effects[EFFECT_1].MiscValue = SPELLMOD_DAMAGE;
+    if (id == 707583)
+        // Bloody Onslaught's flat modifier must read as the duration op so the engine
+        // extends Onslaught; the DBC mask already keys that chain.
+        info->Effects[EFFECT_0].MiscValue = SPELLMOD_DURATION;
+    if (id == 707661)
+        // Sen'jin's Guidance's crit half reads through the crit chance op keyed to
+        // the Javelin Toss chain; the replacement half is handled in the cast hook.
+        info->Effects[EFFECT_1].MiscValue = SPELLMOD_CRITICAL_CHANCE;
+    if (id == 560938)
+    {
+        // Fury of the North's flat modifiers read through the duration op for the
+        // Ramhorn enrage; its third slot becomes a dormant speed effect the enrage
+        // lifecycle script toggles while the enrage runs.
+        info->Effects[EFFECT_0].MiscValue = SPELLMOD_DURATION;
+        info->Effects[EFFECT_2].ApplyAuraName = SPELL_AURA_MOD_INCREASE_SPEED;
+    }
+    if (id == 570235)
+        // Bloody Fighter's flat +1 stacks Born in Blood; the engine reads that
+        // through the max-aura-stacks modifier op.
+        info->Effects[EFFECT_0].MiscValue = SPELLMOD_MAX_AURA_STACKS;
+    if (id == 705176)
+        // Strong Arm's percent modifier ships without a spell-class key, so it would scale every
+        // Barbarian ability. Key it to the spear family bit shared by all Maiming Spear ranks.
+        info->Effects[EFFECT_1].MiscValue = SPELLMOD_DAMAGE,
+        info->Effects[EFFECT_1].SpellClassMask = flag96(0, 0x00040000, 0);
 }
 }
 
@@ -162,7 +207,23 @@ using namespace AscensionBarbarian;
 class barbarian_scaling : public UnitScript
 {
 public:
-    barbarian_scaling() : UnitScript("barbarian_scaling", true, { UNITHOOK_MODIFY_SPELL_EFFECT_BASE_VALUE }) { }
+    barbarian_scaling() : UnitScript("barbarian_scaling", true,
+        { UNITHOOK_MODIFY_SPELL_EFFECT_BASE_VALUE, UNITHOOK_ON_DAMAGE }) { }
+
+    void OnDamage(Unit* victim, Unit* attacker, uint32& damage) override
+    {
+        Player* player = Owner(attacker);
+        // Hunting for Sport: with Unbridled Rage up, attacks ignore a fifth of the
+        // target's armor. Armor mitigation is linear, so probe it with a fixed
+        // synthetic hit and rescale: new = old * (1 - 0.8a) / (1 - a).
+        if (!player || player != attacker || !victim || !player->HasAura(706558) || !player->HasAura(560521) || !damage)
+            return;
+        uint32 probe = 10000;
+        uint32 unsoaked = Unit::CalcArmorReducedDamage(attacker, victim, probe, nullptr, attacker->GetLevel());
+        float a = 1.f - float(unsoaked) / float(probe);
+        if (a > 0.f && a < 1.f)
+            damage = uint32(float(damage) * (1.f - 0.8f * a) / (1.f - a));
+    }
 
     void ModifySpellEffectBaseValue(Unit const* caster, SpellInfo const* info, uint8 index, float& value) override
     {
@@ -197,7 +258,23 @@ class aura_ascension_barbarian_lifecycle : public AuraScript
             return;
         if (GetId() == 805804)
             if (Unit* caster = GetCaster())
+            {
                 caster->AddAura(805843, GetTarget());
+                // Fury of the North: the enrage lasts 6 more seconds and, while it runs,
+                // the owner's dormant speed slot carries the talent's 40% bonus.
+                if (Player* owner = Owner(caster))
+                    if (owner->HasAura(560938))
+                    {
+                        if (AuraEffect const* fury = owner->GetAuraEffect(560938, EFFECT_0))
+                            if (Aura* enrage = GetAura())
+                            {
+                                enrage->SetMaxDuration(enrage->GetMaxDuration() + fury->GetAmount());
+                                enrage->SetDuration(enrage->GetDuration() + fury->GetAmount());
+                            }
+                        if (AuraEffect* speed = owner->GetAuraEffect(560938, EFFECT_2))
+                            speed->ChangeAmount(40);
+                    }
+            }
         if (Family(GetSpellInfo(), 0, 262144))
             if (Player* caster = Owner(GetCaster()))
             {
@@ -238,7 +315,12 @@ class aura_ascension_barbarian_lifecycle : public AuraScript
         if (effect->GetEffIndex() != EFFECT_0)
             return;
         if (GetId() == 805804)
+        {
             GetTarget()->RemoveAurasDueToSpell(805843, GetCasterGUID());
+            if (Player* owner = Owner(GetTarget()))
+                if (AuraEffect* speed = owner->GetAuraEffect(560938, EFFECT_2))
+                    speed->ChangeAmount(0);
+        }
         if (Family(GetSpellInfo(), 0, 262144))
         {
             GetTarget()->RemoveAurasDueToSpell(560626, GetCasterGUID());

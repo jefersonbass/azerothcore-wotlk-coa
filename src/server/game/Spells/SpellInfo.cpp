@@ -3111,6 +3111,38 @@ int32 SpellInfo::CalcPowerCost(Unit const* caster, SpellSchoolMask schoolMask, S
             (caster->HasAura(706032) || caster->HasAura(681321)))
             return 0;
     }
+    // Skin Shedder: reduces the cost of shapeshift spells (Spider, Beetle, Weaver, Vizier forms)
+    // by the percentage carried on the aura, sourced from the talent instead of a flat 50.
+    if (caster->IsPlayer() && caster->getClass() == CLASS_PROPHET &&
+        (Id == 800841 || Id == 803183 || Id == 804980 || Id == 800912))
+        if (AuraEffect const* shedder = caster->GetAuraEffect(705949, EFFECT_2))
+            powerCost += CalculatePct(powerCost, shedder->GetAmount());
+    // Empowered Exoskeleton: Chitin Rush costs no Rage.
+    if (caster->IsPlayer() && caster->getClass() == CLASS_PROPHET && caster->HasAura(804993) &&
+        sSpellMgr->GetFirstSpellInChain(Id) == sSpellMgr->GetFirstSpellInChain(803570))
+        return 0;
+    // Illidan's Favor: Felbane and Manaburn cost no Energy.
+    if (caster->IsPlayer() && caster->getClass() == CLASS_DEMON_HUNTER && caster->HasAura(520592) &&
+        (sSpellMgr->GetFirstSpellInChain(Id) == sSpellMgr->GetFirstSpellInChain(525001) ||
+         sSpellMgr->GetFirstSpellInChain(Id) == sSpellMgr->GetFirstSpellInChain(805248)))
+        return 0;
+    // Vile Fury: Hivebreak and Carapace Crash cost 3 less Rage.
+    if (caster->IsPlayer() && caster->getClass() == CLASS_PROPHET && caster->HasAura(706006) &&
+        (sSpellMgr->GetFirstSpellInChain(Id) == sSpellMgr->GetFirstSpellInChain(503149) ||
+         sSpellMgr->GetFirstSpellInChain(Id) == sSpellMgr->GetFirstSpellInChain(573061)))
+        powerCost += 30;
+    // Smasher: Skull Smash costs no Energy.
+    if (caster->IsPlayer() && caster->getClass() == CLASS_BARBARIAN && caster->HasAura(561394) &&
+        sSpellMgr->GetFirstSpellInChain(Id) == sSpellMgr->GetFirstSpellInChain(805780))
+        return 0;
+    // Wizened: every spell and ability costs 3% (or 6%) less mana.
+    if (caster->IsPlayer() && caster->getClass() == CLASS_PROPHET && GetPowerType() == POWER_MANA)
+    {
+        if (AuraEffect const* wizened = caster->GetAuraEffect(705904, EFFECT_1))
+            powerCost += CalculatePct(powerCost, wizened->GetAmount());
+        else if (AuraEffect const* wizened = caster->GetAuraEffect(705903, EFFECT_1))
+            powerCost += CalculatePct(powerCost, wizened->GetAmount());
+    }
     if (powerCost < 0)
         powerCost = 0;
     return powerCost;

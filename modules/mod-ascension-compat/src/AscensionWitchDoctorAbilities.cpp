@@ -141,6 +141,12 @@ class witch_doctor_casts : public AllSpellScript
             duration = 4000 * Spirits(player);
         if (Family(aura->GetSpellInfo(), 0, 8) && player->HasAura(VoodooMind))
             duration = duration * (100 + Spirits(player) * Amount(VoodooMind, EFFECT_1)) / 100;
+        // Beware Da Voodoo: Mimic Ward and the Spirits last 4 more seconds.
+        if (player->HasAura(707168))
+            if (sSpellMgr->GetFirstSpellInChain(aura->GetId()) == sSpellMgr->GetFirstSpellInChain(707162) ||
+                aura->GetId() == Spirit || aura->GetId() == SpiritCast)
+                if (AuraEffect const* voodoo = player->GetAuraEffect(707168, EFFECT_0))
+                    duration += voodoo->GetAmount();
     }
 
     void OnSpellCalculatedTarget(Spell* spell, Unit* target, TargetInfo& hit) override
@@ -320,6 +326,21 @@ class witch_doctor_casts : public AllSpellScript
         }
         if (IsArrow(info) && player->HasAura(SpiritHunting) && roll_chance_i(count * 15))
             GainSpirit(player);
+        // Improved Malefic Arrow: trims the arrow cooldown by its stored amount.
+        if (IsArrow(info) && player->HasAura(ArrowTalent))
+            if (AuraEffect const* improved = player->GetAuraEffect(707855, EFFECT_0))
+                Reduce(player, info->Id, std::abs(improved->GetAmount()));
+        // Hastened: wards, idols, and effigies come back a quarter sooner.
+        if (player->HasAura(705899))
+            for (uint32 root : {HealingWard, SerpentWard, StasisWard, SentryWard, ViperWard,
+                                SpiritIdol, SereneIdol, DarkIdol, SwiftIdol, CleansingIdol, JungleIdol,
+                                ShadowEffigy, HexingEffigy, CursedEffigy, GravenEffigy})
+                if (sSpellMgr->GetFirstSpellInChain(info->Id) == sSpellMgr->GetFirstSpellInChain(root))
+                {
+                    Reduce(player, info->Id,
+                           int32(CalculatePct(player->GetSpellCooldownDelay(info->Id), 25)));
+                    break;
+                }
         if ((IsArrow(info) || (Family(info, 1, 4) && id != Volley)) && player->HasAura(VolleyTalent) &&
             roll_chance_i(30))
             Cast(player, player, VolleyReady);

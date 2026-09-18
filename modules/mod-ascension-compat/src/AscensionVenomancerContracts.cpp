@@ -16,6 +16,37 @@ void ApplyContracts(SpellInfo* info)
     if (!info || info->SpellFamilyName != 35)
         return;
     uint32 id = info->Id;
+    if (id == 504799 || id == 505204)
+    {
+        // Tranquil Essence: type its threat half and route its healing share through
+        // the percent-healing aura the engine multiplies into every heal.
+        info->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_MOD_TOTAL_THREAT;
+        info->Effects[EFFECT_1].ApplyAuraName = SPELL_AURA_MOD_HEALING_DONE_PERCENT;
+    }
+    if (id == 804993)
+    {
+        // Empowered Exoskeleton: the range half points at Chitin Rush's hit radius;
+        // the free-cast half is consumed in SpellInfo::CalcPowerCost.
+        static SpellRadiusEntry exoskeletonRadius;
+        if (SpellEffectInfo& effect = info->Effects[EFFECT_0]; effect.Effect && effect.RadiusEntry)
+        {
+            exoskeletonRadius = *effect.RadiusEntry;
+            exoskeletonRadius.RadiusMin += 5.0f;
+            exoskeletonRadius.RadiusMax += 5.0f;
+            effect.RadiusEntry = &exoskeletonRadius;
+        }
+    }
+    if (id == 503850)
+    {
+        // Fury of Shadra keys off the sub-35% health aura state; the DBC ships
+        // its two damage-modifier auras without the state and damage-mask keys.
+        for (auto& effect : info->Effects)
+            if (effect.ApplyAuraName == SPELL_AURA_MOD_DAMAGE_DONE_VERSUS_AURASTATE)
+            {
+                effect.MiscValue = AURA_STATE_HEALTHLESS_35_PERCENT;
+                effect.MiscValueB = ASCENSION_CLASSMASK_AURASTATE_DAMAGE;
+            }
+    }
     auto dummy = [info](uint8 slot)
     {
         info->Effects[slot].ApplyAuraName = SPELL_AURA_DUMMY;
@@ -71,6 +102,9 @@ void ApplyContracts(SpellInfo* info)
         info->Effects[0].Effect = SPELL_EFFECT_DUMMY;
     if (id == 504705)
         info->Effects[2].Effect = 0; // The owned hit resource row grants exactly one mark.
+    if (id == 680871)
+        for (auto& effect : info->Effects)
+            effect.Effect = 0; // No native half: venomancer_spells scales with the target's Nerubian Sting stacks.
     if (id == 704264)
         dummy(0); // Owned summons receive Locust Swarm's damage and haste explicitly.
     if (id == 803196 || id == 803192 || id == 800910 || id == 681056 || id == 681417 || id == 706453 ||
@@ -393,6 +427,13 @@ public:
         {
             if (auto* effect = target->GetAuraEffect(804971,EFFECT_0,player->GetGUID()))
                 factor *= 1 + effect->GetAmount() / 100.0f;
+            // Captivation: every Fungal Growth stack adds its percentage to Mycosis damage.
+            if (player->HasAura(503930))
+                if (Aura* fungal = target->GetAura(804971,player->GetGUID()))
+                    if (std::any_of(std::begin(AscensionVenomancerVenomData::MYCOSIS),
+                            std::end(AscensionVenomancerVenomData::MYCOSIS),
+                            [info](auto const& rank) { return info->Id == rank.Id; }))
+                        factor *= 1 + (fungal->GetStackAmount() * Amount(503930)) / 100.0f;
             if (player->HasAura(574353) && Any(info,{800871,804977}) && target->GetHealthPct() > 75)
                 factor *= 1 + Amount(574353) / 100.0f;
         }
@@ -400,12 +441,23 @@ public:
             factor *= 1 + Amount(804984) / 100.0f;
         if (player->HasAura(805933) && Named(info,804961) && target->GetHealthPct() < 35)
             factor *= 1 + Amount(805933,1) / 100.0f;
+        // Vile Fury: Hivebreak and Carapace Crash deal 2% more damage.
+        if (player->HasAura(706006))
+            if (Any(info, {503149, 573061}))
+                if (AuraEffect const* fury = player->GetAuraEffect(706006, EFFECT_1))
+                    factor *= 1 + std::abs(fury->GetAmount()) / 100.0f;
+        if (player->HasAura(705973) && Named(info,803570))
+            factor *= 1 + std::abs(Amount(705973,1)) / 100.0f;
         return factor;
     }
     void ModifySpellDamageTaken(Unit* target, Unit* caster, int32& damage, SpellInfo const* info) override
     {
         if (Player* player = Owner(caster); player && player == caster)
             damage = int32(damage * DamageFactor(player,target,info,false));
+        // Versatile and Deadly: Beetle Form takes 3% less damage.
+        if (Player* player = Owner(target); player && player->HasAura(681052) && player->HasAura(803183))
+            if (AuraEffect const* versatile = player->GetAuraEffect(681052, EFFECT_0))
+                damage += int32(damage * versatile->GetAmount() / 100.0f);
     }
     void ModifyPeriodicDamageAurasTick(Unit* target, Unit* caster, uint32& value, SpellInfo const* info) override
     {

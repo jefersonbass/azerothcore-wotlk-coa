@@ -97,6 +97,41 @@ void HandleAscensionBarbarianCast(Spell* spell)
             player->RemoveAurasDueToSpell(TANKARD);
     }
 
+    // Sen'jin's Guidance: Throw Weapon is thrown as a Javelin Toss.
+    if (player->HasAura(707661) && info->SpellFamilyName == 18 &&
+        (info->SpellFamilyFlags[1] & 0x00040000))
+        if (SpellInfo const* javelin = sSpellMgr->GetSpellInfo(504217))
+            if (Unit* victim = spell->m_targets.GetUnitTarget())
+                player->CastSpell(victim, javelin->Id, TRIGGERED_FULL_MASK);
+
+    // Bloodbound: trims the cooldowns of Warband (Headhunting) and Ancestral Roar (Ancestry).
+    if (player->HasAura(801767))
+    {
+        if (AuraEffect const* bound = player->GetAuraEffect(801767, EFFECT_0))
+            if (info->Id == 560883 || sSpellMgr->GetFirstSpellInChain(info->Id) == sSpellMgr->GetFirstSpellInChain(560883))
+                player->ModifySpellCooldown(info->Id, bound->GetAmount());
+        if (AuraEffect const* bound = player->GetAuraEffect(801767, EFFECT_1))
+            if (sSpellMgr->GetFirstSpellInChain(info->Id) == sSpellMgr->GetFirstSpellInChain(500918))
+                player->ModifySpellCooldown(info->Id, bound->GetAmount());
+    }
+
+    // Incredibly Strong: extends the Maiming Spear slow by its stored percentage.
+    if (player->HasAura(804749) && sSpellMgr->GetFirstSpellInChain(info->Id) == sSpellMgr->GetFirstSpellInChain(804139))
+        if (Unit* victim = spell->m_targets.GetUnitTarget())
+            for (auto const& pair : victim->GetAppliedAuras())
+                if (Aura* aura = pair.second->GetBase();
+                    aura->GetCasterGUID() == player->GetGUID() &&
+                    sSpellMgr->GetFirstSpellInChain(aura->GetId()) == sSpellMgr->GetFirstSpellInChain(804139))
+                {
+                    int32 pct = 30;
+                    if (AuraEffect const* talent = player->GetAuraEffect(804749, EFFECT_1))
+                        pct = talent->GetAmount();
+                    int32 extra = CalculatePct(aura->GetMaxDuration(), pct);
+                    aura->SetMaxDuration(aura->GetMaxDuration() + extra);
+                    aura->SetDuration(aura->GetDuration() + extra);
+                    break;
+                }
+
     // Exact Throw Weapon family bit, shared by all its installed ranks.
     if (info->SpellFamilyName != 18 || !(info->SpellFamilyFlags[1] & 0x00040000) ||
         !player->HasAura(SPEAR_THROWER))

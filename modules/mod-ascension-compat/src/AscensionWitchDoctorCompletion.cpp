@@ -210,6 +210,27 @@ void ApplyContracts(SpellInfo* info)
     };
     if (id == Shadowhunter)
         dummy(EFFECT_1);
+    if (id == 707505)
+    {
+        // Jin'do's Wrath keys both halves to Hexfire Wrath's family mask: the flat
+        // half reads as crit chance and the percent half as crit damage.
+        info->Effects[EFFECT_0].MiscValue = SPELLMOD_CRITICAL_CHANCE;
+        info->Effects[EFFECT_1].MiscValue = SPELLMOD_CRIT_DAMAGE_BONUS;
+    }
+    if (id == 705922)
+    {
+        // Dark Magic's flat modifiers read as cast-time trims keyed to Malefic Wrath
+        // and Bad Juju by the shipped masks.
+        info->Effects[EFFECT_0].MiscValue = SPELLMOD_ACTIVATION_TIME;
+        info->Effects[EFFECT_1].MiscValue = SPELLMOD_ACTIVATION_TIME;
+    }
+    if (id == 705903 || id == 705904)
+    {
+        // Wizened's mana half keys to the max-mana percent aura; its cost half is
+        // consumed in SpellInfo::CalcPowerCost and its regen half already reads fine.
+        info->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_MOD_INCREASE_ENERGY_PERCENT;
+        info->Effects[EFFECT_0].MiscValue = POWER_MANA;
+    }
     if ((id == ChosenOne || id == MojoHigh) &&
         info->Effects[EFFECT_0].ApplyAuraName == SPELL_AURA_ADD_FLAT_MODIFIER &&
         info->Effects[EFFECT_0].MiscValue == SPELLMOD_EFFECT3)
@@ -368,6 +389,16 @@ void ApplyContracts(SpellInfo* info)
         info->Effects[EFFECT_1].Effect = 0; // exactly five Spirits from the successful cast
     if (id == SenjinSwiftness)
         info->Effects[EFFECT_1].SpellClassMask = flag96(0, 0, 1073741824); // was empty, so its -60s cooldown mod matched every WD spell instead of just Mirage
+    if (id == VillageWisdom)
+        for (SpellEffectInfo& effect : info->Effects)
+            if (effect.ApplyAuraName == SPELL_AURA_ADD_PCT_MODIFIER)
+            {
+                // The % half must read as the damage op keyed to Reclamation's family bit
+                // (the word Volley copies to inherit Reclamation modifiers); its +5% hit
+                // half is the hit-chance aura and natively supported.
+                effect.MiscValue = SPELLMOD_DAMAGE;
+                effect.SpellClassMask = flag96(0, 4, 0);
+            }
     if (id == SenjinWisdom)
         info->Effects[EFFECT_0].SpellClassMask = flag96(0, 0, 1073741824); // pointed at the wrong classmask word, so its +20s duration mod never matched Mirage
     if (id == RageBrewBuff)
@@ -562,6 +593,13 @@ class witch_doctor_scaling : public UnitScript
     {
         if (!target || !attacker || !info || !damage)
             return;
+        // Loa Communion: Veil of Darkness's damage helper strikes twice as hard.
+        if (Player* doctor = Owner(attacker); doctor && doctor == attacker && doctor->HasAura(705907) &&
+            sSpellMgr->GetFirstSpellInChain(info->Id) == sSpellMgr->GetFirstSpellInChain(VeilDamage))
+        {
+            if (AuraEffect const* communion = doctor->GetAuraEffect(705907, EFFECT_0))
+                damage = uint32(std::min<uint64>(UINT32_MAX, uint64(damage) * (100 + communion->GetAmount()) / 100));
+        }
         Aura* aura = target->GetAura(info->Id, attacker->GetGUID());
         if (!aura || !aura->GetScriptValue(ConcoctionsBuff))
             return;

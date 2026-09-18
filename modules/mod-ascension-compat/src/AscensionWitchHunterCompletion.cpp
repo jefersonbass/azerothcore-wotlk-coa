@@ -82,6 +82,39 @@ void ApplyContracts(SpellInfo* info)
     if (!info || info->SpellFamilyName != 21)
         return;
     uint32 id = info->Id;
+    if (id == 705477)
+        // Houndfeeder's "all crit" auras carry no mechanical type; map them to the
+        // shared crit-percent aura the engine reads for both melee and spell crits.
+        info->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_MOD_CRIT_PCT,
+        info->Effects[EFFECT_1].ApplyAuraName = SPELL_AURA_MOD_CRIT_PCT;
+    if (id == 681486)
+    {
+        // Shadow Order: its damage half reads through the damage op keyed to the
+        // Shadow Brand and Dawn Blade ranks; the rating half becomes hit-per-Agility.
+        info->Effects[EFFECT_0].MiscValue = SPELLMOD_DAMAGE;
+        info->Effects[EFFECT_1].ApplyAuraName = SPELL_AURA_MOD_RATING_FROM_STAT;
+        info->Effects[EFFECT_1].MiscValue = CR_HIT_MELEE;
+        info->Effects[EFFECT_1].MiscValueB = STAT_AGILITY;
+    }
+    if (id == 680247)
+    {
+        // Low Dawn keys its halves to the Sixfold Shot chain: the percent half as the
+        // damage op and the flat half (a negative -500ms) as the activation-time op.
+        info->Effects[EFFECT_0].MiscValue = SPELLMOD_DAMAGE;
+        info->Effects[EFFECT_1].MiscValue = SPELLMOD_ACTIVATION_TIME;
+    }
+    if (id == 681180)
+        // Trapper's percent modifier must read as the cooldown op so the engine
+        // trims the Trap spells; the DBC mask already keys them.
+        info->Effects[EFFECT_0].MiscValue = SPELLMOD_COOLDOWN;
+    if (id == 504677 || id == 504891)
+        // Duskwood Renegade's flat modifier must read as the cooldown op so the
+        // engine trims Burrow Bolt; the DBC mask already keys that chain.
+        info->Effects[EFFECT_0].MiscValue = SPELLMOD_COOLDOWN;
+    if (id == 705453)
+        // Darkrider's flat discount (-100 tenths = 10 Rage) must read as the cost op so
+        // the engine trims Shadowblast, Vault, and Unleash the Hounds; the mask keys them.
+        info->Effects[EFFECT_0].MiscValue = SPELLMOD_COST;
     if (Family(info, 1, 4194304)) // Witchbane and its ranks.
     {
         info->InterruptFlags |= SPELL_INTERRUPT_FLAG_MOVEMENT;
@@ -102,6 +135,13 @@ void ApplyContracts(SpellInfo* info)
         info->AttributesEx3 &= ~SPELL_ATTR3_REQUIRES_OFF_HAND_WEAPON;
     if (Heartseeking(info))
         info->Effects[EFFECT_2].TriggerSpell = 807316;
+    // Tormenting the Tormented: its "Mod Periodic Damage %" aura with amount 0 carries no mechanic.
+    // Turn it into the periodic-crit aura the engine rolls on DoT ticks, keyed to the Tormentor ranks.
+    if (id == 805758)
+    {
+        info->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_ABILITY_PERIODIC_CRIT;
+        info->Effects[EFFECT_0].SpellClassMask = flag96(0, 0, 268435456);
+    }
     // Quickdraw hands its Rage to Darkslayer (Energize) 680235 through a DUMMY effect, which is
     // scripted-only and never runs. Its sibling Darkslayer authors the identical payload as a trigger
     // effect. Record and text conflict here: Darkslayer's and Sixfold Shot's descriptions name the Rage

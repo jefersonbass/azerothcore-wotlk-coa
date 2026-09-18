@@ -19,6 +19,12 @@ void ApplyContracts(SpellInfo* info)
     // Blood of Mannoroth's sole resource helper must grant all six charges, including from zero.
     if (id == MannorothFelfury)
         info->Effects[EFFECT_0].MiscValue = 6;
+    // Man'ari Teachings: the crit-damage aura ships without a school key, so the
+    // engine's school-mask check never matches; key it to every school.
+    if (id == 705150)
+        for (auto& effect : info->Effects)
+            if (effect.ApplyAuraName == SPELL_AURA_MOD_CRIT_DAMAGE_BONUS)
+                effect.MiscValue = SPELL_SCHOOL_MASK_ALL;
     auto dummy = [info](uint8 slot) {
         info->Effects[slot].ApplyAuraName = SPELL_AURA_DUMMY;
         info->Effects[slot].TriggerSpell = 0;
@@ -201,6 +207,43 @@ void ApplyContracts(SpellInfo* info)
         info->Effects[0].SpellClassMask = flag96(0, 524288, 2);
     if (id == 801902)
         info->Effects[0].MiscValue = SPELLMOD_COST;
+    if (id == 704361)
+    {
+        // Slice & Dice's cost modifier stores -5 while power prices live in tenths
+        // (cf. 801902's -50 for its five Energy); route it to the cost op and scale it.
+        info->Effects[1].MiscValue = SPELLMOD_COST;
+        info->Effects[1].BasePoints = -50;
+    }
+    if (id == 803645)
+    {
+        // Unphased: its flat cost half trims Felblade's Energy price (tenths) and its
+        // percent half reads through the crit chance op keyed to Felblade's mask.
+        info->Effects[0].MiscValue = SPELLMOD_COST;
+        info->Effects[0].BasePoints = 10;
+        info->Effects[1].MiscValue = SPELLMOD_CRITICAL_CHANCE;
+    }
+    if (id == 560057)
+        // Chaos Soldier's flat modifier must read as the crit chance op keyed to
+        // Azzinoth's Assault and Sargeron Smite; the mask already keys them.
+        info->Effects[EFFECT_0].MiscValue = SPELLMOD_CRITICAL_CHANCE;
+    if (id == 803905)
+    {
+        // Shadow Magi's two flat modifiers read as cooldown trims keyed to
+        // Annihilation and Sunder respectively by the shipped masks.
+        info->Effects[EFFECT_0].MiscValue = SPELLMOD_COOLDOWN;
+        info->Effects[EFFECT_1].MiscValue = SPELLMOD_COOLDOWN;
+    }
+    if (id == 500067)
+    {
+        // Fel Monstrosity: the shipped stat aura covers Stamina only; the stray
+        // periodic and damage-taken slots become the Agility share and the size bump.
+        info->Effects[EFFECT_1].ApplyAuraName = SPELL_AURA_MOD_TOTAL_STAT_PERCENTAGE;
+        info->Effects[EFFECT_1].MiscValue = STAT_AGILITY;
+        info->Effects[EFFECT_1].BasePoints = 10;
+        info->Effects[EFFECT_1].TriggerSpell = 0;
+        info->Effects[EFFECT_2].ApplyAuraName = SPELL_AURA_MOD_SCALE;
+        info->Effects[EFFECT_2].BasePoints = 10;
+    }
     if (id == 807424)
     {
         info->Effects[2].MiscValue = SPELLMOD_CASTING_TIME;
@@ -352,6 +395,13 @@ class felsworn_scaling : public UnitScript
             if (target && info && player->HasAura(804610) && target->HasAuraType(SPELL_AURA_MOD_DECREASE_SPEED) &&
                 (Named(info, 801904) || Named(info, 801903) || Twin(info) || info->Id == 520262 || info->Id == 572585))
                 factor *= 1.15f;
+            // Outland Slaver: Felrend and Fel Fireball deal 10% more damage.
+            if (player->HasAura(705123) &&
+                (Named(info, 563268) || sSpellMgr->GetFirstSpellInChain(info->Id) == sSpellMgr->GetFirstSpellInChain(563268) ||
+                 sSpellMgr->GetFirstSpellInChain(info->Id) == sSpellMgr->GetFirstSpellInChain(501281) ||
+                 sSpellMgr->GetFirstSpellInChain(info->Id) == sSpellMgr->GetFirstSpellInChain(802405)))
+                if (AuraEffect const* slaver = player->GetAuraEffect(705123, EFFECT_1))
+                    factor *= 1 + std::abs(slaver->GetAmount()) / 100.0f;
         }
         return factor;
     }

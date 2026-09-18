@@ -200,6 +200,11 @@ class spell_ascension_xoroth_sacrificial_circle : public SpellScript
         // The tooltip adds 25% of each sacrificed imp's maximum health; 706753 heals the master and kills the imp.
         imp->CastCustomSpell(706753, SPELLVALUE_BASE_POINT0, int32(imp->CountPctFromMaxHealth(25)), player,
                              TRIGGERED_FULL_MASK);
+        // Soul Furnace: each destroyed imp also shields the master for 15% of the imp's total
+        // health; 706759's absorb slot carries the value and stacks up to 25.
+        if (player->HasAura(706758))
+            player->CastCustomSpell(706759, SPELLVALUE_BASE_POINT2, int32(imp->CountPctFromMaxHealth(15)), player,
+                                    TRIGGERED_FULL_MASK);
     }
     void Register() override
     {
