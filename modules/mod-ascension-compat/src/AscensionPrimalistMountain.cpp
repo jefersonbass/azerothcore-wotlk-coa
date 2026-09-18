@@ -14,7 +14,9 @@ enum MountainSpells : uint32
     CallOfTheMountain = 680406,
     MountainBuff = 680472,
     Terrasmash = 706220,
-    Geode = 804002
+    Geode = 804002,
+    ResourcesOfTheEarth = 560548,
+    Replenishment = 1257670
 };
 
 class aura_ascension_blessed_by_earth : public AuraScript
@@ -108,6 +110,47 @@ class aura_ascension_terrasmash : public AuraScript
     }
 };
 
+// Resources of the Earth (560548): critical strikes grant party and raid
+// allies within one hundred yards Replenishment (1257670), whose mana
+// energize is native. The proc aura sits on effect 0 per the archive dump
+// and on effect 1 per the DBC audit, so both are bound; only the effect
+// carrying the proc aura type fires.
+class aura_ascension_resources_of_the_earth : public AuraScript
+{
+    PrepareAuraScript(aura_ascension_resources_of_the_earth);
+
+    bool CheckProc(ProcEventInfo& event)
+    {
+        Unit* owner = GetTarget();
+        DamageInfo const* damage = event.GetDamageInfo();
+        return owner->IsPlayer() && owner->getClass() == CLASS_WILDWALKER && owner->IsAlive() &&
+            event.GetActor() == owner && damage && damage->GetDamage() &&
+            (event.GetHitMask() & PROC_HIT_CRITICAL) &&
+            event.GetActionTarget() && !owner->IsFriendlyTo(event.GetActionTarget());
+    }
+
+    void Replenish(AuraEffect const*, ProcEventInfo&)
+    {
+        PreventDefaultAction();
+        Player* player = GetTarget()->ToPlayer();
+        for (auto const& reference : player->GetMap()->GetPlayers())
+            if (Player* member = reference.GetSource())
+                if (member->IsInWorld() && !member->IsGameMaster() &&
+                    member->IsWithinDistInMap(player, 100.0f) &&
+                    (member == player || member->IsInPartyWith(player) || member->IsInRaidWith(player)))
+                    player->CastSpell(member, Replenishment, true);
+    }
+
+    void Register() override
+    {
+        DoCheckProc += AuraCheckProcFn(aura_ascension_resources_of_the_earth::CheckProc);
+        OnEffectProc += AuraEffectProcFn(aura_ascension_resources_of_the_earth::Replenish,
+            EFFECT_0, SPELL_AURA_PROC_TRIGGER_SPELL);
+        OnEffectProc += AuraEffectProcFn(aura_ascension_resources_of_the_earth::Replenish,
+            EFFECT_1, SPELL_AURA_PROC_TRIGGER_SPELL);
+    }
+};
+
 class mountain_talent_metadata : public GlobalScript
 {
 public:
@@ -137,6 +180,26 @@ public:
             else
                 LOG_ERROR("module.ascension_compat", "Skipped unexpected Terrasmash record {}", info->Id);
         }
+
+        // Resources of the Earth (560548): the DBC's proc trigger is garbage,
+        // so the aura cannot fire on its own. Restore the done-damage proc
+        // flags and the archived full chance so the script above grants
+        // Replenishment on critical strikes.
+        if (info->Id == ResourcesOfTheEarth && info->SpellFamilyName == 37)
+        {
+            bool hasProcAura = false;
+            for (uint8 i = 0; i < MAX_SPELL_EFFECTS; ++i)
+                if (info->Effects[i].IsEffect() && info->Effects[i].Effect == SPELL_EFFECT_APPLY_AURA &&
+                    info->Effects[i].ApplyAuraName == SPELL_AURA_PROC_TRIGGER_SPELL)
+                    hasProcAura = true;
+            if (hasProcAura)
+            {
+                info->ProcFlags = DONE_HIT_PROC_FLAG_MASK;
+                info->ProcChance = 100;
+            }
+            else
+                LOG_ERROR("module.ascension_compat", "Skipped unexpected Resources of the Earth record {}", info->Id);
+        }
     }
 };
 }
@@ -146,5 +209,6 @@ void AddSC_AscensionPrimalistMountain()
     RegisterSpellScript(aura_ascension_blessed_by_earth);
     RegisterSpellScript(aura_ascension_mountain_threshold);
     RegisterSpellScript(aura_ascension_terrasmash);
+    RegisterSpellScript(aura_ascension_resources_of_the_earth);
     new mountain_talent_metadata();
 }
