@@ -43,7 +43,7 @@ bool Any(SpellInfo const* info, std::initializer_list<uint32> roots)
 bool Lunar(SpellInfo const* info, Player* player)
 {
     return Any(info, {575030, 575039, 800370, 574328}) || (Named(info, 680220) && player->HasAura(92134)) ||
-           (Named(info, 801978) && player->HasAura(500205));
+           (Named(info, 801978) && (player->HasAura(500205) || player->HasAura(801973)));
 }
 bool Derived(SpellInfo const* info)
 {

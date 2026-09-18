@@ -108,7 +108,11 @@ class aura_ascension_starcaller_event : public AuraScript
         case 801231:
             return crit && !periodic;
         case 805439:
-            return damage && crit && Chance(player, id);
+            // Lunar Conquest (704791): "Celestial Cleave [now has] a 100%
+            // chance to apply Scattered Stars to affected enemies." The proc
+            // fires on every damaging Cleave instead of requiring a crit, and
+            // tags the target with Scattered Stars (804378) in Star().
+            return damage && (crit || player->HasAura(704791)) && Chance(player, id);
         case 804733:
             return healing && info && info->Id != 804736;
         case 704741:
@@ -212,6 +216,8 @@ class aura_ascension_starcaller_event : public AuraScript
             break;
         }
         case 805439:
+            if (player->HasAura(704791))
+                Stars(player, target);
             Cast(player, target, Highest(player, 805508));
             break;
         case 805505:
