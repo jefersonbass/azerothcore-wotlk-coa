@@ -37,7 +37,9 @@ enum BloodmageSecondarySpells : uint32
     SPELL_ATHERANNS_ANGUISH_BURST = 680681,
     SPELL_DARK_ESSENCE = 680732,
     SPELL_BLOOD_RITUALS_MARK = 706623,
-    SPELL_BLOOD_RITUALS_HEAL = 704119
+    SPELL_BLOOD_RITUALS_HEAL = 704119,
+    SPELL_INFUSE = 681403,
+    SPELL_INFUSE_BURST = 681404
 };
 
 // Dark Essence (680732): heals a Blood-Rituals-marked ally every 1.5 seconds for
@@ -205,6 +207,48 @@ public:
     }
 };
 
+// Infuse (681403): every point of damage the Bloodmage's party, raid and their
+// minions deal to the marked target banks on the mark and detonates as Shadow
+// damage when the ten seconds run out. Early dispels fizzle.
+class bloodmage_infuse_marks : public UnitScript
+{
+public:
+    bloodmage_infuse_marks() : UnitScript("bloodmage_infuse_marks", true,
+        {UNITHOOK_ON_DAMAGE, UNITHOOK_ON_AURA_REMOVE}) { }
+
+    static bool Contributes(Player const* source, Player const* infuser)
+    {
+        return source && infuser && (source == infuser || source->IsInPartyWith(infuser) ||
+            source->IsInRaidWith(infuser));
+    }
+
+    void OnDamage(Unit* attacker, Unit* victim, uint32& damage) override
+    {
+        if (!victim || !damage)
+            return;
+        Aura* infuse = victim->GetAura(SPELL_INFUSE);
+        if (!infuse)
+            return;
+        Player* infuser = ObjectAccessor::FindConnectedPlayer(infuse->GetCasterGUID());
+        if (!Contributes(attacker ? attacker->GetCharmerOrOwnerPlayerOrPlayerItself() : nullptr, infuser))
+            return;
+        if (AuraEffect* bank = infuse->GetEffect(EFFECT_0))
+            bank->ChangeAmount(bank->GetAmount() + int32(damage));
+    }
+
+    void OnAuraRemove(Unit* unit, Aura* aura, AuraRemoveMode mode) override
+    {
+        if (aura->GetId() != SPELL_INFUSE || mode != AURA_REMOVE_BY_EXPIRE || !unit)
+            return;
+        Player* infuser = ObjectAccessor::FindConnectedPlayer(aura->GetCasterGUID());
+        if (!infuser || !infuser->IsAlive() || !infuser->IsInWorld())
+            return;
+        if (AuraEffect* bank = aura->GetEffect(EFFECT_0); bank && bank->GetAmount() > 0)
+            infuser->CastCustomSpell(SPELL_INFUSE_BURST, SPELLVALUE_BASE_POINT0,
+                bank->GetAmount(), unit, true);
+    }
+};
+
 class bloodmage_kiss_periodic : public UnitScript
 {
 public:
@@ -309,6 +353,7 @@ void AddSC_AscensionBloodmageSecondary()
 {
     new bloodmage_secondary_casts();
     new bloodmage_kiss_periodic();
+    new bloodmage_infuse_marks();
     new bloodmage_secondary_contracts();
     RegisterSpellScript(spell_ascension_blood_feast_corpses);
     RegisterSpellScript(spell_ascension_blood_feast_drain);
