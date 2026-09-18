@@ -14,6 +14,7 @@ namespace
 using namespace AscensionBloodmage;
 constexpr uint32 VitalityCost = 10;
 constexpr uint32 RagingHunger = 681336;
+constexpr uint32 OrganOrbs = 807490;
 
 bool IsBloodmage(Player const* player)
 {
@@ -83,6 +84,15 @@ public:
             // three Rage.
             if (player->HasAura(RagingHunger))
                 player->ModifyPower(POWER_RAGE, 30);
+            // Organ Orbs (807490): every Pooled Vitality stack raises Spirit by
+            // three percent, refreshed through the passive's own stat aura.
+            if (Aura* orbs = player->GetAura(OrganOrbs))
+                if (Aura* pool = player->GetAura(PooledVitality))
+                    if (AuraEffect* spirit = orbs->GetEffect(EFFECT_0))
+                    {
+                        spirit->ChangeAmount(3 * int32(pool->GetStackAmount()));
+                        player->UpdateAllStats();
+                    }
         }
     }
 
