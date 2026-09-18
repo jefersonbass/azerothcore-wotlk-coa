@@ -48,6 +48,7 @@ enum PrimalistAbilitySpells : uint32
     SPELL_ROCK_BARRIER = 503630,
     SPELL_EARTHENFORGED_BARRIER = 680408,
     SPELL_EARTHBREAKER = 560147,
+    SPELL_FURY_OF_THE_EARTHMOTHER = 680412,
     SPELL_HAND_OF_THE_EARTHMOTHER = 800135,
     SPELL_MISHAS_RAGE = 504227,
     SPELL_LEOKKS_FURY = 560974,
@@ -228,11 +229,20 @@ public:
                 player->ModifySpellCooldown(ability, -1000);
         // Earthbreaker (560147): Geode Barrage and Geode hits generate a quarter
         // of their damage again as threat; the melee haste part is native.
-        if (damage && player->HasAura(SPELL_EARTHBREAKER) &&
-            (sSpellMgr->GetFirstSpellInChain(info->Id) == sSpellMgr->GetFirstSpellInChain(SPELL_GEODE_BARRAGE_DAMAGE) ||
-             sSpellMgr->GetFirstSpellInChain(info->Id) == sSpellMgr->GetFirstSpellInChain(SPELL_GEODE)))
-            if (Creature* creature = target->ToCreature())
-                creature->GetThreatMgr().AddThreat(player, CalculatePct(damage, 25));
+        // Fury of the Earthmother (680412) rolls the same hits at fifteen
+        // percent to extend an active Rock Barrier by one second; the
+        // twenty-five percent threat part is Earthbreaker's, kept distinct.
+        bool const geodeHit = sSpellMgr->GetFirstSpellInChain(info->Id) == sSpellMgr->GetFirstSpellInChain(SPELL_GEODE_BARRAGE_DAMAGE) ||
+            sSpellMgr->GetFirstSpellInChain(info->Id) == sSpellMgr->GetFirstSpellInChain(SPELL_GEODE);
+        if (damage && geodeHit)
+        {
+            if (player->HasAura(SPELL_EARTHBREAKER))
+                if (Creature* creature = target->ToCreature())
+                    creature->GetThreatMgr().AddThreat(player, CalculatePct(damage, 25));
+            if (player->HasAura(SPELL_FURY_OF_THE_EARTHMOTHER) && roll_chance_i(15))
+                if (Aura* barrier = player->GetAura(SPELL_ROCK_BARRIER))
+                    barrier->SetDuration(barrier->GetDuration() + 1000);
+        }
         // Protective Roar (802782): the Dummy effect carries the aura to every
         // party and raid member within thirty yards. Its health effect and Rage
         // energize are native once applied.
