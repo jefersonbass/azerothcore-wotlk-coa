@@ -19,7 +19,8 @@ enum MountainSpells : uint32
     MountainMover = 805643,
     MountainMoverStacks = 805644,
     Bash = 680964,
-    Bashed = 680949
+    Bashed = 680949,
+    ImprovedUrsocsBellow = 560505
 };
 
 class aura_ascension_blessed_by_earth : public AuraScript
@@ -220,6 +221,28 @@ class aura_ascension_bash : public AuraScript
     }
 };
 
+// Improved Ursoc's Bellow (560505): the passive's Add % Modifier aura has
+// no scoping data, so Ursoc's Bellow's attack power reduction is scaled
+// here by forty percent when the caster holds the passive. The hook runs
+// on every amount calculation, so refreshes never compound.
+class aura_ascension_ursocs_bellow : public AuraScript
+{
+    PrepareAuraScript(aura_ascension_ursocs_bellow);
+
+    void Weaken(AuraEffect const*, int32& amount, bool& /*canBeRecalculated*/)
+    {
+        Unit const* caster = GetCaster();
+        if (caster && caster->IsPlayer() && caster->HasAura(ImprovedUrsocsBellow))
+            amount += CalculatePct(amount, 40);
+    }
+
+    void Register() override
+    {
+        DoEffectCalcAmount += AuraEffectCalcAmountFn(aura_ascension_ursocs_bellow::Weaken,
+            EFFECT_0, SPELL_AURA_MOD_ATTACK_POWER);
+    }
+};
+
 class mountain_talent_metadata : public GlobalScript
 {
 public:
@@ -249,5 +272,6 @@ void AddSC_AscensionPrimalistMountain()
     RegisterSpellScript(aura_ascension_resources_of_the_earth);
     RegisterSpellScript(aura_ascension_mountain_mover);
     RegisterSpellScript(aura_ascension_bash);
+    RegisterSpellScript(aura_ascension_ursocs_bellow);
     new mountain_talent_metadata();
 }
