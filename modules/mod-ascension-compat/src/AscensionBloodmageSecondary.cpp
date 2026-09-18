@@ -1,5 +1,6 @@
 /* Copyright (C) 2016+ AzerothCore, GNU AGPL v3. */
 #include "AscensionPooledVitality.h"
+#include "EventProcessor.h"
 #include "ObjectAccessor.h"
 #include "Player.h"
 #include "Random.h"
@@ -33,7 +34,36 @@ enum BloodmageSecondarySpells : uint32
     SPELL_NIGHT_HUNTER = 704659,
     SPELL_BLOOD_FEAST_RESTORE = 706608,
     SPELL_ATHERANNS_ANGUISH = 680680,
-    SPELL_ATHERANNS_ANGUISH_BURST = 680681
+    SPELL_ATHERANNS_ANGUISH_BURST = 680681,
+    SPELL_DARK_ESSENCE = 680732,
+    SPELL_BLOOD_RITUALS_MARK = 706623,
+    SPELL_BLOOD_RITUALS_HEAL = 704119
+};
+
+// Dark Essence (680732): heals a Blood-Rituals-marked ally every 1.5 seconds for
+// three seconds — two scheduled ticks.
+class DarkEssenceTick : public BasicEvent
+{
+public:
+    DarkEssenceTick(ObjectGuid owner, ObjectGuid ally, uint32 amount) : _owner(owner),
+        _ally(ally), _amount(amount) { }
+
+    bool Execute(uint64, uint32) override
+    {
+        Player* player = ObjectAccessor::FindConnectedPlayer(_owner);
+        if (!player || !player->IsInWorld())
+            return true;
+        Unit* target = ObjectAccessor::GetUnit(*player, _ally);
+        if (target && target->IsInWorld() && target->HasAura(SPELL_BLOOD_RITUALS_MARK, _owner))
+            player->CastCustomSpell(SPELL_BLOOD_RITUALS_HEAL, SPELLVALUE_BASE_POINT0,
+                int32(_amount), target, true);
+        return true;
+    }
+
+private:
+    ObjectGuid _owner;
+    ObjectGuid _ally;
+    uint32 _amount;
 };
 
 bool RankOf(uint32 id, uint32 root)
@@ -67,16 +97,41 @@ public:
     void OnSpellCast(Spell* spell, Unit*, SpellInfo const* info, bool) override
     {
         Player* player = Bloodmage(spell);
-        if (!player || spell->IsTriggered() || !player->HasAura(SPELL_NIGHT_HUNTER))
+        if (!player || spell->IsTriggered())
             return;
-        if (RankOf(info->Id, SPELL_VEINBURST))
+        if (player->HasAura(SPELL_NIGHT_HUNTER))
         {
-            if (roll_chance_i(40))
-                player->RemoveSpellCooldown(info->Id, true);
+            if (RankOf(info->Id, SPELL_VEINBURST))
+            {
+                if (roll_chance_i(40))
+                    player->RemoveSpellCooldown(info->Id, true);
+            }
+            else if (AscensionBloodmage::GetEmpowerment(info->Id) == AscensionBloodmage::Bloodbolt &&
+                info->PowerType == POWER_RAGE && spell->GetPowerCost() > 0 && roll_chance_i(40))
+                player->ModifyPower(POWER_RAGE, spell->GetPowerCost() / 2);
         }
-        else if (AscensionBloodmage::GetEmpowerment(info->Id) == AscensionBloodmage::Bloodbolt &&
-            info->PowerType == POWER_RAGE && spell->GetPowerCost() > 0 && roll_chance_i(40))
-            player->ModifyPower(POWER_RAGE, spell->GetPowerCost() / 2);
+        // Dark Essence (680732): Cursed Form abilities and Bloodbolt pulse a small
+        // heal every 1.5 seconds for three seconds into every ally carrying this
+        // Bloodmage's Blood Rituals mark (114 + 10% healing bonus per tick).
+        bool cursedAbility = player->HasAura(AscensionBloodmage::CursedForm) &&
+            info->SpellFamilyName == 26 && info->PowerType == POWER_RAGE &&
+            (info->ManaCost || info->ManaCostPercentage);
+        if (!player->HasAura(SPELL_DARK_ESSENCE) ||
+            (!cursedAbility && AscensionBloodmage::GetEmpowerment(info->Id) != AscensionBloodmage::Bloodbolt))
+            return;
+        uint32 const amount = 114 + uint32(player->SpellBaseHealingBonusDone(SPELL_SCHOOL_MASK_SHADOW) / 10);
+        std::vector<Unit*> marked;
+        for (auto const& reference : player->GetMap()->GetPlayers())
+            if (Player* member = reference.GetSource())
+                if (member->IsInWorld() && member->HasAura(SPELL_BLOOD_RITUALS_MARK, player->GetGUID()))
+                    marked.push_back(member);
+        for (Unit* ally : marked)
+        {
+            player->m_Events.AddEvent(new DarkEssenceTick(player->GetGUID(), ally->GetGUID(), amount),
+                player->m_Events.CalculateTime(1500));
+            player->m_Events.AddEvent(new DarkEssenceTick(player->GetGUID(), ally->GetGUID(), amount),
+                player->m_Events.CalculateTime(3000));
+        }
     }
 
     void OnSpellCritChance(Spell* spell, Unit* target, float& chance) override
