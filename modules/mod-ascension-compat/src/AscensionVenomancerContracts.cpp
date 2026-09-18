@@ -16,6 +16,13 @@ void ApplyContracts(SpellInfo* info)
     if (!info || info->SpellFamilyName != 35)
         return;
     uint32 id = info->Id;
+    if (id == 504799 || id == 505204)
+    {
+        // Tranquil Essence: type its threat half and route its healing share through
+        // the percent-healing aura the engine multiplies into every heal.
+        info->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_MOD_TOTAL_THREAT;
+        info->Effects[EFFECT_1].ApplyAuraName = SPELL_AURA_MOD_HEALING_DONE_PERCENT;
+    }
     if (id == 804993)
     {
         // Empowered Exoskeleton: the range half points at Chitin Rush's hit radius;

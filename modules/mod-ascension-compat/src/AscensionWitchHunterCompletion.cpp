@@ -87,6 +87,15 @@ void ApplyContracts(SpellInfo* info)
         // shared crit-percent aura the engine reads for both melee and spell crits.
         info->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_MOD_CRIT_PCT,
         info->Effects[EFFECT_1].ApplyAuraName = SPELL_AURA_MOD_CRIT_PCT;
+    if (id == 681486)
+    {
+        // Shadow Order: its damage half reads through the damage op keyed to the
+        // Shadow Brand and Dawn Blade ranks; the rating half becomes hit-per-Agility.
+        info->Effects[EFFECT_0].MiscValue = SPELLMOD_DAMAGE;
+        info->Effects[EFFECT_1].ApplyAuraName = SPELL_AURA_MOD_RATING_FROM_STAT;
+        info->Effects[EFFECT_1].MiscValue = CR_HIT_MELEE;
+        info->Effects[EFFECT_1].MiscValueB = STAT_AGILITY;
+    }
     if (id == 705453)
         // Darkrider's flat discount (-100 tenths = 10 Rage) must read as the cost op so
         // the engine trims Shadowblast, Vault, and Unleash the Hounds; the mask keys them.

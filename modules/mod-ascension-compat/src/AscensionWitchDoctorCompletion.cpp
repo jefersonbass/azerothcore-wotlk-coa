@@ -213,6 +213,13 @@ void ApplyContracts(SpellInfo* info)
         info->Effects[EFFECT_0].MiscValue = SPELLMOD_CRITICAL_CHANCE;
         info->Effects[EFFECT_1].MiscValue = SPELLMOD_CRIT_DAMAGE_BONUS;
     }
+    if (id == 705903 || id == 705904)
+    {
+        // Wizened's mana half keys to the max-mana percent aura; its cost half is
+        // consumed in SpellInfo::CalcPowerCost and its regen half already reads fine.
+        info->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_MOD_INCREASE_ENERGY_PERCENT;
+        info->Effects[EFFECT_0].MiscValue = POWER_MANA;
+    }
     if ((id == ChosenOne || id == MojoHigh) &&
         info->Effects[EFFECT_0].ApplyAuraName == SPELL_AURA_ADD_FLAT_MODIFIER &&
         info->Effects[EFFECT_0].MiscValue == SPELLMOD_EFFECT3)
