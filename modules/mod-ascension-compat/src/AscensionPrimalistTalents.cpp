@@ -35,6 +35,8 @@ enum PrimalistAbilitySpells : uint32
     SPELL_STONESHARD = 680448,
     SPELL_PRIMAL_SHAMANS_MASK = 800185,
     SPELL_GEODE = 804002,
+    SPELL_TILLING_THE_EARTH = 680409,
+    SPELL_BASH = 680964,
     SPELL_BEARSKIN = 800094,
     SPELL_PRIMAL_CONVERGENCE = 800181,
     SPELL_BOULDER_DASH = 500692,
@@ -223,6 +225,11 @@ public:
         if (damage && player->HasAura(SPELL_PRIMAL_SHAMANS_MASK) && !spell->IsTriggered() &&
             roll_chance_i(10))
             player->CastSpell(target, SPELL_GEODE, true);
+        // Tilling the Earth (680409): direct damage rolls Bash three percent more
+        // often. The expertise bonus applies natively through Mod Expertise.
+        if (damage && player->HasAura(SPELL_TILLING_THE_EARTH) && !spell->IsTriggered() &&
+            roll_chance_f(3.0f))
+            player->CastSpell(player, SPELL_BASH, true);
             }
         }
         if (info->Id == SPELL_GEODE_BARRAGE_DAMAGE && !spell->GetScriptValue(SPELL_GEODE_BARRAGE_RAGE))
