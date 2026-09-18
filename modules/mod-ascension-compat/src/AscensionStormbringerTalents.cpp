@@ -1,4 +1,5 @@
 /* Copyright (C) 2016+ AzerothCore, GNU AGPL v3. */
+#include "Pet.h"
 #include "Player.h"
 #include "ScriptMgr.h"
 #include "Spell.h"
@@ -22,7 +23,9 @@ enum StormbringerTalentSpells : uint32
     SPELL_GENERATE_STATIC_20 = 804086,
     SPELL_BAROMETRIC_SLOW = 803566,
     SPELL_ELECTRICAL_CHARGE = 800299,
-    SPELL_CHARGED_CONDUIT = 803790
+    SPELL_CHARGED_CONDUIT = 803790,
+    SPELL_GALE = 804036,
+    SPELL_ENVELOPING_WINDS = 707546
 };
 
 class stormbringer_talent_casts : public AllSpellScript
@@ -39,6 +42,15 @@ public:
             // The active spell has a zero-radius dummy. Its separate native
             // helper supplies the ten-yard area and authored knockback speeds.
             player->CastSpell(player, SPELL_CLOUDBURST_KNOCKBACK, true);
+        // Enveloping Winds (707546): casting Gale makes the Air Elemental cast Gale
+        // as well. The passive's Dummy aura is inert; the armor emanation is native
+        // through its periodic trigger into the raid area aura.
+        if (player && player->getClass() == CLASS_STORMBRINGER && info->SpellFamilyName == 22 &&
+            !spell->IsTriggered() && player->HasAura(SPELL_ENVELOPING_WINDS) &&
+            sSpellMgr->GetFirstSpellInChain(info->Id) == SPELL_GALE)
+            if (Pet* pet = player->GetPet(); pet && pet->IsAlive() && pet->IsInWorld())
+                if (Unit* victim = pet->GetVictim())
+                    pet->CastSpell(victim, info->Id, true);
     }
 
     void OnSpellHitResult(Spell* spell, Unit* target, uint8 miss, uint32 damage, uint32, bool) override
