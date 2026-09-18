@@ -145,6 +145,9 @@ void Blood(Player* player)
         Cast(player, player, 804011);
     if (Chance(player, 707631) || Chance(player, 707840))
         Unleash(player, player, .5f);
+    // Demonic Rage: every generated Demon's Blood stack also yields 1 Rage.
+    if (player->HasAura(524922))
+        player->EnergizeBySpell(player, 524922, 10, POWER_RAGE);
     Refresh(player);
 }
 void Refresh(Player* player)
