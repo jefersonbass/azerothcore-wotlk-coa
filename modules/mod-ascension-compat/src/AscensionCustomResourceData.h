@@ -116,7 +116,7 @@ struct ResourceGainRule
 // These active abilities advertise resource generation in their tooltips, but
 // their public Spell.dbc records contain no effect that performs it. Ranges are
 // rank chains verified against the local Ascension spell dump.
-inline constexpr std::array<ResourceGainRule, 181> ResourceGainRules =
+inline constexpr std::array<ResourceGainRule, 185> ResourceGainRules =
 {{
     // Native helpers already supply Twin Slice, Fel Fireball, and Seeking Flame.
     // Fel Torpedo and the current Bane variants generate through their class scripts.
@@ -479,7 +479,18 @@ inline constexpr std::array<ResourceGainRule, 181> ResourceGainRules =
     {31, 681114, 681117, 680441, 2, ResourceMutation::AuraStacks,
         ResourceGainEvent::Cast, 92149},
     {31, 807432, 807432, 680441, 1, ResourceMutation::AuraStacks,
-        ResourceGainEvent::Cast, 92149}
+        ResourceGainEvent::Cast, 92149},
+
+    // Seismically Efficient (680413) adds five Rage to Seismic Crash casts
+    // and two to Seismic Spike casts on top of the base rows above.
+    {31, 503258, 503264, 680441, 5, ResourceMutation::AuraStacks,
+        ResourceGainEvent::Cast, 680413},
+    {31, 560171, 560175, 680441, 2, ResourceMutation::AuraStacks,
+        ResourceGainEvent::Cast, 680413},
+    {31, 582532, 582532, 680441, 2, ResourceMutation::AuraStacks,
+        ResourceGainEvent::Cast, 680413},
+    {31, 804433, 804433, 680441, 2, ResourceMutation::AuraStacks,
+        ResourceGainEvent::Cast, 680413}
 }};
 
 struct NativePowerGainRule
