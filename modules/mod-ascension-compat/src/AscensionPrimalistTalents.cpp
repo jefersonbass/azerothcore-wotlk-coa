@@ -24,6 +24,7 @@ enum PrimalistAbilitySpells : uint32
     SPELL_SOOTHING_TOUCH = 520841,
     SPELL_MENDING_TOUCH = 524971,
     SPELL_PROTECTOR_OF_THE_GROVE = 504198,
+    SPELL_PROTECTIVE_ROAR = 802782,
     SPELL_BEARSKIN = 800094,
     SPELL_PRIMAL_CONVERGENCE = 800181,
     SPELL_BOULDER_DASH = 500692,
@@ -168,6 +169,16 @@ public:
         if (damage && player->HasAura(SPELL_PROTECTOR_OF_THE_GROVE) && !spell->IsTriggered())
             for (uint32 ability : {SPELL_BEARSKIN, SPELL_PRIMAL_CONVERGENCE, SPELL_BOULDER_DASH})
                 player->ModifySpellCooldown(ability, -1000);
+        // Protective Roar (802782): the Dummy effect carries the aura to every
+        // party and raid member within thirty yards. Its health effect and Rage
+        // energize are native once applied.
+        if (info->Id == SPELL_PROTECTIVE_ROAR && !spell->IsTriggered())
+            for (auto const& reference : player->GetMap()->GetPlayers())
+                if (Player* member = reference.GetSource())
+                    if (member->IsInWorld() && !member->IsGameMaster() &&
+                        member->IsWithinDistInMap(player, 30.0f) &&
+                        (member == player || member->IsInPartyWith(player) || member->IsInRaidWith(player)))
+                        player->CastSpell(member, SPELL_PROTECTIVE_ROAR, true);
         if (info->Id == SPELL_GEODE_BARRAGE_DAMAGE && !spell->GetScriptValue(SPELL_GEODE_BARRAGE_RAGE))
         {
             // Each channel tick casts this damage helper. Its authored energize
