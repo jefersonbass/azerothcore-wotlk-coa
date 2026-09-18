@@ -286,8 +286,10 @@ bool Consume(Player* player, Unit* target)
     Cast(player, target, 804995);
     // Celestial Shot (574348): "Increases the effectiveness of consuming
     // Scattered Stars by 40%."
+    // Celestial Surge (680773): "Increases the damage dealt by consuming
+    // Scattered Stars by 10%."
     float effectiveness = (player->HasAura(807659) ? 1.5f : 1) * (player->HasAura(805524) ? 1.5f : 1) *
-        (player->HasAura(574348) ? 1.4f : 1);
+        (player->HasAura(574348) ? 1.4f : 1) * (player->HasAura(680773) ? 1.1f : 1);
     Mana(player, uint32(player->GetMaxPower(POWER_MANA) * .08f * effectiveness * (player->HasAura(574360) ? 2 : 1)));
     for (uint32 helper : {804994, 504024, 706573})
         if (SpellInfo const* info = sSpellMgr->GetSpellInfo(helper))
