@@ -21,6 +21,8 @@ enum PrimalistAbilitySpells : uint32
     SPELL_BONES_DAMAGE = 806553,
     SPELL_FURY_OF_THE_WILD = 801234,
     SPELL_NATURAL_EFFICIENCY = 706167,
+    SPELL_SOOTHING_TOUCH = 520841,
+    SPELL_MENDING_TOUCH = 524971,
     SPELL_PRIMAL_SHRED = 500940,
     SPELL_RYLAKS_BITE = 706342,
     SPELL_WILDCLAW = 800140,
@@ -133,7 +135,8 @@ class primalist_talent_casts : public AllSpellScript
 {
 public:
     primalist_talent_casts() : AllSpellScript("primalist_talent_casts",
-        {ALLSPELLHOOK_ON_CAST, ALLSPELLHOOK_ON_CRIT_CHANCE, ALLSPELLHOOK_ON_HIT_RESULT}) { }
+        {ALLSPELLHOOK_ON_CAST, ALLSPELLHOOK_ON_CRIT_CHANCE, ALLSPELLHOOK_ON_HIT_RESULT,
+        ALLSPELLHOOK_ON_CALCULATED_TARGET}) { }
 
     void OnSpellCast(Spell* spell, Unit* caster, SpellInfo const* info, bool) override
     {
@@ -182,6 +185,22 @@ public:
                     player->CastSpell(pet, buff, true);
             }
         }
+    }
+
+    void OnSpellCalculatedTarget(Spell* spell, Unit* target, TargetInfo& hit) override
+    {
+        // Mending Touch (524971): Soothing Touch dispels an additional poison and
+        // disease effect. The Dispel effect's damage field is the dispel charge
+        // count, so +1 to both dispel effects when the passive is learned.
+        Player* player = Primalist(spell->GetCaster());
+        SpellInfo const* info = spell->GetSpellInfo();
+        if (!player || !player->HasAura(SPELL_MENDING_TOUCH))
+            return;
+        if (sSpellMgr->GetFirstSpellInChain(info->Id) != sSpellMgr->GetFirstSpellInChain(SPELL_SOOTHING_TOUCH))
+            return;
+        for (auto const& effect : info->Effects)
+            if (effect.IsEffect() && effect.Effect == SPELL_EFFECT_DISPEL && hit.effectMask & (1 << effect.EffectIndex))
+                hit.damage += 1;
     }
 
     void OnSpellCritChance(Spell* spell, Unit* target, float& chance) override
