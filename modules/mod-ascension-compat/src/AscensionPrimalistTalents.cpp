@@ -37,13 +37,19 @@ enum PrimalistAbilitySpells : uint32
     SPELL_GEODE = 804002,
     SPELL_TILLING_THE_EARTH = 680409,
     SPELL_BASH = 680964,
-    SPELL_BASHED = 680949,
     SPELL_BEARSKIN = 800094,
     SPELL_PRIMAL_CONVERGENCE = 800181,
     SPELL_BOULDER_DASH = 500692,
     SPELL_PRIMAL_SHRED = 500940,
     SPELL_RYLAKS_BITE = 706342,
     SPELL_WILDCLAW = 800140,
+    SPELL_MOUNTAIN_MOVER_STACKS = 805644,
+    SPELL_EARTHMOTHERS_PROTECTION = 560298,
+    SPELL_ROCK_BARRIER = 503630,
+    SPELL_EARTHENFORGED_BARRIER = 680408,
+    SPELL_EARTHBREAKER = 560147,
+    SPELL_FURY_OF_THE_EARTHMOTHER = 680412,
+    SPELL_HAND_OF_THE_EARTHMOTHER = 800135,
     SPELL_MISHAS_RAGE = 504227,
     SPELL_LEOKKS_FURY = 560974,
     SPELL_HUFFERS_SPEED = 560973
@@ -71,6 +77,21 @@ Player* Primalist(Unit* unit)
 {
     Player* player = unit ? unit->ToPlayer() : nullptr;
     return player && player->getClass() == CLASS_WILDWALKER ? player : nullptr;
+}
+
+// Hand of the Earthmother (800135) and its later ranks (502802-502808).
+bool IsHandOfTheEarthmother(SpellInfo const* info)
+{
+    if (sSpellMgr->GetFirstSpellInChain(info->Id) == sSpellMgr->GetFirstSpellInChain(SPELL_HAND_OF_THE_EARTHMOTHER))
+        return true;
+    switch (info->Id)
+    {
+        case 502802: case 502803: case 502804: case 502805:
+        case 502806: case 502807: case 502808:
+            return true;
+        default:
+            return false;
+    }
 }
 
 class primalist_talent_events : public UnitScript
@@ -158,13 +179,37 @@ public:
 
     void OnSpellCast(Spell* spell, Unit* caster, SpellInfo const* info, bool) override
     {
+        Player* player = Primalist(caster);
+        if (!player || caster != player || spell->IsTriggered() || !player->IsAlive())
+            return;
+        // Mountain Mover (805643): Wildclaw consumes its stacks for ten percent
+        // less Rage per stack, refunded here after the power is taken; the
+        // damage bonus rides on the calculated-target hook.
+        if (sSpellMgr->GetFirstSpellInChain(info->Id) == sSpellMgr->GetFirstSpellInChain(SPELL_WILDCLAW))
+            if (Aura const* stacks = player->GetAura(SPELL_MOUNTAIN_MOVER_STACKS))
+            {
+                if (int32 cost = spell->GetPowerCost())
+                    player->ModifyPower(POWER_RAGE, CalculatePct(cost, 10 * stacks->GetStackAmount()));
+                player->RemoveAura(SPELL_MOUNTAIN_MOVER_STACKS);
+            }
+        // Earthmother's Protection (560298): while Rock Barrier is active, Hand
+        // of the Earthmother costs fifty percent less Rage, refunded here after
+        // the power is taken.
+        if (player->HasAura(SPELL_EARTHMOTHERS_PROTECTION) && player->HasAura(SPELL_ROCK_BARRIER) &&
+            IsHandOfTheEarthmother(info))
+            if (int32 cost = spell->GetPowerCost())
+                player->ModifyPower(POWER_RAGE, CalculatePct(cost, 50));
+        // Earthenforged Barrier (680408): Rock Barrier reduces the cost of all
+        // spells and abilities by twenty-five percent for its duration,
+        // refunded here after the power is taken.
+        if (player->HasAura(SPELL_EARTHENFORGED_BARRIER) && player->HasAura(SPELL_ROCK_BARRIER))
+            if (int32 cost = spell->GetPowerCost())
+                player->ModifyPower(Powers(info->PowerType), CalculatePct(cost, 25));
         // Fury of the Wild (801234): casting a Boon also casts the same Boon on the
         // pet at 50% effectiveness. The DBC aura is an inert Dummy, so the mirror
         // cast happens here. The Boons' pet-visible values come from their auras;
         // the 50% potency is honored by the separate pet Boon auras where present.
-        Player* player = Primalist(caster);
-        if (!player || caster != player || spell->IsTriggered() || !player->IsAlive() ||
-            !player->HasAura(SPELL_FURY_OF_THE_WILD) || !IsBoonCast(info))
+        if (!player->HasAura(SPELL_FURY_OF_THE_WILD) || !IsBoonCast(info))
             return;
         if (Pet* pet = player->GetPet(); pet && pet->IsAlive())
             player->CastSpell(pet, info->Id, true);
@@ -182,6 +227,22 @@ public:
         if (damage && player->HasAura(SPELL_PROTECTOR_OF_THE_GROVE) && !spell->IsTriggered())
             for (uint32 ability : {SPELL_BEARSKIN, SPELL_PRIMAL_CONVERGENCE, SPELL_BOULDER_DASH})
                 player->ModifySpellCooldown(ability, -1000);
+        // Earthbreaker (560147): Geode Barrage and Geode hits generate a quarter
+        // of their damage again as threat; the melee haste part is native.
+        // Fury of the Earthmother (680412) rolls the same hits at fifteen
+        // percent to extend an active Rock Barrier by one second; the
+        // twenty-five percent threat part is Earthbreaker's, kept distinct.
+        bool const geodeHit = sSpellMgr->GetFirstSpellInChain(info->Id) == sSpellMgr->GetFirstSpellInChain(SPELL_GEODE_BARRAGE_DAMAGE) ||
+            sSpellMgr->GetFirstSpellInChain(info->Id) == sSpellMgr->GetFirstSpellInChain(SPELL_GEODE);
+        if (damage && geodeHit)
+        {
+            if (player->HasAura(SPELL_EARTHBREAKER))
+                if (Creature* creature = target->ToCreature())
+                    creature->GetThreatMgr().AddThreat(player, CalculatePct(damage, 25));
+            if (player->HasAura(SPELL_FURY_OF_THE_EARTHMOTHER) && roll_chance_i(15))
+                if (Aura* barrier = player->GetAura(SPELL_ROCK_BARRIER))
+                    barrier->SetDuration(barrier->GetDuration() + 1000);
+        }
         // Protective Roar (802782): the Dummy effect carries the aura to every
         // party and raid member within thirty yards. Its health effect and Rage
         // energize are native once applied.
@@ -205,22 +266,6 @@ public:
         if (!spell->IsTriggered() && (info->Id == SPELL_SAVAGE_FRENZY || info->Id == SPELL_SAVAGE_FRENZY_GREATER))
             if (Pet* pet = player->GetPet(); pet && pet->IsAlive())
                 player->CastSpell(pet, info->Id, true);
-        // Crashing Out (574313): Seismic Crash deals thirty percent more damage.
-        if (damage && player->HasAura(SPELL_CRASHING_OUT) &&
-            sSpellMgr->GetFirstSpellInChain(info->Id) == sSpellMgr->GetFirstSpellInChain(SPELL_SEISMIC_CRASH))
-            damage += CalculatePct(damage, 30);
-        // One With The Earth (704402): Stoneshard and Geode Barrage deal twenty-five
-        // percent more damage, and Stoneshard restores four percent of maximum mana.
-        if (damage && player->HasAura(SPELL_ONE_WITH_THE_EARTH))
-        {
-            uint32 const root = sSpellMgr->GetFirstSpellInChain(info->Id);
-            if (root == sSpellMgr->GetFirstSpellInChain(SPELL_STONESHARD) ||
-                root == sSpellMgr->GetFirstSpellInChain(SPELL_GEODE_BARRAGE_DAMAGE))
-            {
-                damage += CalculatePct(damage, 25);
-                if (root == sSpellMgr->GetFirstSpellInChain(SPELL_STONESHARD))
-                    player->ModifyPower(POWER_MANA,
-                        CalculatePct(player->GetMaxPower(POWER_MANA), 4));
         // Primal Shaman's Mask (800185): direct damage has a ten percent chance to
         // hurl a Geode, whose damage and Rage energize are native.
         if (damage && player->HasAura(SPELL_PRIMAL_SHAMANS_MASK) && !spell->IsTriggered() &&
@@ -231,13 +276,6 @@ public:
         if (damage && player->HasAura(SPELL_TILLING_THE_EARTH) && !spell->IsTriggered() &&
             roll_chance_f(3.0f))
             player->CastSpell(player, SPELL_BASH, true);
-        // Bash (680964): auto attacks roll a thirty percent chance to Bash the
-        // victim for half a weapon swing plus a one-second stun (680949).
-        if (damage && player->HasAura(SPELL_BASH) && !spell->IsTriggered() &&
-            (info->Id == 6603 || info->Id == 75 || info->Id == 5019) && roll_chance_i(30))
-            player->CastSpell(target, SPELL_BASHED, true);
-            }
-        }
         if (info->Id == SPELL_GEODE_BARRAGE_DAMAGE && !spell->GetScriptValue(SPELL_GEODE_BARRAGE_RAGE))
         {
             // Each channel tick casts this damage helper. Its authored energize
@@ -268,18 +306,44 @@ public:
 
     void OnSpellCalculatedTarget(Spell* spell, Unit* target, TargetInfo& hit) override
     {
+        Player* player = Primalist(spell->GetCaster());
+        SpellInfo const* info = spell->GetSpellInfo();
+        if (!player)
+            return;
         // Mending Touch (524971): Soothing Touch dispels an additional poison and
         // disease effect. The Dispel effect's damage field is the dispel charge
         // count, so +1 to both dispel effects when the passive is learned.
-        Player* player = Primalist(spell->GetCaster());
-        SpellInfo const* info = spell->GetSpellInfo();
-        if (!player || !player->HasAura(SPELL_MENDING_TOUCH))
-            return;
-        if (sSpellMgr->GetFirstSpellInChain(info->Id) != sSpellMgr->GetFirstSpellInChain(SPELL_SOOTHING_TOUCH))
-            return;
-        for (auto const& effect : info->Effects)
-            if (effect.IsEffect() && effect.Effect == SPELL_EFFECT_DISPEL && hit.effectMask & (1 << effect.EffectIndex))
-                hit.damage += 1;
+        if (player->HasAura(SPELL_MENDING_TOUCH) &&
+            sSpellMgr->GetFirstSpellInChain(info->Id) == sSpellMgr->GetFirstSpellInChain(SPELL_SOOTHING_TOUCH))
+            for (auto const& effect : info->Effects)
+                if (effect.IsEffect() && effect.Effect == SPELL_EFFECT_DISPEL && hit.effectMask & (1 << effect.EffectIndex))
+                    hit.damage += 1;
+        // Crashing Out (574313): Seismic Crash deals thirty percent more damage.
+        // The hit-result hook receives damage by value, so the boost rides here
+        // where the calculated amount is still mutable.
+        if (hit.damage && player->HasAura(SPELL_CRASHING_OUT) &&
+            sSpellMgr->GetFirstSpellInChain(info->Id) == sSpellMgr->GetFirstSpellInChain(SPELL_SEISMIC_CRASH))
+            hit.damage += CalculatePct(hit.damage, 30);
+        // One With The Earth (704402): Stoneshard and Geode Barrage deal twenty-five
+        // percent more damage, and Stoneshard restores four percent of maximum mana.
+        if (hit.damage && player->HasAura(SPELL_ONE_WITH_THE_EARTH))
+        {
+            uint32 const root = sSpellMgr->GetFirstSpellInChain(info->Id);
+            if (root == sSpellMgr->GetFirstSpellInChain(SPELL_STONESHARD) ||
+                root == sSpellMgr->GetFirstSpellInChain(SPELL_GEODE_BARRAGE_DAMAGE))
+            {
+                hit.damage += CalculatePct(hit.damage, 25);
+                if (root == sSpellMgr->GetFirstSpellInChain(SPELL_STONESHARD))
+                    player->ModifyPower(POWER_MANA,
+                        CalculatePct(player->GetMaxPower(POWER_MANA), 4));
+            }
+        }
+        // Mountain Mover (805643): Wildclaw deals five percent more damage per
+        // stack; the stacks are consumed when the cast completes.
+        if (hit.damage && player->HasAura(SPELL_MOUNTAIN_MOVER_STACKS) &&
+            sSpellMgr->GetFirstSpellInChain(info->Id) == sSpellMgr->GetFirstSpellInChain(SPELL_WILDCLAW))
+            if (Aura const* stacks = player->GetAura(SPELL_MOUNTAIN_MOVER_STACKS))
+                hit.damage += CalculatePct(hit.damage, 5 * stacks->GetStackAmount());
     }
 
     void OnSpellCritChance(Spell* spell, Unit* target, float& chance) override
