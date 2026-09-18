@@ -28,7 +28,9 @@ enum ReaperTalentSpells : uint32
     SPELL_SOUL_SPLINTERS = 805719,
     SPELL_SOUL_SPLINTER = 805720,
     SPELL_LIMBO = 800845,
-    SPELL_LIMBO_SHELL = 805872
+    SPELL_LIMBO_SHELL = 805872,
+    SPELL_REAPER_FATESEALER = 705442,
+    SPELL_REAPER_FATESEALER_STACK = 705443
 };
 
 class spell_ascension_reaper_limbo : public SpellScript
@@ -214,7 +216,13 @@ bool HandleAscensionReaperResource(Player* player, uint32 spellId, int32 amount)
     if (aura && aura->GetStackAmount() > previous && player->IsAlive() && player->HasAura(SPELL_SOUL_SPLINTERS))
         player->CastSpell(player, SPELL_SOUL_SPLINTER, true);
     if (aura && aura->GetStackAmount() > previous && player->IsAlive())
+    {
         HandleAscensionReaperEaterOfSouls(player);
+        // Fatesealer: each freshly harvested Reaped Soul adds one 15 sec
+        // -2% damage-taken stack, capped at 3 by the aura's own stack limit.
+        if (player->HasAura(SPELL_REAPER_FATESEALER))
+            player->CastSpell(player, SPELL_REAPER_FATESEALER_STACK, true);
+    }
     return true;
 }
 

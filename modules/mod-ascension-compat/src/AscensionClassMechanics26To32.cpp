@@ -5,6 +5,7 @@
 #include "Random.h"
 #include "Spell.h"
 #include "SpellAuras.h"
+#include "SpellMgr.h"
 
 namespace
 {
@@ -25,6 +26,14 @@ constexpr std::int16_t REAPER_SOUL_GENERATOR_RUNIC_POWER = 100;
 constexpr std::uint32_t SPELL_REAPER_SCYTHE_RUSH = 500359;
 constexpr std::uint32_t SPELL_REAPER_SCYTHE_RUSH_ROOT = 805689;
 constexpr std::uint32_t SPELL_REAPER_SCYTHE_RUSH_ENERGIZE = 805339;
+constexpr std::uint32_t SPELL_REAPER_WELL_OF_SOULS = 706792;
+constexpr std::uint32_t SPELL_REAPER_FATESEALER = 705442;
+constexpr std::uint32_t SPELL_REAPER_FATESEALER_STACK = 705443;
+constexpr std::uint32_t SPELL_REAPER_MURDER_ROOT = 500376;
+constexpr std::uint32_t SPELL_REAPER_SOUL_STRIKE_ROOT = 500517;
+constexpr std::uint32_t SPELL_REAPER_SPECTRAL_SCYTHE = 500484;
+constexpr std::uint32_t SPELL_REAPER_SPECTRAL_SCYTHE_INFUSION = 500576;
+constexpr std::int32_t REAPER_WELL_OF_SOULS_CD_REDUCTION = -1000;
 constexpr std::uint32_t SPELL_PRIMALIST_CAVE_IN = 500615;
 constexpr std::uint32_t SPELL_PRIMALIST_EARTHSHAPING = 680441;
 
@@ -111,6 +120,19 @@ void HandleAscensionClassMechanics26To32Hit(Spell* spell, Player* player,
                     REAPER_SOUL_GENERATOR_RUNIC_POWER);
             }
 
+            // Well of Souls: "Damage dealt by Soul Strike and Murder now
+            // reduces the cooldown of Spectral Scythe by 1 sec."
+            if (damage && player->HasAura(SPELL_REAPER_WELL_OF_SOULS) &&
+                (sSpellMgr->GetFirstSpellInChain(spellId) == SPELL_REAPER_MURDER_ROOT ||
+                    sSpellMgr->GetFirstSpellInChain(spellId) == SPELL_REAPER_SOUL_STRIKE_ROOT))
+            {
+                player->ModifySpellCooldown(SPELL_REAPER_SPECTRAL_SCYTHE, REAPER_WELL_OF_SOULS_CD_REDUCTION);
+                player->ModifySpellCooldown(SPELL_REAPER_SPECTRAL_SCYTHE_INFUSION, REAPER_WELL_OF_SOULS_CD_REDUCTION);
+            }
+
+            // Fatesealer: "Generating a Reaped Soul now reduces damage taken by
+            // 2% for 15 sec, stacking 3 times." Handled at the soul-grant site
+            // (HandleAscensionReaperResource); nothing to do per hit here.
             if (spellId == SPELL_REAPER_SCYTHE_RUSH && !spell->IsTriggered())
             {
                 // 500359 is a bare charge: its 500372 -> 805689 -> 805339 ->
