@@ -31,7 +31,9 @@ enum BloodmageSecondarySpells : uint32
     SPELL_VAMPYRS_KISS_COPY = 504785,
     SPELL_BLACK_HEART = 680731,
     SPELL_NIGHT_HUNTER = 704659,
-    SPELL_BLOOD_FEAST_RESTORE = 706608
+    SPELL_BLOOD_FEAST_RESTORE = 706608,
+    SPELL_ATHERANNS_ANGUISH = 680680,
+    SPELL_ATHERANNS_ANGUISH_BURST = 680681
 };
 
 bool RankOf(uint32 id, uint32 root)
@@ -82,6 +84,9 @@ public:
         if (Bloodmage(spell) && target && RankOf(spell->GetSpellInfo()->Id, SPELL_HEMOBURST) &&
             target->HasAuraState(AURA_STATE_BLEEDING))
             chance = 100;
+        // Atherann's Anguish: hemoplague damage cannot critically strike.
+        if (spell->GetSpellInfo()->Id == SPELL_ATHERANNS_ANGUISH_BURST)
+            chance = 0;
     }
 
     void OnSpellCalculatedTarget(Spell* spell, Unit* target, TargetInfo& hit) override
@@ -135,6 +140,12 @@ public:
                 CopyDamage(player, target, SPELL_REAVE_EXECUTE, damage);
             if (conditions & 4)
                 CopyDamage(player, target, SPELL_REAVE_BACK, damage);
+        }
+        if (target->HasAura(SPELL_ATHERANNS_ANGUISH, player->GetGUID()))
+        {
+            Aura* mark = target->GetAura(SPELL_ATHERANNS_ANGUISH, player->GetGUID());
+            if (AuraEffect* bank = mark->GetEffect(EFFECT_2))
+                bank->ChangeAmount(bank->GetAmount() + int32(damage * 0.30f));
         }
     }
 };

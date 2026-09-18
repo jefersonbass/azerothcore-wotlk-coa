@@ -23,7 +23,9 @@ enum BloodmageTalentSpells : uint32
     SPELL_SANGUINE_SCRIPTURE_BUFF = 504264,
     SPELL_CURSED_FORM_REQUIREMENT = 525031,
     SPELL_CURSED_FORM_REQUIREMENT_2 = 524861,
-    SPELL_BLOODMOON_POWER = 801961
+    SPELL_BLOODMOON_POWER = 801961,
+    SPELL_ATHERANNS_ANGUISH = 680680,
+    SPELL_ATHERANNS_ANGUISH_BURST = 680681
 };
 
 // Every creature Animated Blood can leave behind: worms, parasites and the rank 3 amalgam.
@@ -136,6 +138,13 @@ public:
         if (aura->GetId() == SPELL_LIQUIFY && aura->GetCasterGUID() == player->GetGUID() &&
             player->HasAura(SPELL_VAMPIRIC_POOLS))
             player->CastSpell(player, SPELL_VAMPIRIC_POOLS_LEECH, true);
+        // Atherann's Anguish (680680): the hemoplague mark explodes for its banked
+        // damage when it runs its full ten seconds. Early dispels or deaths fizzle.
+        if (aura->GetId() == SPELL_ATHERANNS_ANGUISH && mode == AURA_REMOVE_BY_EXPIRE &&
+            aura->GetCasterGUID() == player->GetGUID())
+            if (AuraEffect* bank = aura->GetEffect(EFFECT_2); bank && bank->GetAmount() > 0)
+                player->CastCustomSpell(SPELL_ATHERANNS_ANGUISH_BURST,
+                    SPELLVALUE_BASE_POINT0, bank->GetAmount(), unit, true);
         if (aura->GetId() == SPELL_LIQUIFY && aura->GetCasterGUID() == player->GetGUID() &&
             player->HasAura(SPELL_BLOODMOON_POWER))
         {
