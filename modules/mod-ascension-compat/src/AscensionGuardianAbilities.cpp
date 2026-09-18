@@ -131,6 +131,17 @@ class spell_ascension_guardian_ability : public SpellScript
             player->CastSpell(player, 806081, true);
         if (id == 803963)
             player->CastSpell(player, 807140, true);
+        if (id == 500268)
+        {
+            // Bastion Slam: "Slam into an enemy with your shield, dealing 189
+            // Physical Damage to up to 3 enemies and regenerating 20% of your
+            // missing Energy. Motivation: Grants Vanguard's Grandeur."
+            uint32 const missing = player->GetMaxPower(POWER_ENERGY) - player->GetPower(POWER_ENERGY);
+            if (uint32 gain = uint32(uint64(missing) * 20 / 100))
+                player->SetPower(POWER_ENERGY, player->GetPower(POWER_ENERGY) + gain);
+            if (player->HasAura(506630)) // Auras of the Guardian: Vanguard's Grandeur
+                player->CastSpell(player, 520231, true);
+        }
         if (_perilStacks)
         {
             uint32 remaining = player->GetSpellCooldownDelay(300983);
