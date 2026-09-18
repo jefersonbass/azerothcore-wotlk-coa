@@ -33,6 +33,20 @@ void ApplyContracts(SpellInfo* info)
         e.TargetB = SpellImplicitTargetInfo();
         e.TriggerSpell = 0;
     };
+    // Incinerator (807510): the client DBC ships a wrong aura (Mod Spell Damage
+    // Taken School -70). The tooltip grants 30 spell penetration, scaling with
+    // level via the passive's native level scaling on BasePoints.
+    if (id == 807510)
+    {
+        auto& e = info->Effects[EFFECT_0];
+        e.Effect = SPELL_EFFECT_APPLY_AURA;
+        e.ApplyAuraName = SPELL_AURA_MOD_TARGET_RESISTANCE;
+        e.BasePoints = 29;
+        e.DieSides = 1;
+        e.MiscValue = SPELL_SCHOOL_MASK_MAGIC;
+        e.TargetA = SpellImplicitTargetInfo(TARGET_UNIT_CASTER);
+        e.TriggerSpell = 0;
+    }
     for (auto const& list : {std::pair(PyromancerEvents, std::size(PyromancerEvents)),
                              std::pair(PyromancerDrivers, std::size(PyromancerDrivers))})
         for (size_t n = 0; n < list.second; ++n)
