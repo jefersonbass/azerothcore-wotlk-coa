@@ -41,7 +41,30 @@ enum ReaperSecondarySpells : uint32
     SPELL_RED_WAKE = 707707,
     SPELL_HAUNTER = 705410,
     SPELL_SOULREND = 572341,
-    HAUNTER_BONUS = 10000
+    HAUNTER_BONUS = 10000,
+    SPELL_ESSENCE_HARVEST = 707908,
+    SPELL_GHOSTLY_WEAPON_HIT = 804474,
+    ESSENCE_HARVEST_BONUS = 10
+};
+
+// Essence Harvest (707908): "Increases the additional Frost damage dealt by
+// Ghostly Weapon by 10%." The weapon's proc damage spell (804474) has no
+// family for the passive's Spell Flat Mod to match, so boost its damage here.
+class reaper_essence_harvest : public UnitScript
+{
+public:
+    reaper_essence_harvest() : UnitScript("reaper_essence_harvest", true,
+        {UNITHOOK_MODIFY_SPELL_DAMAGE_TAKEN}) { }
+
+    void ModifySpellDamageTaken(Unit* target, Unit* source, int32& damage, SpellInfo const* spellInfo) override
+    {
+        Player* player = source ? source->ToPlayer() : nullptr;
+        if (!player || !damage || player->getClass() != CLASS_REAPER ||
+            !spellInfo || sSpellMgr->GetFirstSpellInChain(spellInfo->Id) != SPELL_GHOSTLY_WEAPON_HIT ||
+            !player->HasAura(SPELL_ESSENCE_HARVEST))
+            return;
+        damage += CalculatePct(damage, ESSENCE_HARVEST_BONUS);
+    }
 };
 
 void HealFromDamage(Player* player, uint32 reference, uint32 helper, uint32 damage)
@@ -166,6 +189,8 @@ public:
         if (sSpellMgr->GetFirstSpellInChain(id) == SPELL_SOULREND && player->HasAura(SPELL_HAUNTER))
             if (Aura* rend = target->GetAura(spell->GetSpellInfo()->Id, player->GetGUID()))
                 rend->SetDuration(rend->GetDuration() + HAUNTER_BONUS);
+        // Essence Harvest (707908): handled in reaper_essence_harvest below —
+        // OnSpellHitResult cannot adjust the final damage.
         // Gravesite (572213): "Direct critical strikes made against enemies
         // within a Gravesite now deals Shadow damage." The area marker (804722)
         // is dropped by the Endbringer cast below.
@@ -252,5 +277,6 @@ void AddSC_AscensionReaperSecondary()
     new reaper_ghost_speed();
     new reaper_secondary_hits();
     new reaper_secondary_metadata();
+    new reaper_essence_harvest();
     RegisterSpellScript(aura_ascension_crimson_thirst);
 }
