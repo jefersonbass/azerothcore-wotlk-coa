@@ -141,6 +141,12 @@ class witch_doctor_casts : public AllSpellScript
             duration = 4000 * Spirits(player);
         if (Family(aura->GetSpellInfo(), 0, 8) && player->HasAura(VoodooMind))
             duration = duration * (100 + Spirits(player) * Amount(VoodooMind, EFFECT_1)) / 100;
+        // Beware Da Voodoo: Mimic Ward and the Spirits last 4 more seconds.
+        if (player->HasAura(707168))
+            if (sSpellMgr->GetFirstSpellInChain(aura->GetId()) == sSpellMgr->GetFirstSpellInChain(707162) ||
+                aura->GetId() == Spirit || aura->GetId() == SpiritCast)
+                if (AuraEffect const* voodoo = player->GetAuraEffect(707168, EFFECT_0))
+                    duration += voodoo->GetAmount();
     }
 
     void OnSpellCalculatedTarget(Spell* spell, Unit* target, TargetInfo& hit) override
