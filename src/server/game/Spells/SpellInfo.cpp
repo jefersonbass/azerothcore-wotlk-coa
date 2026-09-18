@@ -2932,8 +2932,17 @@ uint32 SpellInfo::CalcCastTime(Unit* caster, Spell* spell) const
     bool serpent = caster && caster->IsPlayer() && caster->getClass() == CLASS_PROPHET &&
         SpellFamilyName == 35 && caster->HasAura(800841) && caster->HasAura(805104) &&
         (SpellFamilyFlags & flag96(16, 1263620, 65536));
+    // Frostburn (705594): Glacial Rune and Permafrost Rune lose their cast
+    // time. The runes carry no spell family, so the passive's native Add %
+    // Modifier can never match them.
+    bool frostburn = caster && caster->IsPlayer() && caster->getClass() == CLASS_SPIRIT_MAGE &&
+        caster->HasAura(705594) &&
+        (sSpellMgr->GetFirstSpellInChain(Id) == 805730 ||
+            sSpellMgr->GetFirstSpellInChain(Id) == 804060);
     // not all spells have cast time index and this is all is pasiive abilities
-    if (!CastTimeEntry && !serpent)
+    if (!CastTimeEntry && !serpent && !frostburn)
+        return 0;
+    if (frostburn)
         return 0;
 
     int32 castTime = serpent ? 1000 : CastTimeEntry->CastTime;
