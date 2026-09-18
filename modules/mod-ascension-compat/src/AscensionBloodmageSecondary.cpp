@@ -74,7 +74,7 @@ std::vector<Aura*> CollectCurses(Unit* target)
     if (!target)
         return curses;
     for (auto const& [_, applications] : target->GetAppliedAuras())
-        if (Aura* aura = applications.GetBase(); aura && aura->GetSpellInfo()->Dispel == DISPEL_CURSE &&
+        if (Aura* aura = applications->GetBase(); aura && aura->GetSpellInfo()->Dispel == DISPEL_CURSE &&
             aura->GetCasterGUID() != target->GetGUID())
             curses.push_back(aura);
     return curses;

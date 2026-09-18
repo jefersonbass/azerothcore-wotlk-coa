@@ -4,6 +4,7 @@
 #include "ScriptMgr.h"
 #include "Spell.h"
 #include "SpellAuras.h"
+#include "SpellAuraEffects.h"
 #include "SpellScript.h"
 #include <algorithm>
 #include <cmath>

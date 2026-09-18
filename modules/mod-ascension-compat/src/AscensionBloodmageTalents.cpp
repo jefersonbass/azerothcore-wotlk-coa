@@ -4,6 +4,7 @@
 #include "Player.h"
 #include "ScriptMgr.h"
 #include "SpellAuras.h"
+#include "SpellAuraEffects.h"
 #include "SpellScript.h"
 #include "SpellInfo.h"
 #include <algorithm>
@@ -202,6 +203,20 @@ public:
         if (aura->GetId() == SPELL_SHADOWS_IN_THE_NIGHT)
             if (AuraEffect* reduction = aura->GetEffect(EFFECT_1))
                 reduction->ChangeAmount(player->HealthAbovePct(75) ? -5 : 0);
+        // Bloodmoon Power: Liquify cleanses all negative dispellable effects when it ends.
+        if (aura->GetId() == SPELL_LIQUIFY && aura->GetCasterGUID() == player->GetGUID() &&
+            player->HasAura(SPELL_BLOODMOON_POWER))
+        {
+            std::vector<uint32> remove;
+            for (auto const& pair : player->GetAppliedAuras())
+                if (!pair.second->IsPositive() && pair.second->GetBase()->GetSpellInfo()->Dispel != DISPEL_NONE)
+                    remove.push_back(pair.second->GetBase()->GetId());
+            for (uint32 id : remove)
+                player->RemoveAurasDueToSpell(id);
+        }
+        if (aura->GetId() == SPELL_ACCURSED_FORM && aura->GetCasterGUID() == player->GetGUID() &&
+            player->HasAura(SPELL_SANGUINE_SCRIPTURE))
+            player->CastSpell(player, SPELL_SANGUINE_SCRIPTURE_BUFF, true);
     }
 
     void ModifySpellDamageTaken(Unit* target, Unit*, int32& damage, SpellInfo const*) override
@@ -213,21 +228,6 @@ public:
         if (player && player->getClass() == CLASS_SON_OF_ARUGAL &&
             player->HasAura(SPELL_SHADOWS_IN_THE_NIGHT) && !player->HealthAbovePct(75))
             damage = int32(damage / 0.95f);
-    }
-        if (aura->GetId() == SPELL_LIQUIFY && aura->GetCasterGUID() == player->GetGUID() &&
-            player->HasAura(SPELL_BLOODMOON_POWER))
-        {
-            // Bloodmoon Power: Liquify cleanses all negative dispellable effects when it ends.
-            std::vector<uint32> remove;
-            for (auto const& pair : player->GetAppliedAuras())
-                if (!pair.second->IsPositive() && pair.second->GetBase()->GetSpellInfo()->Dispel != DISPEL_NONE)
-                    remove.push_back(pair.second->GetBase()->GetId());
-            for (uint32 id : remove)
-                player->RemoveAurasDueToSpell(id);
-        }
-        if (aura->GetId() == SPELL_ACCURSED_FORM && aura->GetCasterGUID() == player->GetGUID() &&
-            player->HasAura(SPELL_SANGUINE_SCRIPTURE))
-            player->CastSpell(player, SPELL_SANGUINE_SCRIPTURE_BUFF, true);
     }
 };
 
