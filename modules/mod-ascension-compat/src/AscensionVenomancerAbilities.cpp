@@ -246,6 +246,9 @@ public:
                         aura->SetMaxDuration(aura->GetMaxDuration() + extra);
                         aura->SetDuration(aura->GetDuration() + extra);
                     }
+        // Chitinous Surge: reduces the cooldown of Chitin Rush.
+        if (player->HasAura(705973) && Named(info, 803570))
+            player->ModifySpellCooldown(info->Id, -std::abs(Amount(705973)));
         Refresh(player);
     }
     void OnSpellHitResult(Spell* spell, Unit* target, uint8 miss, uint32 damage, uint32, bool) override

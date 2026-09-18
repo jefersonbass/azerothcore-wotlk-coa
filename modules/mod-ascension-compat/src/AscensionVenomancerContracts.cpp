@@ -400,6 +400,8 @@ public:
             factor *= 1 + Amount(804984) / 100.0f;
         if (player->HasAura(805933) && Named(info,804961) && target->GetHealthPct() < 35)
             factor *= 1 + Amount(805933,1) / 100.0f;
+        if (player->HasAura(705973) && Named(info,803570))
+            factor *= 1 + std::abs(Amount(705973,1)) / 100.0f;
         return factor;
     }
     void ModifySpellDamageTaken(Unit* target, Unit* caster, int32& damage, SpellInfo const* info) override
