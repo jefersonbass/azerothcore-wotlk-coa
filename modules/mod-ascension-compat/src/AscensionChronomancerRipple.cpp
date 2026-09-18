@@ -18,6 +18,7 @@ enum RippleSpells : uint32
     EndOfTimeRelease = 525050,
     Ripple = 806296,
     EternityWarper = 806301,
+    Eternity = 805844,
     AeonRenewal = 806290,
     AeonResilience = 806291,
     AeonProtection = 806292,
@@ -334,9 +335,29 @@ public:
 };
 }
 
+// Eternity (805844): "Your Clasp of Infinity now increases your damage dealt
+// to the target by 15%." The Clasp's own Mod Damage From Caster slot ships
+// with zero value and no family mask, so the passive reads it here instead.
+class chronomancer_eternity : public UnitScript
+{
+public:
+    chronomancer_eternity() : UnitScript("chronomancer_eternity", true,
+        {UNITHOOK_MODIFY_SPELL_DAMAGE_TAKEN}) { }
+
+    void ModifySpellDamageTaken(Unit* target, Unit* source, int32& damage, SpellInfo const* spellInfo) override
+    {
+        Player* player = source ? source->ToPlayer() : nullptr;
+        if (!player || !damage || player->getClass() != CLASS_CHRONOMANCER || !target || !spellInfo ||
+            !player->HasAura(Eternity) || !target->HasAura(Clasp, player->GetGUID()))
+            return;
+        damage += CalculatePct(damage, 15);
+    }
+};
+
 void AddSC_AscensionChronomancerRipple()
 {
     new chronomancer_expiry_events();
+    new chronomancer_eternity();
     new chronomancer_ripple_duration();
     new chronomancer_ripple_metadata();
     RegisterSpellScript(aura_ascension_ripple_aeon);
