@@ -30,7 +30,9 @@ enum ReaperTalentSpells : uint32
     SPELL_LIMBO = 800845,
     SPELL_LIMBO_SHELL = 805872,
     SPELL_REAPER_FATESEALER = 705442,
-    SPELL_REAPER_FATESEALER_STACK = 705443
+    SPELL_REAPER_FATESEALER_STACK = 705443,
+    SPELL_BEYOND_THE_VEIL = 804053,
+    SPELL_BEYOND_THE_VEIL_BUFF = 560591
 };
 
 class spell_ascension_reaper_limbo : public SpellScript
@@ -176,7 +178,21 @@ class reaper_talent_events : public UnitScript
 {
 public:
     reaper_talent_events() : UnitScript("reaper_talent_events", true,
-        {UNITHOOK_ON_AURA_REMOVE, UNITHOOK_MODIFY_SPELL_EFFECT_BASE_VALUE}) { }
+        {UNITHOOK_ON_AURA_APPLY, UNITHOOK_ON_AURA_REMOVE, UNITHOOK_MODIFY_SPELL_EFFECT_BASE_VALUE}) { }
+
+    void OnAuraApply(Unit* unit, Aura* aura) override
+    {
+        Player* player = unit ? unit->ToPlayer() : nullptr;
+        if (!player || player->getClass() != CLASS_REAPER || !aura || !player->IsAlive())
+            return;
+
+        // Beyond the Veil (804053): "Entering Underwalk now grants you Beyond
+        // the Veil, increasing movement speed by 30% and allowing you to walk
+        // on water." The buff (560591) carries both effects natively.
+        if (aura->GetId() == SPELL_UNDERWALK && aura->GetCasterGUID() == player->GetGUID() &&
+            player->HasAura(SPELL_BEYOND_THE_VEIL))
+            player->CastSpell(player, SPELL_BEYOND_THE_VEIL_BUFF, true);
+    }
 
     void OnAuraRemove(Unit* unit, AuraApplication* application, AuraRemoveMode mode) override
     {
