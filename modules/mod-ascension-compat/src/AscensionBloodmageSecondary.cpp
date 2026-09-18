@@ -49,6 +49,8 @@ enum BloodmageSecondarySpells : uint32
     SPELL_ENTHRALLER = 706619,
     SPELL_AORTIC_AEGIS = 806274,
     SPELL_BLOOD_VEIL = 504263,
+    SPELL_SOVEREIGNTY = 806049,
+    SPELL_SOVEREIGNTY_BUFF = 504272,
     SPELL_ROTCLAW = 804197,
     SPELL_ROTCLAW_ENERGIZE = 805352 // Ravenous Strike (Energize): 30..70 internal, i.e. 3 to 7 Rage
 };
@@ -168,6 +170,11 @@ public:
                             member->IsWithinDistInMap(target, 30.0f) &&
                             (member->IsInPartyWith(target) || member->IsInRaidWith(target)))
                             player->CastSpell(member, info->Id, true);
+        // Sovereignty (806049): Crimson Tide damage banks a stack of the buff,
+        // whose cost reduction and extra Bloodbolt bounce are native.
+        if (player->HasAura(SPELL_SOVEREIGNTY) && damage &&
+            AscensionBloodmage::GetEmpowerment(info->Id) == AscensionBloodmage::CrimsonTide)
+            player->CastSpell(player, SPELL_SOVEREIGNTY_BUFF, true);
         // Thirst for Blood (570023): mirror the Thirst stack range onto the
         // Sated (1-5) and Ravenous (6-10) bonuses.
         if (player->HasAura(SPELL_THIRST_FOR_BLOOD))
