@@ -192,21 +192,6 @@ public:
                             member->IsWithinDistInMap(target, 30.0f) &&
                             (member->IsInPartyWith(target) || member->IsInRaidWith(target)))
                             player->CastSpell(member, info->Id, true);
-        // Sovereignty (806049): Crimson Tide damage banks a stack of the buff,
-        // whose cost reduction and extra Bloodbolt bounce are native.
-        if (player->HasAura(SPELL_SOVEREIGNTY) && damage &&
-            AscensionBloodmage::GetEmpowerment(info->Id) == AscensionBloodmage::CrimsonTide)
-            player->CastSpell(player, SPELL_SOVEREIGNTY_BUFF, true);
-        // Flesh Foundry (704633): critical strikes trim four seconds off
-        // Fleshcraft's cooldown. The crit-rating-from-Spirit effect is native.
-        if (critical && player->HasAura(SPELL_FLESH_FOUNDRY))
-            player->ModifySpellCooldown(SPELL_FLESHCRAFT, -4000);
-        // Crimson Scion (806424): direct damage rolls a ten percent chance to make
-        // the next Sanguine Mend instant; the proc aura carries the -100% cast
-        // modifier natively.
-        if (damage && player->HasAura(SPELL_CRIMSON_SCION) && !spell->IsTriggered() &&
-            roll_chance_i(10) && !player->HasAura(SPELL_CRIMSON_SCION_PROC))
-            player->CastSpell(player, SPELL_CRIMSON_SCION_PROC, true);
         // Hemal Excision (803681): the Dispel effect siphons curses natively; the
         // reactivation window is banked here so the second cast can reapply them.
         if (info->Id == SPELL_HEMAL_EXCISION && !spell->IsTriggered())
@@ -324,6 +309,21 @@ public:
         }
         if (!damage)
             return;
+        // Sovereignty (806049): Crimson Tide damage banks a stack of the buff,
+        // whose cost reduction and extra Bloodbolt bounce are native.
+        if (player->HasAura(SPELL_SOVEREIGNTY) &&
+            AscensionBloodmage::GetEmpowerment(id) == AscensionBloodmage::CrimsonTide)
+            player->CastSpell(player, SPELL_SOVEREIGNTY_BUFF, true);
+        // Flesh Foundry (704633): critical strikes trim four seconds off
+        // Fleshcraft's cooldown. The crit-rating-from-Spirit effect is native.
+        if (critical && player->HasAura(SPELL_FLESH_FOUNDRY))
+            player->ModifySpellCooldown(SPELL_FLESHCRAFT, -4000);
+        // Crimson Scion (806424): direct damage rolls a ten percent chance to make
+        // the next Sanguine Mend instant; the proc aura carries the -100% cast
+        // modifier natively.
+        if (player->HasAura(SPELL_CRIMSON_SCION) && !spell->IsTriggered() &&
+            roll_chance_i(10) && !player->HasAura(SPELL_CRIMSON_SCION_PROC))
+            player->CastSpell(player, SPELL_CRIMSON_SCION_PROC, true);
         if (RankOf(id, SPELL_REAVE) && !spell->GetScriptValue(SPELL_REAVE_BLEED))
         {
             spell->SetScriptValue(SPELL_REAVE_BLEED, 1);
