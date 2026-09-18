@@ -23,6 +23,10 @@ enum PrimalistAbilitySpells : uint32
     SPELL_NATURAL_EFFICIENCY = 706167,
     SPELL_SOOTHING_TOUCH = 520841,
     SPELL_MENDING_TOUCH = 524971,
+    SPELL_PROTECTOR_OF_THE_GROVE = 504198,
+    SPELL_BEARSKIN = 800094,
+    SPELL_PRIMAL_CONVERGENCE = 800181,
+    SPELL_BOULDER_DASH = 500692,
     SPELL_PRIMAL_SHRED = 500940,
     SPELL_RYLAKS_BITE = 706342,
     SPELL_WILDCLAW = 800140,
@@ -152,13 +156,18 @@ public:
             player->CastSpell(pet, info->Id, true);
     }
 
-    void OnSpellHitResult(Spell* spell, Unit* target, uint8 miss, uint32, uint32, bool critical) override
+    void OnSpellHitResult(Spell* spell, Unit* target, uint8 miss, uint32 damage, uint32, bool critical) override
     {
         Player* player = Primalist(spell->GetCaster());
         SpellInfo const* info = spell->GetSpellInfo();
         if (!player || !target || target == player || player->IsFriendlyTo(target) || miss != SPELL_MISS_NONE ||
             info->SpellFamilyName != 37)
             return;
+        // Protector of the Grove (504198): every successful direct damage hit
+        // trims one second off Bearskin, Primal Convergence and Boulder Dash.
+        if (damage && player->HasAura(SPELL_PROTECTOR_OF_THE_GROVE) && !spell->IsTriggered())
+            for (uint32 ability : {SPELL_BEARSKIN, SPELL_PRIMAL_CONVERGENCE, SPELL_BOULDER_DASH})
+                player->ModifySpellCooldown(ability, -1000);
         if (info->Id == SPELL_GEODE_BARRAGE_DAMAGE && !spell->GetScriptValue(SPELL_GEODE_BARRAGE_RAGE))
         {
             // Each channel tick casts this damage helper. Its authored energize
