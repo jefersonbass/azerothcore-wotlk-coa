@@ -194,7 +194,23 @@ using namespace AscensionBarbarian;
 class barbarian_scaling : public UnitScript
 {
 public:
-    barbarian_scaling() : UnitScript("barbarian_scaling", true, { UNITHOOK_MODIFY_SPELL_EFFECT_BASE_VALUE }) { }
+    barbarian_scaling() : UnitScript("barbarian_scaling", true,
+        { UNITHOOK_MODIFY_SPELL_EFFECT_BASE_VALUE, UNITHOOK_ON_DAMAGE }) { }
+
+    void OnDamage(Unit* victim, Unit* attacker, uint32& damage) override
+    {
+        Player* player = Owner(attacker);
+        // Hunting for Sport: with Unbridled Rage up, attacks ignore a fifth of the
+        // target's armor. Armor mitigation is linear, so probe it with a fixed
+        // synthetic hit and rescale: new = old * (1 - 0.8a) / (1 - a).
+        if (!player || player != attacker || !victim || !player->HasAura(706558) || !player->HasAura(560521) || !damage)
+            return;
+        uint32 probe = 10000;
+        uint32 unsoaked = Unit::CalcArmorReducedDamage(attacker, victim, probe, nullptr, attacker->GetLevel());
+        float a = 1.f - float(unsoaked) / float(probe);
+        if (a > 0.f && a < 1.f)
+            damage = uint32(float(damage) * (1.f - 0.8f * a) / (1.f - a));
+    }
 
     void ModifySpellEffectBaseValue(Unit const* caster, SpellInfo const* info, uint8 index, float& value) override
     {
