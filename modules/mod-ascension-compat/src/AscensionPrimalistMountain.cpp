@@ -24,7 +24,9 @@ enum MountainSpells : uint32
     EarthenforgedBarrier = 680408,
     RockBarrier = 503630,
     MountainThane = 680404,
-    ThanesGuidance = 680410
+    ThanesGuidance = 680410,
+    Earthbreaker = 560147,
+    GeodeBarrageDamage = 803138
 };
 
 class aura_ascension_blessed_by_earth : public AuraScript
@@ -329,6 +331,28 @@ class aura_ascension_thanes_guidance : public AuraScript
     }
 };
 
+// Earthbreaker (560147): the ten percent melee haste is native through Mod
+// Melee Haste; the authored Add % Modifier threat boost has no scoping
+// data, so Geode Barrage and Geode casts add a quarter of their damage
+// again as threat here.
+class aura_ascension_earthbreaker : public AuraScript
+{
+    PrepareAuraScript(aura_ascension_earthbreaker);
+
+    void Register() override { }
+};
+
+// Earthbreaker (560147): the ten percent melee haste is native through Mod
+// Melee Haste; the authored Add % Modifier threat boost has no scoping
+// data, so the Geode threat bonus rides on the shared cast hooks and this
+// script only registers the talent binding.
+class aura_ascension_earthbreaker : public AuraScript
+{
+    PrepareAuraScript(aura_ascension_earthbreaker);
+
+    void Register() override { }
+};
+
 class mountain_talent_metadata : public GlobalScript
 {
 public:
@@ -362,5 +386,6 @@ void AddSC_AscensionPrimalistMountain()
     RegisterSpellScript(aura_ascension_earthenforged_barrier);
     RegisterSpellScript(aura_ascension_mountain_thane);
     RegisterSpellScript(aura_ascension_thanes_guidance);
+    RegisterSpellScript(aura_ascension_earthbreaker);
     new mountain_talent_metadata();
 }
