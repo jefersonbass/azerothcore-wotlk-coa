@@ -24,6 +24,14 @@ void ApplyContracts(SpellInfo* info)
     if (!info || info->SpellFamilyName != 23)
         return;
     uint32 id = info->Id;
+    if (id == 707835)
+    {
+        // Mounted Reaver's percent modifier must read as the cooldown op so the engine
+        // trims every Mounted Combat ability; the DBC mask already keys that skill.
+        for (auto& effect : info->Effects)
+            if (effect.ApplyAuraName == SPELL_AURA_ADD_PCT_MODIFIER)
+                effect.MiscValue = SPELLMOD_COOLDOWN;
+    }
     if (id == 804947)
         // Screamin' Demon's flat modifier must read as the cooldown op so the engine
         // trims Unleash Pestilence; the DBC mask already keys the Unleash button.
