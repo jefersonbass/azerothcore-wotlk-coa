@@ -3136,7 +3136,7 @@ int32 SpellInfo::CalcPowerCost(Unit const* caster, SpellSchoolMask schoolMask, S
         sSpellMgr->GetFirstSpellInChain(Id) == sSpellMgr->GetFirstSpellInChain(805780))
         return 0;
     // Wizened: every spell and ability costs 3% (or 6%) less mana.
-    if (caster->IsPlayer() && caster->getClass() == CLASS_PROPHET && GetPowerType() == POWER_MANA)
+    if (caster->IsPlayer() && caster->getClass() == CLASS_PROPHET && caster->getPowerType() == POWER_MANA)
     {
         if (AuraEffect const* wizened = caster->GetAuraEffect(705904, EFFECT_1))
             powerCost += CalculatePct(powerCost, wizened->GetAmount());
