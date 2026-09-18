@@ -35,9 +35,11 @@ void SyncStonePetroglyph(Player* player)
 // Palm Sigil (805380/805381/805382) gates its cast on CasterAuraSpell 808089, a marker spell
 // literally named "Runeshroud or Waveforged" that nothing else ever grants, making it permanently
 // uncastable. Mirror the real Runeshroud/Waveforged state onto it instead.
+// Runic Tempest (560036) also opens the gate for its 8 sec duration.
 void SyncRuneshroudOrWaveforged(Player* player)
 {
-    bool active = player->HasAura(500288, player->GetGUID()) || player->HasAura(705565, player->GetGUID());
+    bool active = player->HasAura(500288, player->GetGUID()) || player->HasAura(705565, player->GetGUID()) ||
+        player->HasAura(560036, player->GetGUID());
     if (!active)
         player->RemoveAurasDueToSpell(808089, player->GetGUID());
     else if (!player->HasAura(808089, player->GetGUID()))
@@ -60,6 +62,13 @@ public:
             SyncStonePetroglyph(player);
         if (id == 500288 || id == 705565)
             SyncRuneshroudOrWaveforged(player);
+        if (id == 560036)
+        {
+            // Runic Tempest: "Harness the power of your runic tattoos,
+            // resetting the cooldown of Fist of the Ancients" (712326 chain).
+            player->RemoveSpellCooldown(712326);
+            SyncRuneshroudOrWaveforged(player);
+        }
     }
 
     void OnAuraRemove(Unit* unit, AuraApplication* application, AuraRemoveMode mode) override
@@ -74,7 +83,7 @@ public:
         if (id == 500288 && aura->GetCasterGUID() == player->GetGUID() && mode != AURA_REMOVE_BY_DEATH &&
             player->IsAlive() && player->IsInWorld() && player->HasAura(520054))
             player->CastSpell(player, 520768, true);
-        if (id == 500288 || id == 705565)
+        if (id == 500288 || id == 705565 || id == 560036)
             SyncRuneshroudOrWaveforged(player);
     }
 };
