@@ -44,7 +44,12 @@ enum ReaperSecondarySpells : uint32
     HAUNTER_BONUS = 10000,
     SPELL_ESSENCE_HARVEST = 707908,
     SPELL_GHOSTLY_WEAPON_HIT = 804474,
-    ESSENCE_HARVEST_BONUS = 10
+    ESSENCE_HARVEST_BONUS = 10,
+    SPELL_PURGATORY_PASSIVE = 504046,
+    SPELL_PURGATORY_BUFF = 504047,
+    SPELL_RELIQUARY = 500631,
+    SPELL_SOUL_INFUSION = 803031,
+    PURGATORY_BONUS = 20
 };
 
 // Essence Harvest (707908): "Increases the additional Frost damage dealt by
@@ -64,6 +69,42 @@ public:
             !player->HasAura(SPELL_ESSENCE_HARVEST))
             return;
         damage += CalculatePct(damage, ESSENCE_HARVEST_BONUS);
+    }
+};
+
+// Purgatory (504046): "When you gain Soul Infusion, the damage of your
+// Soulrend and Reliquary of the Lost is increased by 20% for 6 sec, stacking
+// 2 times." Gaining an aura has no native proc flag, so watch for the Soul
+// Infusion application here and cast the buff (504047, 6 s / 2 stacks) whose
+// DBC-only Add % Modifier slot cannot match the familyless consumers.
+class reaper_purgatory : public UnitScript
+{
+public:
+    reaper_purgatory() : UnitScript("reaper_purgatory", true,
+        {UNITHOOK_ON_AURA_APPLY, UNITHOOK_MODIFY_SPELL_DAMAGE_TAKEN}) { }
+
+    void OnAuraApply(Unit* unit, Aura* aura) override
+    {
+        Player* player = unit ? unit->ToPlayer() : nullptr;
+        if (!player || player->getClass() != CLASS_REAPER || !aura ||
+            aura->GetId() != SPELL_SOUL_INFUSION || aura->GetCasterGUID() != player->GetGUID() ||
+            !player->HasAura(SPELL_PURGATORY_PASSIVE))
+            return;
+        player->CastSpell(player, SPELL_PURGATORY_BUFF, true);
+    }
+
+    void ModifySpellDamageTaken(Unit* target, Unit* source, int32& damage, SpellInfo const* spellInfo) override
+    {
+        Player* player = source ? source->ToPlayer() : nullptr;
+        if (!player || !damage || player->getClass() != CLASS_REAPER || !spellInfo)
+            return;
+        Aura const* buff = player->GetAura(SPELL_PURGATORY_BUFF);
+        if (!buff)
+            return;
+        uint32 const root = sSpellMgr->GetFirstSpellInChain(spellInfo->Id);
+        if (root != SPELL_SOULREND && root != SPELL_RELIQUARY)
+            return;
+        damage += CalculatePct(damage, PURGATORY_BONUS * buff->GetStackAmount());
     }
 };
 
@@ -278,5 +319,6 @@ void AddSC_AscensionReaperSecondary()
     new reaper_secondary_hits();
     new reaper_secondary_metadata();
     new reaper_essence_harvest();
+    new reaper_purgatory();
     RegisterSpellScript(aura_ascension_crimson_thirst);
 }
