@@ -14,7 +14,14 @@ namespace
 enum PrimalistAbilitySpells : uint32
 {
     SPELL_GEODE_BARRAGE_DAMAGE = 803138,
-    SPELL_GEODE_BARRAGE_RAGE = 802885
+    SPELL_GEODE_BARRAGE_RAGE = 802885,
+    SPELL_LEGACY_OF_REXXAR = 800184,
+    SPELL_PRIMAL_SHRED = 500940,
+    SPELL_RYLAKS_BITE = 706342,
+    SPELL_WILDCLAW = 800140,
+    SPELL_MISHAS_RAGE = 504227,
+    SPELL_LEOKKS_FURY = 560974,
+    SPELL_HUFFERS_SPEED = 560973
 };
 
 Player* Primalist(Unit* unit)
@@ -63,18 +70,39 @@ public:
     primalist_talent_casts() : AllSpellScript("primalist_talent_casts",
         {ALLSPELLHOOK_ON_CRIT_CHANCE, ALLSPELLHOOK_ON_HIT_RESULT}) { }
 
-    void OnSpellHitResult(Spell* spell, Unit* target, uint8 miss, uint32, uint32, bool) override
+    void OnSpellHitResult(Spell* spell, Unit* target, uint8 miss, uint32, uint32, bool critical) override
     {
         Player* player = Primalist(spell->GetCaster());
         SpellInfo const* info = spell->GetSpellInfo();
         if (!player || !target || target == player || player->IsFriendlyTo(target) || miss != SPELL_MISS_NONE ||
-            info->SpellFamilyName != 37 || info->Id != SPELL_GEODE_BARRAGE_DAMAGE ||
-            spell->GetScriptValue(SPELL_GEODE_BARRAGE_RAGE))
+            info->SpellFamilyName != 37)
             return;
-        // Each channel tick casts this damage helper. Its authored energize
-        // companion rolls 30-80 internal Rage (3-8 visible Rage) per successful stone.
-        spell->SetScriptValue(SPELL_GEODE_BARRAGE_RAGE, 1);
-        player->CastSpell(player, SPELL_GEODE_BARRAGE_RAGE, true);
+        if (info->Id == SPELL_GEODE_BARRAGE_DAMAGE && !spell->GetScriptValue(SPELL_GEODE_BARRAGE_RAGE))
+        {
+            // Each channel tick casts this damage helper. Its authored energize
+            // companion rolls 30-80 internal Rage (3-8 visible Rage) per successful stone.
+            spell->SetScriptValue(SPELL_GEODE_BARRAGE_RAGE, 1);
+            player->CastSpell(player, SPELL_GEODE_BARRAGE_RAGE, true);
+        }
+        // Legacy of Rexxar (800184): crits with the three Wildwalker attacks grant
+        // the matching companion buff to the player and the pet. The proc chain in
+        // the DBC is inert, so the buffs are granted directly.
+        if (critical && player->IsAlive() && player->HasAura(SPELL_LEGACY_OF_REXXAR))
+        {
+            uint32 buff = 0;
+            if (sSpellMgr->GetFirstSpellInChain(info->Id) == sSpellMgr->GetFirstSpellInChain(SPELL_PRIMAL_SHRED))
+                buff = SPELL_MISHAS_RAGE;
+            else if (sSpellMgr->GetFirstSpellInChain(info->Id) == sSpellMgr->GetFirstSpellInChain(SPELL_RYLAKS_BITE))
+                buff = SPELL_LEOKKS_FURY;
+            else if (sSpellMgr->GetFirstSpellInChain(info->Id) == sSpellMgr->GetFirstSpellInChain(SPELL_WILDCLAW))
+                buff = SPELL_HUFFERS_SPEED;
+            if (buff)
+            {
+                player->CastSpell(player, buff, true);
+                if (Pet* pet = player->GetPet(); pet && pet->IsAlive())
+                    player->CastSpell(pet, buff, true);
+            }
+        }
     }
 
     void OnSpellCritChance(Spell* spell, Unit* target, float& chance) override
