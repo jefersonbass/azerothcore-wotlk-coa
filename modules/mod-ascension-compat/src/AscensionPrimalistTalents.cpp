@@ -46,6 +46,7 @@ enum PrimalistAbilitySpells : uint32
     SPELL_MOUNTAIN_MOVER_STACKS = 805644,
     SPELL_EARTHMOTHERS_PROTECTION = 560298,
     SPELL_ROCK_BARRIER = 503630,
+    SPELL_EARTHENFORGED_BARRIER = 680408,
     SPELL_HAND_OF_THE_EARTHMOTHER = 800135,
     SPELL_MISHAS_RAGE = 504227,
     SPELL_LEOKKS_FURY = 560974,
@@ -196,6 +197,12 @@ public:
             IsHandOfTheEarthmother(info))
             if (int32 cost = spell->GetPowerCost())
                 player->ModifyPower(POWER_RAGE, CalculatePct(cost, 50));
+        // Earthenforged Barrier (680408): Rock Barrier reduces the cost of all
+        // spells and abilities by twenty-five percent for its duration,
+        // refunded here after the power is taken.
+        if (player->HasAura(SPELL_EARTHENFORGED_BARRIER) && player->HasAura(SPELL_ROCK_BARRIER))
+            if (int32 cost = spell->GetPowerCost())
+                player->ModifyPower(Powers(info->PowerType), CalculatePct(cost, 25));
         // Fury of the Wild (801234): casting a Boon also casts the same Boon on the
         // pet at 50% effectiveness. The DBC aura is an inert Dummy, so the mirror
         // cast happens here. The Boons' pet-visible values come from their auras;

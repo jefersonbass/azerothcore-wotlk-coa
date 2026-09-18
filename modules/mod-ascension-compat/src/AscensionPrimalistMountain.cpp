@@ -20,7 +20,9 @@ enum MountainSpells : uint32
     MountainMoverStacks = 805644,
     Bash = 680964,
     Bashed = 680949,
-    ImprovedUrsocsBellow = 560505
+    ImprovedUrsocsBellow = 560505,
+    EarthenforgedBarrier = 680408,
+    RockBarrier = 503630
 };
 
 class aura_ascension_blessed_by_earth : public AuraScript
@@ -243,6 +245,28 @@ class aura_ascension_ursocs_bellow : public AuraScript
     }
 };
 
+// Earthenforged Barrier (680408): Rock Barrier's armor is fifty percent
+// stronger while the passive is held; the cost reduction rides on the
+// shared cast hook. The amount hook runs on every calculation, so
+// refreshes never compound.
+class aura_ascension_earthenforged_barrier : public AuraScript
+{
+    PrepareAuraScript(aura_ascension_earthenforged_barrier);
+
+    void Fortify(AuraEffect const*, int32& amount, bool& /*canBeRecalculated*/)
+    {
+        Unit const* caster = GetCaster();
+        if (caster && caster->IsPlayer() && caster->HasAura(EarthenforgedBarrier))
+            amount += CalculatePct(amount, 50);
+    }
+
+    void Register() override
+    {
+        DoEffectCalcAmount += AuraEffectCalcAmountFn(aura_ascension_earthenforged_barrier::Fortify,
+            EFFECT_0, SPELL_AURA_MOD_RESISTANCE);
+    }
+};
+
 class mountain_talent_metadata : public GlobalScript
 {
 public:
@@ -273,5 +297,6 @@ void AddSC_AscensionPrimalistMountain()
     RegisterSpellScript(aura_ascension_mountain_mover);
     RegisterSpellScript(aura_ascension_bash);
     RegisterSpellScript(aura_ascension_ursocs_bellow);
+    RegisterSpellScript(aura_ascension_earthenforged_barrier);
     new mountain_talent_metadata();
 }
