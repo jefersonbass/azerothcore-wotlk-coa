@@ -24,6 +24,10 @@ void ApplyContracts(SpellInfo* info)
     if (!info || info->SpellFamilyName != 23)
         return;
     uint32 id = info->Id;
+    if (id == 704981)
+        // Knight of Pestilence's percent modifier must read as the crit-damage op so the
+        // engine adds it to crit bonuses; the DBC family mask already keys the Pestilences.
+        info->Effects[EFFECT_0].MiscValue = SPELLMOD_CRIT_DAMAGE_BONUS;
     if (id == 704999)
         // Combusting Blade's flat modifier must land on the cost op to trim
         // Infernal Strike's Rage price by 5 (DBC stores Rage in tenth-units).
