@@ -28,7 +28,8 @@ enum BloodmageTalentSpells : uint32
     SPELL_ATHERANNS_ANGUISH_BURST = 680681,
     SPELL_HUNTER_AND_HUNTED = 807487,
     SPELL_HUNTER_AND_HUNTED_NET = 100614,
-    SPELL_VAMPYR_LORD = 560259
+    SPELL_VAMPYR_LORD = 560259,
+    SPELL_COAGULATION = 706258
 };
 
 // Every creature Animated Blood can leave behind: worms, parasites and the rank 3 amalgam.
@@ -189,6 +190,10 @@ public:
             player->RemoveAurasDueToSpell(570024);
             player->RemoveAurasDueToSpell(570025);
         }
+        // Coagulation (706258): the Blood Shield gains the bleed-dispel pulse, whose
+        // five-second periodic trigger into the Dispel Mechanic helper is native.
+        if (aura->GetId() == 504296 && player->HasAura(SPELL_COAGULATION))
+            player->CastSpell(player, SPELL_COAGULATION, true);
         if (aura->GetId() == SPELL_LIQUIFY && aura->GetCasterGUID() == player->GetGUID() &&
             player->HasAura(SPELL_BLOODMOON_POWER))
         {
