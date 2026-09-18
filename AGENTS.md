@@ -25,6 +25,7 @@ Read the relevant sections when needed for the work. Do not read every guide or 
   - SmartAI work (`smart_scripts` data) → also `.agents/docs/cpp-scripts.md`
 - Reviewing a changeset or PR → `.agents/docs/code-review.md`
 - Preparing an actual PR → `.agents/docs/self-review-rules.md`
+- Investigating a gameplay bug report before fixing it → `.agents/docs/issue-investigation.md`
 - Subsystem-specific questions → the relevant section in `.agents/docs/systems/`
 - Ascension damage/healing, AP/RAP/SP coefficients, triggered spells or tooltip parity →
   `.agents/docs/systems/ascension-spell-parity.md`
