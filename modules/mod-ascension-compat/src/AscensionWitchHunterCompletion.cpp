@@ -82,6 +82,11 @@ void ApplyContracts(SpellInfo* info)
     if (!info || info->SpellFamilyName != 21)
         return;
     uint32 id = info->Id;
+    if (id == 705477)
+        // Houndfeeder's "all crit" auras carry no mechanical type; map them to the
+        // shared crit-percent aura the engine reads for both melee and spell crits.
+        info->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_MOD_CRIT_PCT,
+        info->Effects[EFFECT_1].ApplyAuraName = SPELL_AURA_MOD_CRIT_PCT;
     if (Family(info, 1, 4194304)) // Witchbane and its ranks.
     {
         info->InterruptFlags |= SPELL_INTERRUPT_FLAG_MOVEMENT;

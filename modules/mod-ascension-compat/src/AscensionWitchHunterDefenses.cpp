@@ -378,6 +378,9 @@ class witch_hunter_state : public UnitScript
         {
             if (!player->HasAura(578336))
                 Cast(player, player, 578336);
+            // Houndfeeder: the hound inherits the talent's own crit aura.
+            if (player->HasAura(705477) && !Hound(player)->HasAura(705477))
+                Hound(player)->AddAura(705477, Hound(player));
         }
         else if (player->HasAura(578336))
             player->RemoveAurasDueToSpell(578336);
