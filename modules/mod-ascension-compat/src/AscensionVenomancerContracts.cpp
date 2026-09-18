@@ -415,6 +415,10 @@ public:
     {
         if (Player* player = Owner(caster); player && player == caster)
             damage = int32(damage * DamageFactor(player,target,info,false));
+        // Versatile and Deadly: Beetle Form takes 3% less damage.
+        if (Player* player = Owner(target); player && player->HasAura(681052) && player->HasAura(803183))
+            if (AuraEffect const* versatile = player->GetAuraEffect(681052, EFFECT_0))
+                damage += int32(damage * versatile->GetAmount() / 100.0f);
     }
     void ModifyPeriodicDamageAurasTick(Unit* target, Unit* caster, uint32& value, SpellInfo const* info) override
     {
