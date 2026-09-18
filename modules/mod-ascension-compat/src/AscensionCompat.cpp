@@ -248,6 +248,8 @@ enum CompanionLoot : uint32
 
 constexpr uint8 PYROMANCER_HEAT_PER_EMBER = 100;
 constexpr uint8 REAPER_SOUL_FRAGMENT_COST = 3;
+constexpr uint32 SPELL_REAPER_SOULSTORM = 705403;
+constexpr uint8 REAPER_SOULSTORM_REFUND_CHANCE = 40;
 
 constexpr std::array<uint32, 12> REAPER_ALL_SOUL_CONSUMERS =
 {{
@@ -2322,8 +2324,16 @@ private:
                 REAPER_ALL_SOUL_CONSUMERS.end(), spellId) !=
             REAPER_ALL_SOUL_CONSUMERS.end())
         {
+            // Soulstorm: "Requiem and Soulrend now have a 40% chance to refund
+            // a Reaped Soul." The refunded stack is granted after the native
+            // wipe, keeping the cost accounting (and Harvest Time) intact.
+            bool const refund = player->HasAura(SPELL_REAPER_SOULSTORM) &&
+                spellId != SPELL_REAPER_REAPED_SOUL &&
+                roll_chance_i(REAPER_SOULSTORM_REFUND_CHANCE);
             player->RemoveAurasDueToSpell(SPELL_REAPER_REAPED_SOUL);
             player->RemoveAurasDueToSpell(SPELL_REAPER_SOUL_INFUSION);
+            if (refund)
+                player->CastSpell(player, SPELL_REAPER_REAPED_SOUL, true);
             return;
         }
 
