@@ -320,6 +320,10 @@ class witch_doctor_casts : public AllSpellScript
         }
         if (IsArrow(info) && player->HasAura(SpiritHunting) && roll_chance_i(count * 15))
             GainSpirit(player);
+        // Improved Malefic Arrow: trims the arrow cooldown by its stored amount.
+        if (IsArrow(info) && player->HasAura(ArrowTalent))
+            if (AuraEffect const* improved = player->GetAuraEffect(707855, EFFECT_0))
+                Reduce(player, info->Id, std::abs(improved->GetAmount()));
         if ((IsArrow(info) || (Family(info, 1, 4) && id != Volley)) && player->HasAura(VolleyTalent) &&
             roll_chance_i(30))
             Cast(player, player, VolleyReady);
