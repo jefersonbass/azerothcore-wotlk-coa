@@ -19,6 +19,12 @@ void ApplyContracts(SpellInfo* info)
     // Blood of Mannoroth's sole resource helper must grant all six charges, including from zero.
     if (id == MannorothFelfury)
         info->Effects[EFFECT_0].MiscValue = 6;
+    // Man'ari Teachings: the crit-damage aura ships without a school key, so the
+    // engine's school-mask check never matches; key it to every school.
+    if (id == 705150)
+        for (auto& effect : info->Effects)
+            if (effect.ApplyAuraName == SPELL_AURA_MOD_CRIT_DAMAGE_BONUS)
+                effect.MiscValue = SPELL_SCHOOL_MASK_ALL;
     auto dummy = [info](uint8 slot) {
         info->Effects[slot].ApplyAuraName = SPELL_AURA_DUMMY;
         info->Effects[slot].TriggerSpell = 0;
