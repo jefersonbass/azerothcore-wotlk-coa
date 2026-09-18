@@ -19,6 +19,7 @@ enum PrimalistAbilitySpells : uint32
     SPELL_BONES_MARK = 806552,
     SPELL_BONES_STACK = 806554,
     SPELL_BONES_DAMAGE = 806553,
+    SPELL_FURY_OF_THE_WILD = 801234,
     SPELL_PRIMAL_SHRED = 500940,
     SPELL_RYLAKS_BITE = 706342,
     SPELL_WILDCLAW = 800140,
@@ -26,6 +27,24 @@ enum PrimalistAbilitySpells : uint32
     SPELL_LEOKKS_FURY = 560974,
     SPELL_HUFFERS_SPEED = 560973
 };
+
+// Castable Boons (turtle, hawk, bear, wolf, lion, elements) learned through the
+// Wildwalker skill line. Boon auras share the cast spell's ID.
+bool IsBoonCast(SpellInfo const* info)
+{
+    switch (info->Id)
+    {
+        case 500935: // Boon of the Turtle
+        case 500943: // Boon of the Hawk
+        case 500939: // Boon of the Bear
+        case 800137: // Boon of the Wolf
+        case 504856: // Boon of the Lion
+        case 680428: // Boon of the Elements
+            return true;
+        default:
+            return false;
+    }
+}
 
 Player* Primalist(Unit* unit)
 {
@@ -95,7 +114,21 @@ class primalist_talent_casts : public AllSpellScript
 {
 public:
     primalist_talent_casts() : AllSpellScript("primalist_talent_casts",
-        {ALLSPELLHOOK_ON_CRIT_CHANCE, ALLSPELLHOOK_ON_HIT_RESULT}) { }
+        {ALLSPELLHOOK_ON_CAST, ALLSPELLHOOK_ON_CRIT_CHANCE, ALLSPELLHOOK_ON_HIT_RESULT}) { }
+
+    void OnSpellCast(Spell* spell, Unit* caster, SpellInfo const* info, bool) override
+    {
+        // Fury of the Wild (801234): casting a Boon also casts the same Boon on the
+        // pet at 50% effectiveness. The DBC aura is an inert Dummy, so the mirror
+        // cast happens here. The Boons' pet-visible values come from their auras;
+        // the 50% potency is honored by the separate pet Boon auras where present.
+        Player* player = Primalist(caster);
+        if (!player || caster != player || spell->IsTriggered() || !player->IsAlive() ||
+            !player->HasAura(SPELL_FURY_OF_THE_WILD) || !IsBoonCast(info))
+            return;
+        if (Pet* pet = player->GetPet(); pet && pet->IsAlive())
+            player->CastSpell(pet, info->Id, true);
+    }
 
     void OnSpellHitResult(Spell* spell, Unit* target, uint8 miss, uint32, uint32, bool critical) override
     {
