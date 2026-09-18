@@ -97,6 +97,17 @@ void HandleAscensionBarbarianCast(Spell* spell)
             player->RemoveAurasDueToSpell(TANKARD);
     }
 
+    // Bloodbound: trims the cooldowns of Warband (Headhunting) and Ancestral Roar (Ancestry).
+    if (player->HasAura(801767))
+    {
+        if (AuraEffect const* bound = player->GetAuraEffect(801767, EFFECT_0))
+            if (info->Id == 560883 || sSpellMgr->GetFirstSpellInChain(info->Id) == sSpellMgr->GetFirstSpellInChain(560883))
+                player->ModifySpellCooldown(info->Id, bound->GetAmount());
+        if (AuraEffect const* bound = player->GetAuraEffect(801767, EFFECT_1))
+            if (sSpellMgr->GetFirstSpellInChain(info->Id) == sSpellMgr->GetFirstSpellInChain(500918))
+                player->ModifySpellCooldown(info->Id, bound->GetAmount());
+    }
+
     // Incredibly Strong: extends the Maiming Spear slow by its stored percentage.
     if (player->HasAura(804749) && sSpellMgr->GetFirstSpellInChain(info->Id) == sSpellMgr->GetFirstSpellInChain(804139))
         if (Unit* victim = spell->m_targets.GetUnitTarget())
