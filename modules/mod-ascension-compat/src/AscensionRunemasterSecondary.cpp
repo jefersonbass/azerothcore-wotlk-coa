@@ -355,6 +355,27 @@ public:
             info->AscensionInheritsResolvedAmount = true;
             info->Effects[EFFECT_0].BonusMultiplier = 0.0f;
         }
+        // Ley Magician (804580): "Increases your spell damage by 30% of Spirit
+        // and 10% of your Intellect, and spell hit rating by 6% of your Spirit."
+        // The shipped aura slots carry trigger-only misc values, so rebind the
+        // rating source and both damage sources to their intended stats.
+        if (info->Id == 804580)
+        {
+            SpellEffectInfo& rating = info->Effects[EFFECT_0];
+            rating.ApplyAuraName = SPELL_AURA_MOD_RATING_FROM_STAT;
+            rating.BasePoints = 5;      // DieSides 2 -> 6
+            rating.DieSides = 2;
+            rating.MiscValue = 1 << CR_HIT_SPELL;
+            rating.MiscValueB = STAT_SPIRIT;
+            for (uint8 effectIndex : {EFFECT_1, EFFECT_2})
+            {
+                SpellEffectInfo& damage = info->Effects[effectIndex];
+                damage.ApplyAuraName = SPELL_AURA_MOD_SPELL_DAMAGE_OF_STAT_PERCENT;
+                damage.MiscValue = SPELL_SCHOOL_MASK_ALL;
+            }
+            info->Effects[EFFECT_1].MiscValueB = STAT_INTELLECT;
+            info->Effects[EFFECT_2].MiscValueB = STAT_SPIRIT;
+        }
         if (info->Id == SPELL_UNLEASHED_FIRE || info->Id == SPELL_UNLEASHED_WATER ||
             info->Id == SPELL_SPELLFIRE_READY || info->Id == SPELL_RIFTBLADE_COUNTER)
         {
