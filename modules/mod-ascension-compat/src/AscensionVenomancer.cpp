@@ -330,7 +330,14 @@ void ApplyVenoms(Player* player, Unit* target)
             if (helper == 805894)
                 Cast(player, player, helper);
             else if (helper == 630869)
-                player->CastSpell(target->GetPositionX(),target->GetPositionY(),target->GetPositionZ(),helper,true);
+            {
+                // Spirit of the Jungle raises Rejuvenating Venom's base 20% chance.
+                int32 chance = 20;
+                if (AuraEffect const* jungle = player->GetAuraEffect(681048, EFFECT_0))
+                    chance += std::abs(jungle->GetAmount());
+                if (roll_chance_i(chance))
+                    player->CastSpell(target->GetPositionX(),target->GetPositionY(),target->GetPositionZ(),helper,true);
+            }
             else
                 Cast(player, target, helper);
         }
