@@ -16,6 +16,19 @@ void ApplyContracts(SpellInfo* info)
     if (!info || info->SpellFamilyName != 35)
         return;
     uint32 id = info->Id;
+    if (id == 804993)
+    {
+        // Empowered Exoskeleton: the range half points at Chitin Rush's hit radius;
+        // the free-cast half is consumed in SpellInfo::CalcPowerCost.
+        static SpellRadiusEntry exoskeletonRadius;
+        if (SpellEffectInfo& effect = info->Effects[EFFECT_0]; effect.Effect && effect.RadiusEntry)
+        {
+            exoskeletonRadius = *effect.RadiusEntry;
+            exoskeletonRadius.RadiusMin += 5.0f;
+            exoskeletonRadius.RadiusMax += 5.0f;
+            effect.RadiusEntry = &exoskeletonRadius;
+        }
+    }
     if (id == 503850)
     {
         // Fury of Shadra keys off the sub-35% health aura state; the DBC ships

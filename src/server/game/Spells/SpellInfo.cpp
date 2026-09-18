@@ -3108,6 +3108,10 @@ int32 SpellInfo::CalcPowerCost(Unit const* caster, SpellSchoolMask schoolMask, S
         (Id == 800841 || Id == 803183 || Id == 804980 || Id == 800912))
         if (AuraEffect const* shedder = caster->GetAuraEffect(705949, EFFECT_2))
             powerCost += CalculatePct(powerCost, shedder->GetAmount());
+    // Empowered Exoskeleton: Chitin Rush costs no Rage.
+    if (caster->IsPlayer() && caster->getClass() == CLASS_PROPHET && caster->HasAura(804993) &&
+        sSpellMgr->GetFirstSpellInChain(Id) == sSpellMgr->GetFirstSpellInChain(803570))
+        return 0;
     if (powerCost < 0)
         powerCost = 0;
     return powerCost;
