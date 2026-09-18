@@ -51,6 +51,8 @@ enum BloodmageSecondarySpells : uint32
     SPELL_BLOOD_VEIL = 504263,
     SPELL_SOVEREIGNTY = 806049,
     SPELL_SOVEREIGNTY_BUFF = 504272,
+    SPELL_FLESH_FOUNDRY = 704633,
+    SPELL_FLESHCRAFT = 801952,
     SPELL_ROTCLAW = 804197,
     SPELL_ROTCLAW_ENERGIZE = 805352 // Ravenous Strike (Energize): 30..70 internal, i.e. 3 to 7 Rage
 };
@@ -175,6 +177,10 @@ public:
         if (player->HasAura(SPELL_SOVEREIGNTY) && damage &&
             AscensionBloodmage::GetEmpowerment(info->Id) == AscensionBloodmage::CrimsonTide)
             player->CastSpell(player, SPELL_SOVEREIGNTY_BUFF, true);
+        // Flesh Foundry (704633): critical strikes trim four seconds off
+        // Fleshcraft's cooldown. The crit-rating-from-Spirit effect is native.
+        if (critical && player->HasAura(SPELL_FLESH_FOUNDRY))
+            player->ModifySpellCooldown(SPELL_FLESHCRAFT, -4000);
         // Thirst for Blood (570023): mirror the Thirst stack range onto the
         // Sated (1-5) and Ravenous (6-10) bonuses.
         if (player->HasAura(SPELL_THIRST_FOR_BLOOD))
