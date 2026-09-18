@@ -1,8 +1,10 @@
 /* Copyright (C) 2016+ AzerothCore, GNU AGPL v3. */
 #include "AscensionChronomancerTalents.h"
 #include "Player.h"
+#include "Random.h"
 #include "ScriptMgr.h"
 #include "Spell.h"
+#include "SpellMgr.h"
 #include "SpellScript.h"
 
 namespace
@@ -91,10 +93,33 @@ public:
     void OnSpellCast(Spell* spell, Unit* caster, SpellInfo const* info, bool) override
     {
         Player* player = caster ? caster->ToPlayer() : nullptr;
-        if (player && player->getClass() == CLASS_CHRONOMANCER && info->SpellFamilyName == 28 &&
-            !spell->IsTriggered() && IsAeonActivation(info->Id) && player->HasAura(SPELL_SHIMMERING_SHARD))
+        if (!player || player->getClass() != CLASS_CHRONOMANCER || !info)
+            return;
+        if (info->SpellFamilyName == 28 && !spell->IsTriggered() &&
+            IsAeonActivation(info->Id) && player->HasAura(SPELL_SHIMMERING_SHARD))
             player->CastSpell(player, SPELL_SHIMMER, true);
+
+        // Resonance (706079): "Casting Artificer's Wand or Crystal Cannon now
+        // has a 35% chance to reduce the cooldown of Hasten by 1 sec." Those
+        // abilities carry no spell family, so the passive's native Proc
+        // Trigger Spell can never match them.
+        if (player->HasAura(SPELL_RESONANCE) && !spell->IsTriggered() &&
+            IsArtificerCast(info->Id) && roll_chance_i(RESONANCE_CHANCE))
+            if (uint32 cooldown = player->GetSpellCooldownDelay(SPELL_HASTEN))
+                player->ModifySpellCooldown(SPELL_HASTEN, -std::min<uint32>(cooldown, RESONANCE_REDUCTION));
     }
+
+private:
+    static bool IsArtificerCast(uint32 id)
+    {
+        uint32 const root = sSpellMgr->GetFirstSpellInChain(id);
+        return root == 804478 || root == 806204;
+    }
+
+    static constexpr uint32 SPELL_RESONANCE = 706079;
+    static constexpr uint32 SPELL_HASTEN = 801304;
+    static constexpr uint32 RESONANCE_CHANCE = 35;
+    static constexpr uint32 RESONANCE_REDUCTION = 1000;
 };
 }
 
