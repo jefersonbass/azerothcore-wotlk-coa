@@ -29,7 +29,8 @@ enum BloodmageTalentSpells : uint32
     SPELL_HUNTER_AND_HUNTED = 807487,
     SPELL_HUNTER_AND_HUNTED_NET = 100614,
     SPELL_VAMPYR_LORD = 560259,
-    SPELL_COAGULATION = 706258
+    SPELL_COAGULATION = 706258,
+    SPELL_SHADOWS_IN_THE_NIGHT = 704662
 };
 
 // Every creature Animated Blood can leave behind: worms, parasites and the rank 3 amalgam.
@@ -137,7 +138,7 @@ class bloodmage_talent_events : public UnitScript
 {
 public:
     bloodmage_talent_events() : UnitScript("bloodmage_talent_events", true,
-        {UNITHOOK_ON_AURA_APPLY, UNITHOOK_ON_AURA_REMOVE}) { }
+        {UNITHOOK_MODIFY_SPELL_DAMAGE_TAKEN, UNITHOOK_ON_AURA_APPLY, UNITHOOK_ON_AURA_REMOVE}) { }
 
     void OnAuraApply(Unit* unit, Aura* aura) override
     {
@@ -194,6 +195,23 @@ public:
         // five-second periodic trigger into the Dispel Mechanic helper is native.
         if (aura->GetId() == 504296 && player->HasAura(SPELL_COAGULATION))
             player->CastSpell(player, SPELL_COAGULATION, true);
+        // Shadows In The Night (704662): the five percent damage reduction only
+        // counts while the Bloodmage is above seventy-five percent health.
+        if (aura->GetId() == SPELL_SHADOWS_IN_THE_NIGHT)
+            if (AuraEffect* reduction = aura->GetEffect(EFFECT_1))
+                reduction->ChangeAmount(player->HealthAbovePct(75) ? -5 : 0);
+    }
+
+    void ModifySpellDamageTaken(Unit* target, Unit*, int32& damage, SpellInfo const*) override
+    {
+        // Shadows In The Night (704662): the aura's native -5% only counts while
+        // the Bloodmage is above seventy-five percent health; below the threshold
+        // the reduction is refunded here.
+        Player* player = target ? target->ToPlayer() : nullptr;
+        if (player && player->getClass() == CLASS_SON_OF_ARUGAL &&
+            player->HasAura(SPELL_SHADOWS_IN_THE_NIGHT) && !player->HealthAbovePct(75))
+            damage = int32(damage / 0.95f);
+    }
         if (aura->GetId() == SPELL_LIQUIFY && aura->GetCasterGUID() == player->GetGUID() &&
             player->HasAura(SPELL_BLOODMOON_POWER))
         {
