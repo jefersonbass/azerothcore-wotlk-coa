@@ -80,6 +80,12 @@ void ApplyContracts(SpellInfo* info)
         // Combusting Blade's flat modifier must land on the cost op to trim
         // Infernal Strike's Rage price by 5 (DBC stores Rage in tenth-units).
         info->Effects[EFFECT_1].MiscValue = SPELLMOD_COST;
+    if (id == 804354)
+        // Black Skull Shield: the +25% damage half ships with an empty mask and
+        // the -50 Rage cost half also keys Burning Blade (word 0, bit 8); both
+        // must key Shieldgore alone (word 1, bit 8). Ops and amounts are correct.
+        info->Effects[EFFECT_0].SpellClassMask = flag96(0, 256, 0),
+        info->Effects[EFFECT_1].SpellClassMask = flag96(0, 256, 0);
     if (id == SPELL_WARPATH_PROTECTION && info->Effects[EFFECT_0].ApplyAuraName == SPELL_AURA_MOD_MINIMUM_SPEED)
         info->DurationEntry = sSpellDurationStore.LookupEntry(27); // Three seconds after Unleash Pestilence.
     if (id == SPELL_FLESH_HOOK_PULL)
