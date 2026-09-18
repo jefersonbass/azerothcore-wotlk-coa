@@ -411,6 +411,17 @@ class xoroth_scaling : public UnitScript
     void ModifySpellDamageTaken(Unit* target, Unit* caster, int32& damage, SpellInfo const* info) override
     {
         damage = int32(damage * Factor(target, caster, info));
+        // Absolutism: Meatsaw's damage ignores a tenth of the target's armor.
+        if (Player* player = Owner(caster); player && player == caster && target && damage > 0 &&
+            player->HasAura(706501) &&
+            sSpellMgr->GetFirstSpellInChain(info->Id) == sSpellMgr->GetFirstSpellInChain(501508))
+        {
+            uint32 probe = 10000;
+            uint32 unsoaked = Unit::CalcArmorReducedDamage(caster, target, probe, info, caster->GetLevel());
+            float a = 1.f - float(unsoaked) / float(probe);
+            if (a > 0.f && a < 1.f)
+                damage = int32(float(damage) * (1.f - 0.9f * a) / (1.f - a));
+        }
     }
     void ModifyPeriodicDamageAurasTick(Unit* target, Unit* caster, uint32& damage, SpellInfo const* info) override
     {
