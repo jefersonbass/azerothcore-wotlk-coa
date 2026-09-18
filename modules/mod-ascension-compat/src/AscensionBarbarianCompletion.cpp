@@ -156,6 +156,10 @@ void ApplyContracts(SpellInfo* info)
         // Unstoppable Rage extends Unbridled Rage; the engine reads that through
         // the duration modifier op keyed to the enrage's own family mask.
         info->Effects[EFFECT_0].MiscValue = SPELLMOD_DURATION;
+    if (id == 805927)
+        // Mounting Fury extends Born in Blood the same way, through the duration op
+        // whose mask the DBC already keys to the stacking aura.
+        info->Effects[EFFECT_0].MiscValue = SPELLMOD_DURATION;
     if (id == 560938)
     {
         // Fury of the North's flat modifiers read through the duration op for the
