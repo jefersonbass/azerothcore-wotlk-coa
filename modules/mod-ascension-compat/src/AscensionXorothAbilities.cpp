@@ -391,6 +391,10 @@ class xoroth_casts : public AllSpellScript
             bool refunded = fire && RefundableMiss(player, spell);
             if (refunded)
                 Gain(player, fire);
+            // Demonfire Command: Implosion comes back ten seconds sooner.
+            if (id == 524897 && player->HasAura(707028))
+                if (AuraEffect const* command = player->GetAuraEffect(707028, EFFECT_0))
+                    player->ModifySpellCooldown(id, -std::abs(command->GetAmount()));
             if (fire && !refunded)
             {
                 if (fire >= 4 && player->HasAura(805706) && target)
