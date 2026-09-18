@@ -1,6 +1,7 @@
 /* Copyright (C) 2016+ AzerothCore, GNU AGPL v3. */
 #include "AscensionPyromancer.h"
 #include "AscensionPyromancerData.h"
+#include "Group.h"
 #include "MotionMaster.h"
 #include "ObjectAccessor.h"
 #include "Player.h"
@@ -15,6 +16,8 @@
 namespace
 {
 using namespace AscensionPyromancer;
+constexpr uint32 SPELL_GRACE_OF_ALEXSTRASZA = 802167;
+constexpr uint32 SPELL_GRACE_IMMUNITY = 803411;
 constexpr uint32 selected[] = {802168, 520927, 573284, 520823, 524707, 806783, 707478};
 bool Select(uint32 id, SpellInfo const* info)
 {
@@ -412,11 +415,27 @@ class spell_ascension_pyromancer_ability : public SpellScript
             }
         }
     }
+    // Grace of Alexstrasza: the native Dispel Mechanic slots strip snares from
+    // party and raid members in 20 yd; the trigger slot is inert in the DBC, so
+    // grant those same members 4 sec of stun, slow and root immunity here.
+    void AfterGraceCast()
+    {
+        Player* player = Owner(GetCaster());
+        if (!player || GetSpellInfo()->Id != SPELL_GRACE_OF_ALEXSTRASZA)
+            return;
+        Group const* group = player->GetGroup();
+        for (auto const& reference : player->GetMap()->GetPlayers())
+            if (Player* member = reference.GetSource())
+                if ((member == player || (group && member->GetGroup() == group)) &&
+                    player->IsWithinDistInMap(member, 20.0f))
+                    player->CastSpell(member, SPELL_GRACE_IMMUNITY, true);
+    }
     void Register() override
     {
         OnCheckCast += SpellCheckCastFn(spell_ascension_pyromancer_ability::Check);
         OnEffectHit += SpellEffectFn(spell_ascension_pyromancer_ability::Effect, EFFECT_ALL, SPELL_EFFECT_ANY);
         OnEffectHitTarget += SpellEffectFn(spell_ascension_pyromancer_ability::Effect, EFFECT_ALL, SPELL_EFFECT_ANY);
+        AfterCast += SpellCastFn(spell_ascension_pyromancer_ability::AfterGraceCast);
     }
 };
 } // namespace
