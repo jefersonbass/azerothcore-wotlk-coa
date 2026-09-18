@@ -25,7 +25,30 @@ enum ReaperTalentSpells : uint32
     SPELL_REAPED_SOUL = 500363,
     SPELL_SOUL_CAPTURED = 572887,
     SPELL_SOUL_SPLINTERS = 805719,
-    SPELL_SOUL_SPLINTER = 805720
+    SPELL_SOUL_SPLINTER = 805720,
+    SPELL_LIMBO = 800845,
+    SPELL_LIMBO_SHELL = 805872
+};
+
+class spell_ascension_reaper_limbo : public SpellScript
+{
+    PrepareSpellScript(spell_ascension_reaper_limbo);
+
+    // Limbo: "Rip out of your mortal shell for 5 seconds, making you immune to
+    // all harmful spell effects and instantly restoring 30% of your maximum
+    // health and Runic Power." Heal %, Energize % and School Immunity run
+    // natively; the shell aura (805872, carrying the immunity and its client
+    // visual) is the missing cast.
+    void AfterCast()
+    {
+        if (Unit* caster = GetCaster())
+            caster->CastSpell(caster, SPELL_LIMBO_SHELL, true);
+    }
+
+    void Register() override
+    {
+        AfterCast += SpellCastFn(spell_ascension_reaper_limbo::AfterCast);
+    }
 };
 
 class spell_ascension_soul_capture : public SpellScript
@@ -197,5 +220,6 @@ void AddSC_AscensionReaperTalents()
     RegisterSpellScript(spell_ascension_soul_capture);
     RegisterSpellScript(aura_ascension_harvester);
     RegisterSpellScript(aura_ascension_jailers_call);
+    RegisterSpellScript(spell_ascension_reaper_limbo);
     new reaper_talent_events();
 }
