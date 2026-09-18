@@ -25,7 +25,13 @@ enum StormbringerTalentSpells : uint32
     SPELL_ELECTRICAL_CHARGE = 800299,
     SPELL_CHARGED_CONDUIT = 803790,
     SPELL_GALE = 804036,
-    SPELL_ENVELOPING_WINDS = 707546
+    SPELL_ENVELOPING_WINDS = 707546,
+    SPELL_TEMPEST_SOVEREIGN = 560020,
+    SPELL_SHOCK = 500039,
+    SPELL_CALL_LIGHTNING = 500040,
+    SPELL_TORRENTIAL_WRATH = 503352,
+    SPELL_CONDUCTION = 567560,
+    SPELL_STATIC = 803102
 };
 
 class stormbringer_talent_casts : public AllSpellScript
@@ -51,6 +57,28 @@ public:
             if (Pet* pet = player->GetPet(); pet && pet->IsAlive() && pet->IsInWorld())
                 if (Unit* victim = pet->GetVictim())
                     pet->CastSpell(victim, info->Id, true);
+        // Tempest Sovereign (560020): Shock and Call Lightning gain 25 Static, and
+        // Torrential Wrath consumes all Static, triggering Conduction per stack.
+        if (!player || player->getClass() != CLASS_STORMBRINGER || info->SpellFamilyName != 22 ||
+            spell->IsTriggered() || !player->HasAura(SPELL_TEMPEST_SOVEREIGN))
+            return;
+        uint32 const root = sSpellMgr->GetFirstSpellInChain(info->Id);
+        if (root == SPELL_SHOCK || root == SPELL_CALL_LIGHTNING)
+        {
+            if (Aura* staticAura = player->GetAura(SPELL_STATIC))
+                staticAura->ModStackAmount(25);
+            return;
+        }
+        if (root == SPELL_TORRENTIAL_WRATH)
+        {
+            Aura* staticAura = player->GetAura(SPELL_STATIC);
+            if (!staticAura)
+                return;
+            uint8 const stacks = staticAura->GetStackAmount();
+            staticAura->Remove();
+            for (uint8 i = 0; i < stacks; ++i)
+                player->CastSpell(spell->GetUnitTarget(), SPELL_CONDUCTION, true);
+        }
     }
 
     void OnSpellHitResult(Spell* spell, Unit* target, uint8 miss, uint32 damage, uint32, bool) override
