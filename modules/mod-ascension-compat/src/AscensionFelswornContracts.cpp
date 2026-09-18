@@ -207,6 +207,13 @@ void ApplyContracts(SpellInfo* info)
         info->Effects[0].SpellClassMask = flag96(0, 524288, 2);
     if (id == 801902)
         info->Effects[0].MiscValue = SPELLMOD_COST;
+    if (id == 704361)
+    {
+        // Slice & Dice's cost modifier stores -5 while power prices live in tenths
+        // (cf. 801902's -50 for its five Energy); route it to the cost op and scale it.
+        info->Effects[1].MiscValue = SPELLMOD_COST;
+        info->Effects[1].BasePoints = -50;
+    }
     if (id == 807424)
     {
         info->Effects[2].MiscValue = SPELLMOD_CASTING_TIME;
