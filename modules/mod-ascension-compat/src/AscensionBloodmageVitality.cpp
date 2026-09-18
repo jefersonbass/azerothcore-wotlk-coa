@@ -13,6 +13,8 @@ namespace
 {
 using namespace AscensionBloodmage;
 constexpr uint32 VitalityCost = 10;
+constexpr uint32 RagingHunger = 681336;
+constexpr uint32 OrganOrbs = 807490;
 
 bool IsBloodmage(Player const* player)
 {
@@ -76,7 +78,22 @@ public:
                 player->CastSpell(player, VitalityHeal, true);
         }
         else if (info->PowerType == POWER_HEALTH && player->HasAura(PooledVitalityTalent))
+        {
             player->CastSpell(player, PooledVitality, true);
+            // Raging Hunger (681336): triggering Pooled Vitality also pays out
+            // three Rage.
+            if (player->HasAura(RagingHunger))
+                player->ModifyPower(POWER_RAGE, 30);
+            // Organ Orbs (807490): every Pooled Vitality stack raises Spirit by
+            // three percent, refreshed through the passive's own stat aura.
+            if (Aura* orbs = player->GetAura(OrganOrbs))
+                if (Aura* pool = player->GetAura(PooledVitality))
+                    if (AuraEffect* spirit = orbs->GetEffect(EFFECT_0))
+                    {
+                        spirit->ChangeAmount(3 * int32(pool->GetStackAmount()));
+                        player->UpdateAllStats();
+                    }
+        }
     }
 
     void OnSpellHitResult(Spell* spell, Unit*, uint8 miss, uint32, uint32 healing, bool) override
@@ -153,8 +170,12 @@ class spell_ascension_bloodmage_empowered : public SpellScript
         {
             Unit* caster = GetCaster();
             Unit* target = GetHitUnit();
+            // Blood Redistribution (706256): the Fleshcraft pool grows by a
+            // quarter while the passive is held.
+            uint32 const pool = caster->HasAura(706256)
+                ? caster->CountPctFromMaxHealth(50) : caster->CountPctFromMaxHealth(25);
             uint32 bonus = caster->SpellHealingBonusDone(target, GetSpellInfo(),
-                caster->CountPctFromMaxHealth(25), HEAL, EFFECT_0);
+                pool, HEAL, EFFECT_0);
             bonus = target->SpellHealingBonusTaken(caster, GetSpellInfo(), bonus, HEAL);
             SetHitHeal(int32(std::min<int64>(int64(GetHitHeal()) + bonus, std::numeric_limits<int32>::max())));
         }

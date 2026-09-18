@@ -1,4 +1,5 @@
 /* Copyright (C) 2016+ AzerothCore, GNU AGPL v3. */
+#include "Pet.h"
 #include "Player.h"
 #include "ScriptMgr.h"
 #include "Spell.h"
@@ -22,14 +23,24 @@ enum StormbringerTalentSpells : uint32
     SPELL_GENERATE_STATIC_20 = 804086,
     SPELL_BAROMETRIC_SLOW = 803566,
     SPELL_ELECTRICAL_CHARGE = 800299,
-    SPELL_CHARGED_CONDUIT = 803790
+    SPELL_CHARGED_CONDUIT = 803790,
+    SPELL_GALE = 804036,
+    SPELL_ENVELOPING_WINDS = 707546,
+    SPELL_TEMPEST_SOVEREIGN = 560020,
+    SPELL_SHOCK = 500039,
+    SPELL_CALL_LIGHTNING = 500040,
+    SPELL_TORRENTIAL_WRATH = 503352,
+    SPELL_CONDUCTION = 567560,
+    SPELL_STATIC = 803102,
+    SPELL_UNDERTOW = 705666,
+    SPELL_DROWN_HIT = 806408
 };
 
 class stormbringer_talent_casts : public AllSpellScript
 {
 public:
     stormbringer_talent_casts() : AllSpellScript("stormbringer_talent_casts",
-        {ALLSPELLHOOK_ON_CAST, ALLSPELLHOOK_ON_HIT_RESULT}) { }
+        {ALLSPELLHOOK_ON_CAST, ALLSPELLHOOK_ON_HIT_RESULT, ALLSPELLHOOK_ON_CRIT_CHANCE}) { }
 
     void OnSpellCast(Spell* spell, Unit* caster, SpellInfo const* info, bool) override
     {
@@ -39,6 +50,47 @@ public:
             // The active spell has a zero-radius dummy. Its separate native
             // helper supplies the ten-yard area and authored knockback speeds.
             player->CastSpell(player, SPELL_CLOUDBURST_KNOCKBACK, true);
+        // Enveloping Winds (707546): casting Gale makes the Air Elemental cast Gale
+        // as well. The passive's Dummy aura is inert; the armor emanation is native
+        // through its periodic trigger into the raid area aura.
+        if (player && player->getClass() == CLASS_STORMBRINGER && info->SpellFamilyName == 22 &&
+            !spell->IsTriggered() && player->HasAura(SPELL_ENVELOPING_WINDS) &&
+            sSpellMgr->GetFirstSpellInChain(info->Id) == SPELL_GALE)
+            if (Pet* pet = player->GetPet(); pet && pet->IsAlive() && pet->IsInWorld())
+                if (Unit* victim = pet->GetVictim())
+                    pet->CastSpell(victim, info->Id, true);
+        // Tempest Sovereign (560020): Shock and Call Lightning gain 25 Static, and
+        // Torrential Wrath consumes all Static, triggering Conduction per stack.
+        if (!player || player->getClass() != CLASS_STORMBRINGER || info->SpellFamilyName != 22 ||
+            spell->IsTriggered() || !player->HasAura(SPELL_TEMPEST_SOVEREIGN))
+            return;
+        uint32 const root = sSpellMgr->GetFirstSpellInChain(info->Id);
+        if (root == SPELL_SHOCK || root == SPELL_CALL_LIGHTNING)
+        {
+            if (Aura* staticAura = player->GetAura(SPELL_STATIC))
+                staticAura->ModStackAmount(25);
+            return;
+        }
+        if (root == SPELL_TORRENTIAL_WRATH)
+        {
+            Aura* staticAura = player->GetAura(SPELL_STATIC);
+            if (!staticAura)
+                return;
+            uint8 const stacks = staticAura->GetStackAmount();
+            staticAura->Remove();
+            for (uint8 i = 0; i < stacks; ++i)
+                player->CastSpell(spell->GetUnitTarget(), SPELL_CONDUCTION, true);
+        }
+    }
+
+    void OnSpellCritChance(Spell* spell, Unit* target, float& chance) override
+    {
+        // Undertow (705666): Drown's burst component crits 25% more often.
+        Player* player = spell->GetCaster() ? spell->GetCaster()->ToPlayer() : nullptr;
+        SpellInfo const* info = spell->GetSpellInfo();
+        if (!player || !player->HasAura(SPELL_UNDERTOW) || info->Id != SPELL_DROWN_HIT)
+            return;
+        chance += 25.0f;
     }
 
     void OnSpellHitResult(Spell* spell, Unit* target, uint8 miss, uint32 damage, uint32, bool) override

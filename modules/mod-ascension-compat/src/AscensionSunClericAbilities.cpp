@@ -225,6 +225,12 @@ public:
             return;
         if (info->Id == 707774 && damage)
             Copy(player,player,707522,damage / 10);
+        // Calm (804057): the native disarm is handled by the DBC; Undead and Demon
+        // targets additionally cannot attack or move. Enemies immune to silence
+        // resist 807778 through their mechanic immunity.
+        if (info->Id == 804057 && (target->GetCreatureType() == CREATURE_TYPE_UNDEAD ||
+                                   target->GetCreatureType() == CREATURE_TYPE_DEMON))
+            Cast(player, target, 807778);
         if (Derived(info) || State(player).event)
             return;
         (void)critical;

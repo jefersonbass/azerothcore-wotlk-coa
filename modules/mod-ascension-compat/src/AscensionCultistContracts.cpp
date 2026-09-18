@@ -228,6 +228,10 @@ void ApplyContracts(SpellInfo* info)
         info->Effects[0].ApplyAuraName = SPELL_AURA_PERIODIC_DUMMY;
         info->Effects[0].TriggerSpell = 0;
     }
+    if (id == 301255)
+        // Blessing of C'Thun: the Dummy becomes the periodic-crit enabler so
+        // Darkwither ticks can crit; the hit-from-Intellect effect is native.
+        info->Effects[0].ApplyAuraName = SPELL_AURA_ABILITY_PERIODIC_CRIT;
     if (id == 706910)
     {
         for (uint8 slot = 1; slot < MAX_SPELL_EFFECTS; ++slot)

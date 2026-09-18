@@ -1,5 +1,6 @@
 /* Copyright (C) 2016+ AzerothCore, GNU AGPL v3. */
 #include "AscensionPooledVitality.h"
+#include "EventProcessor.h"
 #include "ObjectAccessor.h"
 #include "Player.h"
 #include "Random.h"
@@ -32,8 +33,81 @@ enum BloodmageSecondarySpells : uint32
     SPELL_BLACK_HEART = 680731,
     SPELL_NIGHT_HUNTER = 704659,
     SPELL_BLOOD_FEAST_RESTORE = 706608,
+    SPELL_ATHERANNS_ANGUISH = 680680,
+    SPELL_ATHERANNS_ANGUISH_BURST = 680681,
+    SPELL_DARK_ESSENCE = 680732,
+    SPELL_BLOOD_RITUALS_MARK = 706623,
+    SPELL_BLOOD_RITUALS_HEAL = 704119,
+    SPELL_INFUSE = 681403,
+    SPELL_INFUSE_BURST = 681404,
+    SPELL_THIRST_FOR_BLOOD = 570023,
+    SPELL_THIRST = 706613,
+    SPELL_SATED = 570024,
+    SPELL_RAVENOUS = 570025,
+    SPELL_BLOOD_PRINCES_COMMAND = 704641,
+    SPELL_FANG_OVER_FANG = 504116,
+    SPELL_ENTHRALLER = 706619,
+    SPELL_AORTIC_AEGIS = 806274,
+    SPELL_BLOOD_VEIL = 504263,
+    SPELL_SOVEREIGNTY = 806049,
+    SPELL_SOVEREIGNTY_BUFF = 504272,
+    SPELL_FLESH_FOUNDRY = 704633,
+    SPELL_FLESHCRAFT = 801952,
+    SPELL_CRIMSON_SCION = 806424,
+    SPELL_CRIMSON_SCION_PROC = 806425,
+    SPELL_SANGUINE_MEND = 504079,
+    SPELL_HEMAL_EXCISION = 803681,
+    SPELL_HEMAL_EXCISION_HOLD = 803734,
+    SPELL_DISSIPATION = 680730,
     SPELL_ROTCLAW = 804197,
     SPELL_ROTCLAW_ENERGIZE = 805352 // Ravenous Strike (Energize): 30..70 internal, i.e. 3 to 7 Rage
+};
+
+// Every rank of the two abilities Enthraller empowers.
+constexpr uint32 EnthralledRanks[] = {560249, 561175, 561176, 561177,
+    560315, 561027, 561028, 561029};
+
+// Hemal Excision: collects the target's curse auras for the reactivation window.
+std::vector<Aura*> CollectCurses(Unit* target)
+{
+    std::vector<Aura*> curses;
+    if (!target)
+        return curses;
+    for (auto const& [_, applications] : target->GetAppliedAuras())
+        if (Aura* aura = applications.GetBase(); aura && aura->GetSpellInfo()->Dispel == DISPEL_CURSE &&
+            aura->GetCasterGUID() != target->GetGUID())
+            curses.push_back(aura);
+    return curses;
+}
+
+// Every rank of Bloodfang Bite the kit currently teaches.
+constexpr uint32 BloodfangBiteRanks[] = {501695, 501696, 501697, 503613, 503614,
+    503615, 572549, 572550, 572551, 800156};
+
+// Dark Essence (680732): heals a Blood-Rituals-marked ally every 1.5 seconds for
+// three seconds — two scheduled ticks.
+class DarkEssenceTick : public BasicEvent
+{
+public:
+    DarkEssenceTick(ObjectGuid owner, ObjectGuid ally, uint32 amount) : _owner(owner),
+        _ally(ally), _amount(amount) { }
+
+    bool Execute(uint64, uint32) override
+    {
+        Player* player = ObjectAccessor::FindConnectedPlayer(_owner);
+        if (!player || !player->IsInWorld())
+            return true;
+        Unit* target = ObjectAccessor::GetUnit(*player, _ally);
+        if (target && target->IsInWorld() && target->HasAura(SPELL_BLOOD_RITUALS_MARK, _owner))
+            player->CastCustomSpell(SPELL_BLOOD_RITUALS_HEAL, SPELLVALUE_BASE_POINT0,
+                int32(_amount), target, true);
+        return true;
+    }
+
+private:
+    ObjectGuid _owner;
+    ObjectGuid _ally;
+    uint32 _amount;
 };
 
 bool RankOf(uint32 id, uint32 root)
@@ -67,16 +141,105 @@ public:
     void OnSpellCast(Spell* spell, Unit*, SpellInfo const* info, bool) override
     {
         Player* player = Bloodmage(spell);
-        if (!player || spell->IsTriggered() || !player->HasAura(SPELL_NIGHT_HUNTER))
+        if (!player || spell->IsTriggered())
             return;
-        if (RankOf(info->Id, SPELL_VEINBURST))
+        if (player->HasAura(SPELL_NIGHT_HUNTER))
         {
-            if (roll_chance_i(40))
-                player->RemoveSpellCooldown(info->Id, true);
+            if (RankOf(info->Id, SPELL_VEINBURST))
+            {
+                if (roll_chance_i(40))
+                    player->RemoveSpellCooldown(info->Id, true);
+            }
+            else if (AscensionBloodmage::GetEmpowerment(info->Id) == AscensionBloodmage::Bloodbolt &&
+                info->PowerType == POWER_RAGE && spell->GetPowerCost() > 0 && roll_chance_i(40))
+                player->ModifyPower(POWER_RAGE, spell->GetPowerCost() / 2);
         }
-        else if (AscensionBloodmage::GetEmpowerment(info->Id) == AscensionBloodmage::Bloodbolt &&
-            info->PowerType == POWER_RAGE && spell->GetPowerCost() > 0 && roll_chance_i(40))
-            player->ModifyPower(POWER_RAGE, spell->GetPowerCost() / 2);
+        // Dark Essence (680732): Cursed Form abilities and Bloodbolt pulse a small
+        // heal every 1.5 seconds for three seconds into every ally carrying this
+        // Bloodmage's Blood Rituals mark (114 + 10% healing bonus per tick).
+        bool cursedAbility = player->HasAura(AscensionBloodmage::CursedForm) &&
+            info->SpellFamilyName == 26 && info->PowerType == POWER_RAGE &&
+            (info->ManaCost || info->ManaCostPercentage);
+        if (!player->HasAura(SPELL_DARK_ESSENCE) ||
+            (!cursedAbility && AscensionBloodmage::GetEmpowerment(info->Id) != AscensionBloodmage::Bloodbolt))
+            return;
+        uint32 const amount = 114 + uint32(player->SpellBaseHealingBonusDone(SPELL_SCHOOL_MASK_SHADOW) / 10);
+        std::vector<Unit*> marked;
+        for (auto const& reference : player->GetMap()->GetPlayers())
+            if (Player* member = reference.GetSource())
+                if (member->IsInWorld() && member->HasAura(SPELL_BLOOD_RITUALS_MARK, player->GetGUID()))
+                    marked.push_back(member);
+        for (Unit* ally : marked)
+        {
+            player->m_Events.AddEvent(new DarkEssenceTick(player->GetGUID(), ally->GetGUID(), amount),
+                player->m_Events.CalculateTime(1500));
+            player->m_Events.AddEvent(new DarkEssenceTick(player->GetGUID(), ally->GetGUID(), amount),
+                player->m_Events.CalculateTime(3000));
+        }
+        // Fang Over Fang (504116): Bloodfang Bite has a twenty percent chance to
+        // reset Reave's cooldown.
+        if (player->HasAura(SPELL_FANG_OVER_FANG) && roll_chance_i(20) &&
+            std::find(std::begin(BloodfangBiteRanks), std::end(BloodfangBiteRanks), info->Id) !=
+                std::end(BloodfangBiteRanks))
+            player->RemoveSpellCooldown(SPELL_REAVE, true);
+        // Aortic Aegis (806274): Blood Veil spreads to the target's party members.
+        if (player->HasAura(SPELL_AORTIC_AEGIS) && RankOf(info->Id, SPELL_BLOOD_VEIL) && !spell->IsTriggered())
+            if (Player* target = spell->GetUnitTarget() ? spell->GetUnitTarget()->ToPlayer() : nullptr)
+                for (auto const& reference : target->GetMap()->GetPlayers())
+                    if (Player* member = reference.GetSource())
+                        if (member->IsInWorld() && member != target &&
+                            member->IsWithinDistInMap(target, 30.0f) &&
+                            (member->IsInPartyWith(target) || member->IsInRaidWith(target)))
+                            player->CastSpell(member, info->Id, true);
+        // Sovereignty (806049): Crimson Tide damage banks a stack of the buff,
+        // whose cost reduction and extra Bloodbolt bounce are native.
+        if (player->HasAura(SPELL_SOVEREIGNTY) && damage &&
+            AscensionBloodmage::GetEmpowerment(info->Id) == AscensionBloodmage::CrimsonTide)
+            player->CastSpell(player, SPELL_SOVEREIGNTY_BUFF, true);
+        // Flesh Foundry (704633): critical strikes trim four seconds off
+        // Fleshcraft's cooldown. The crit-rating-from-Spirit effect is native.
+        if (critical && player->HasAura(SPELL_FLESH_FOUNDRY))
+            player->ModifySpellCooldown(SPELL_FLESHCRAFT, -4000);
+        // Crimson Scion (806424): direct damage rolls a ten percent chance to make
+        // the next Sanguine Mend instant; the proc aura carries the -100% cast
+        // modifier natively.
+        if (damage && player->HasAura(SPELL_CRIMSON_SCION) && !spell->IsTriggered() &&
+            roll_chance_i(10) && !player->HasAura(SPELL_CRIMSON_SCION_PROC))
+            player->CastSpell(player, SPELL_CRIMSON_SCION_PROC, true);
+        // Hemal Excision (803681): the Dispel effect siphons curses natively; the
+        // reactivation window is banked here so the second cast can reapply them.
+        if (info->Id == SPELL_HEMAL_EXCISION && !spell->IsTriggered())
+        {
+            if (Unit* target = spell->GetUnitTarget())
+                if (std::vector<Aura*> curses = CollectCurses(target); !curses.empty())
+                {
+                    spell->SetScriptValue(SPELL_HEMAL_EXCISION_HOLD, 1);
+                    for (Aura* curse : curses)
+                        spell->SetScriptValue(uint32(curse->GetId()), 1);
+                }
+            player->CastSpell(player, SPELL_HEMAL_EXCISION_HOLD, true);
+        }
+        // Dissipation (680730): Fleshcraft's cooldown starts a minute shorter.
+        if (player->HasAura(SPELL_DISSIPATION) && RankOf(info->Id, SPELL_FLESHCRAFT) && !spell->IsTriggered())
+            player->ModifySpellCooldown(SPELL_FLESHCRAFT, -60000);
+        // Thirst for Blood (570023): mirror the Thirst stack range onto the
+        // Sated (1-5) and Ravenous (6-10) bonuses.
+        if (player->HasAura(SPELL_THIRST_FOR_BLOOD))
+        {
+            uint32 const thirst = player->GetAura(SPELL_THIRST) ? player->GetAura(SPELL_THIRST)->GetStackAmount() : 0;
+            bool const wantSated = thirst >= 1 && thirst <= 5;
+            bool const wantRavenous = thirst >= 6;
+            if (wantSated != bool(player->GetAura(SPELL_SATED)))
+                if (wantSated)
+                    player->CastSpell(player, SPELL_SATED, true);
+                else
+                    player->RemoveAurasDueToSpell(SPELL_SATED);
+            if (wantRavenous != bool(player->GetAura(SPELL_RAVENOUS)))
+                if (wantRavenous)
+                    player->CastSpell(player, SPELL_RAVENOUS, true);
+                else
+                    player->RemoveAurasDueToSpell(SPELL_RAVENOUS);
+        }
     }
 
     void OnSpellCritChance(Spell* spell, Unit* target, float& chance) override
@@ -84,6 +247,26 @@ public:
         if (Bloodmage(spell) && target && RankOf(spell->GetSpellInfo()->Id, SPELL_HEMOBURST) &&
             target->HasAuraState(AURA_STATE_BLEEDING))
             chance = 100;
+        // Atherann's Anguish: hemoplague damage cannot critically strike.
+        if (spell->GetSpellInfo()->Id == SPELL_ATHERANNS_ANGUISH_BURST)
+            chance = 0;
+        // Blood Prince's Command (704641): Bloodbolt always crits targets carrying
+        // Taldaram's Torment (any rank of the torment DoT).
+        Player* player = Bloodmage(spell);
+        if (player && target && player->HasAura(SPELL_BLOOD_PRINCES_COMMAND) &&
+            AscensionBloodmage::GetEmpowerment(spell->GetSpellInfo()->Id) == AscensionBloodmage::Bloodbolt)
+            for (uint32 torment : {800772, 802568, 802569, 802570})
+                if (target->HasAura(torment))
+                {
+                    chance = 100;
+                    break;
+                }
+        // Enthraller (706619): Valanar's Vengeance and Keleseth's Calamity gain
+        // ten percent critical strike chance.
+        if (player && player->HasAura(SPELL_ENTHRALLER) &&
+            std::find(std::begin(EnthralledRanks), std::end(EnthralledRanks), spell->GetSpellInfo()->Id) !=
+                std::end(EnthralledRanks))
+            chance += 10.0f;
     }
 
     void OnSpellCalculatedTarget(Spell* spell, Unit* target, TargetInfo& hit) override
@@ -151,6 +334,54 @@ public:
             if (conditions & 4)
                 CopyDamage(player, target, SPELL_REAVE_BACK, damage);
         }
+        if (target->HasAura(SPELL_ATHERANNS_ANGUISH, player->GetGUID()))
+        {
+            Aura* mark = target->GetAura(SPELL_ATHERANNS_ANGUISH, player->GetGUID());
+            if (AuraEffect* bank = mark->GetEffect(EFFECT_2))
+                bank->ChangeAmount(bank->GetAmount() + int32(damage * 0.30f));
+        }
+    }
+};
+
+// Infuse (681403): every point of damage the Bloodmage's party, raid and their
+// minions deal to the marked target banks on the mark and detonates as Shadow
+// damage when the ten seconds run out. Early dispels fizzle.
+class bloodmage_infuse_marks : public UnitScript
+{
+public:
+    bloodmage_infuse_marks() : UnitScript("bloodmage_infuse_marks", true,
+        {UNITHOOK_ON_DAMAGE, UNITHOOK_ON_AURA_REMOVE}) { }
+
+    static bool Contributes(Player const* source, Player const* infuser)
+    {
+        return source && infuser && (source == infuser || source->IsInPartyWith(infuser) ||
+            source->IsInRaidWith(infuser));
+    }
+
+    void OnDamage(Unit* attacker, Unit* victim, uint32& damage) override
+    {
+        if (!victim || !damage)
+            return;
+        Aura* infuse = victim->GetAura(SPELL_INFUSE);
+        if (!infuse)
+            return;
+        Player* infuser = ObjectAccessor::FindConnectedPlayer(infuse->GetCasterGUID());
+        if (!Contributes(attacker ? attacker->GetCharmerOrOwnerPlayerOrPlayerItself() : nullptr, infuser))
+            return;
+        if (AuraEffect* bank = infuse->GetEffect(EFFECT_0))
+            bank->ChangeAmount(bank->GetAmount() + int32(damage));
+    }
+
+    void OnAuraRemove(Unit* unit, Aura* aura, AuraRemoveMode mode) override
+    {
+        if (aura->GetId() != SPELL_INFUSE || mode != AURA_REMOVE_BY_EXPIRE || !unit)
+            return;
+        Player* infuser = ObjectAccessor::FindConnectedPlayer(aura->GetCasterGUID());
+        if (!infuser || !infuser->IsAlive() || !infuser->IsInWorld())
+            return;
+        if (AuraEffect* bank = aura->GetEffect(EFFECT_0); bank && bank->GetAmount() > 0)
+            infuser->CastCustomSpell(SPELL_INFUSE_BURST, SPELLVALUE_BASE_POINT0,
+                bank->GetAmount(), unit, true);
     }
 };
 
@@ -258,6 +489,7 @@ void AddSC_AscensionBloodmageSecondary()
 {
     new bloodmage_secondary_casts();
     new bloodmage_kiss_periodic();
+    new bloodmage_infuse_marks();
     new bloodmage_secondary_contracts();
     RegisterSpellScript(spell_ascension_blood_feast_corpses);
     RegisterSpellScript(spell_ascension_blood_feast_drain);

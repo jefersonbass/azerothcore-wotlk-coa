@@ -23,7 +23,15 @@ enum BloodmageTalentSpells : uint32
     SPELL_SANGUINE_SCRIPTURE_BUFF = 504264,
     SPELL_CURSED_FORM_REQUIREMENT = 525031,
     SPELL_CURSED_FORM_REQUIREMENT_2 = 524861,
-    SPELL_BLOODMOON_POWER = 801961
+    SPELL_BLOODMOON_POWER = 801961,
+    SPELL_ATHERANNS_ANGUISH = 680680,
+    SPELL_ATHERANNS_ANGUISH_BURST = 680681,
+    SPELL_HUNTER_AND_HUNTED = 807487,
+    SPELL_HUNTER_AND_HUNTED_NET = 100614,
+    SPELL_VAMPYR_LORD = 560259,
+    SPELL_COAGULATION = 706258,
+    SPELL_SHADOWS_IN_THE_NIGHT = 704662,
+    SPELL_ENDURE_THE_CURSE = 681190
 };
 
 // Every creature Animated Blood can leave behind: worms, parasites and the rank 3 amalgam.
@@ -99,9 +107,28 @@ class spell_ascension_animated_blood : public SpellScript
                 caster->RemoveAllMinionsByEntry(entry);
     }
 
+    void ApplyVampyrLord()
+    {
+        // Vampyr Lord (560259): the brood inherits the passive's Mod Damage %
+        // aura so its thirty-five percent bonus rides on their attacks.
+        Player* caster = GetCaster()->ToPlayer();
+        if (!caster || !caster->HasAura(SPELL_VAMPYR_LORD))
+            return;
+        std::list<Creature*> brood;
+        for (uint32 entry : AnimatedBloodSummons)
+        {
+            caster->GetCreatureListWithEntryInGrid(brood, entry, 100.0f);
+            for (Creature* worm : brood)
+                if (worm->GetOwnerGUID() == caster->GetGUID() && !worm->HasAura(SPELL_VAMPYR_LORD))
+                    caster->CastSpell(worm, SPELL_VAMPYR_LORD, true);
+            brood.clear();
+        }
+    }
+
     void Register() override
     {
         BeforeCast += SpellCastFn(spell_ascension_animated_blood::ReplacePreviousBrood);
+        AfterCast += SpellCastFn(spell_ascension_animated_blood::ApplyVampyrLord);
         // This destination-only helper is triggered in LAUNCH, before target-specific effects.
         OnEffectLaunch += SpellEffectFn(spell_ascension_animated_blood::HandleExtraWorms,
             EFFECT_1, SPELL_EFFECT_TRIGGER_SPELL);
@@ -112,7 +139,8 @@ class bloodmage_talent_events : public UnitScript
 {
 public:
     bloodmage_talent_events() : UnitScript("bloodmage_talent_events", true,
-        {UNITHOOK_ON_AURA_APPLY, UNITHOOK_ON_AURA_REMOVE}) { }
+        {UNITHOOK_MODIFY_SPELL_DAMAGE_TAKEN, UNITHOOK_ON_DAMAGE, UNITHOOK_ON_AURA_APPLY,
+        UNITHOOK_ON_AURA_REMOVE}) { }
 
     void OnAuraApply(Unit* unit, Aura* aura) override
     {
@@ -120,7 +148,22 @@ public:
         if (!player || player->getClass() != CLASS_SON_OF_ARUGAL || !aura)
             return;
         if (IsCursedForm(aura->GetId()))
+        {
             SyncCursedFormRequirement(player);
+            // The Hunter and the Hunted (807487): activating a Cursed Form charges
+            // the Bloodmage to their target inside 20 yards and roots enemies for
+            // two seconds. Net (100614) supplies the clean two-second root.
+            if (player->HasAura(SPELL_HUNTER_AND_HUNTED) &&
+                aura->GetCasterGUID() == player->GetGUID() && player->IsAlive() && player->IsInWorld())
+                if (Unit* target = player->GetSelectedUnit())
+                    if (target != player && !player->IsFriendlyTo(target) && target->IsAlive() &&
+                        player->IsWithinDistInMap(target, 20.0f) && player->IsWithinLOSInMap(target))
+                    {
+                        player->GetMotionMaster()->MoveCharge(target->GetPositionX(),
+                            target->GetPositionY(), target->GetPositionZ(), 42.0f);
+                        player->CastSpell(target, SPELL_HUNTER_AND_HUNTED_NET, true);
+                    }
+        }
     }
 
     void OnAuraRemove(Unit* unit, AuraApplication* application, AuraRemoveMode mode) override
@@ -136,6 +179,41 @@ public:
         if (aura->GetId() == SPELL_LIQUIFY && aura->GetCasterGUID() == player->GetGUID() &&
             player->HasAura(SPELL_VAMPIRIC_POOLS))
             player->CastSpell(player, SPELL_VAMPIRIC_POOLS_LEECH, true);
+        // Atherann's Anguish (680680): the hemoplague mark explodes for its banked
+        // damage when it runs its full ten seconds. Early dispels or deaths fizzle.
+        if (aura->GetId() == SPELL_ATHERANNS_ANGUISH && mode == AURA_REMOVE_BY_EXPIRE &&
+            aura->GetCasterGUID() == player->GetGUID())
+            if (AuraEffect* bank = aura->GetEffect(EFFECT_2); bank && bank->GetAmount() > 0)
+                player->CastCustomSpell(SPELL_ATHERANNS_ANGUISH_BURST,
+                    SPELLVALUE_BASE_POINT0, bank->GetAmount(), unit, true);
+        // Thirst for Blood: without a Thirst stack the Sated and Ravenous bonuses
+        // lose their basis and are stripped.
+        if (aura->GetId() == 706613)
+        {
+            player->RemoveAurasDueToSpell(570024);
+            player->RemoveAurasDueToSpell(570025);
+        }
+        // Coagulation (706258): the Blood Shield gains the bleed-dispel pulse, whose
+        // five-second periodic trigger into the Dispel Mechanic helper is native.
+        if (aura->GetId() == 504296 && player->HasAura(SPELL_COAGULATION))
+            player->CastSpell(player, SPELL_COAGULATION, true);
+        // Shadows In The Night (704662): the five percent damage reduction only
+        // counts while the Bloodmage is above seventy-five percent health.
+        if (aura->GetId() == SPELL_SHADOWS_IN_THE_NIGHT)
+            if (AuraEffect* reduction = aura->GetEffect(EFFECT_1))
+                reduction->ChangeAmount(player->HealthAbovePct(75) ? -5 : 0);
+    }
+
+    void ModifySpellDamageTaken(Unit* target, Unit*, int32& damage, SpellInfo const*) override
+    {
+        // Shadows In The Night (704662): the aura's native -5% only counts while
+        // the Bloodmage is above seventy-five percent health; below the threshold
+        // the reduction is refunded here.
+        Player* player = target ? target->ToPlayer() : nullptr;
+        if (player && player->getClass() == CLASS_SON_OF_ARUGAL &&
+            player->HasAura(SPELL_SHADOWS_IN_THE_NIGHT) && !player->HealthAbovePct(75))
+            damage = int32(damage / 0.95f);
+    }
         if (aura->GetId() == SPELL_LIQUIFY && aura->GetCasterGUID() == player->GetGUID() &&
             player->HasAura(SPELL_BLOODMOON_POWER))
         {
@@ -158,6 +236,24 @@ class bloodmage_talent_contracts : public GlobalScript
 public:
     bloodmage_talent_contracts() : GlobalScript("bloodmage_talent_contracts",
         {GLOBALHOOK_ON_LOAD_SPELL_CUSTOM_ATTR}) { }
+
+    void OnDamage(Unit* attacker, Unit* victim, uint32& damage) override
+    {
+        // Endure the Curse (681190): while the ten-second guard is up, a hit that
+        // would drop the Bloodmage below ten percent health instead heals for
+        // thirty percent of maximum health. Once per activation.
+        Player* player = victim ? victim->ToPlayer() : nullptr;
+        if (!player || player->getClass() != CLASS_SON_OF_ARUGAL || !damage)
+            return;
+        Aura* guard = player->GetAura(SPELL_ENDURE_THE_CURSE);
+        if (!guard || !guard->GetEffect(EFFECT_0) || guard->GetEffect(EFFECT_0)->GetAmount() != 0)
+            return;
+        if (int64(player->GetHealth()) - int64(damage) >= int64(player->GetMaxHealth() / 10))
+            return;
+        guard->GetEffect(EFFECT_0)->ChangeAmount(1);
+        damage = 0;
+        player->ModifyHealth(int32(player->CountPctFromMaxHealth(30)));
+    }
 
     void OnLoadSpellCustomAttr(SpellInfo* info) override
     {

@@ -37,6 +37,7 @@
 #include "AscensionPrimalistEarthquake.h"
 #include "AscensionPrimalistEarthshaping.h"
 #include "AscensionPrimalistSpiritBeast.h"
+#include "AscensionPrimalistTalents.h"
 #include "AscensionPrimalistWeapons.h"
 #include "AscensionRunemasterTalents.h"
 #include "AscensionRangerTalents.h"
@@ -6043,6 +6044,7 @@ public:
             ApplyAscensionPrimalistEarthshapingContracts(spellInfo);
             ApplyAscensionPrimalistSpiritBeastContract(spellInfo);
             ApplyAscensionPrimalistWeaponsContract(spellInfo);
+            ApplyAscensionPrimalistTalentsContract(spellInfo);
             ApplyAscensionRunemasterTalentContracts(spellInfo);
             ApplyAscensionManuscriptionContracts(spellInfo);
             ApplyAscensionRunemasterTravelContracts(spellInfo);

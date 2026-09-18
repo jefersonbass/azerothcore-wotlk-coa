@@ -96,7 +96,9 @@ void Scale(Player* player, Creature* creature, bool initial)
     creature->UpdateArmor();
     if (!creature->HasAura(707698))
         Cast(player,creature,707698);
-    for (uint32 talent : {560742,705792})
+    // Clockwork Ingenuity (505336): its Mod Increase Health % aura rides along
+    // with the other owner talents so every summon gains the ten percent pool.
+    for (uint32 talent : {560742,705792,505336})
     {
         if (player->HasAura(talent) && !creature->HasAura(talent))
             Cast(player,creature,talent);
