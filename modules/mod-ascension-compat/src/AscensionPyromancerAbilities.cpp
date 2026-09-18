@@ -96,6 +96,16 @@ class pyromancer_spells : public AllSpellScript
             chance = 100;
         if (Any(info, {803950, 800806}) && player->HasAura(706877) && Burning(player, target))
             chance += Amount(706877);
+        // Pyromaniac (500166): "Increases the critical strike chance of Ember
+        // spenders by 5%." Spenders are the abilities whose DBC effect 175
+        // triggers the Ember resource slot.
+        if (player->HasAura(500166))
+            for (auto const& effect : info->Effects)
+                if (effect.Effect == 175 && effect.TriggerSpell == EmberAura)
+                {
+                    chance += 5;
+                    break;
+                }
     }
     void OnSpellCast(Spell* spell, Unit* caster, SpellInfo const* info, bool) override
     {
