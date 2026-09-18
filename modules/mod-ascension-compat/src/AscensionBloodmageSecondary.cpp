@@ -53,6 +53,9 @@ enum BloodmageSecondarySpells : uint32
     SPELL_SOVEREIGNTY_BUFF = 504272,
     SPELL_FLESH_FOUNDRY = 704633,
     SPELL_FLESHCRAFT = 801952,
+    SPELL_CRIMSON_SCION = 806424,
+    SPELL_CRIMSON_SCION_PROC = 806425,
+    SPELL_SANGUINE_MEND = 504079,
     SPELL_ROTCLAW = 804197,
     SPELL_ROTCLAW_ENERGIZE = 805352 // Ravenous Strike (Energize): 30..70 internal, i.e. 3 to 7 Rage
 };
@@ -181,6 +184,12 @@ public:
         // Fleshcraft's cooldown. The crit-rating-from-Spirit effect is native.
         if (critical && player->HasAura(SPELL_FLESH_FOUNDRY))
             player->ModifySpellCooldown(SPELL_FLESHCRAFT, -4000);
+        // Crimson Scion (806424): direct damage rolls a ten percent chance to make
+        // the next Sanguine Mend instant; the proc aura carries the -100% cast
+        // modifier natively.
+        if (damage && player->HasAura(SPELL_CRIMSON_SCION) && !spell->IsTriggered() &&
+            roll_chance_i(10) && !player->HasAura(SPELL_CRIMSON_SCION_PROC))
+            player->CastSpell(player, SPELL_CRIMSON_SCION_PROC, true);
         // Thirst for Blood (570023): mirror the Thirst stack range onto the
         // Sated (1-5) and Ravenous (6-10) bonuses.
         if (player->HasAura(SPELL_THIRST_FOR_BLOOD))
