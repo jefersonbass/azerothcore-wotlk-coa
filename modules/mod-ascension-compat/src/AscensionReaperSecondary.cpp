@@ -38,7 +38,10 @@ enum ReaperSecondarySpells : uint32
     SPELL_WRAITHBLADE = 805258,
     SPELL_SOULSTRIDER = 572340,
     SPELL_VEILWALK = 803990,
-    SPELL_RED_WAKE = 707707
+    SPELL_RED_WAKE = 707707,
+    SPELL_HAUNTER = 705410,
+    SPELL_SOULREND = 572341,
+    HAUNTER_BONUS = 10000
 };
 
 void HealFromDamage(Player* player, uint32 reference, uint32 helper, uint32 damage)
@@ -157,6 +160,12 @@ public:
         // additional Soul Fragment." The DBC's Proc Trigger slot is inert.
         if (critical && damage && player->HasAura(SPELL_RED_WAKE) && !spell->IsTriggered())
             HandleAscensionReaperResource(player, SPELL_REAPED_SOUL, 1);
+        // Haunter (705410): "Increases the duration of Soulrend by 10 sec."
+        // The passive's Spell Flat Mod slot has no family to match the
+        // Soulrend chain, so stretch the aura on application instead.
+        if (sSpellMgr->GetFirstSpellInChain(id) == SPELL_SOULREND && player->HasAura(SPELL_HAUNTER))
+            if (Aura* rend = target->GetAura(spell->GetSpellInfo()->Id, player->GetGUID()))
+                rend->SetDuration(rend->GetDuration() + HAUNTER_BONUS);
         // Gravesite (572213): "Direct critical strikes made against enemies
         // within a Gravesite now deals Shadow damage." The area marker (804722)
         // is dropped by the Endbringer cast below.
