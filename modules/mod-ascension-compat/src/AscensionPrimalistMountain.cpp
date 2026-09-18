@@ -22,7 +22,8 @@ enum MountainSpells : uint32
     Bashed = 680949,
     ImprovedUrsocsBellow = 560505,
     EarthenforgedBarrier = 680408,
-    RockBarrier = 503630
+    RockBarrier = 503630,
+    MountainThane = 680404
 };
 
 class aura_ascension_blessed_by_earth : public AuraScript
@@ -267,6 +268,29 @@ class aura_ascension_earthenforged_barrier : public AuraScript
     }
 };
 
+// Mountain Thane (680404): Earth's Rage stacks one additional time; the
+// five percent stamina boost is native through Mod Total Stat Percentage.
+// The engine caps applications at the authored five stacks, so the sixth
+// is applied here once the aura reaches its cap.
+class aura_ascension_mountain_thane : public AuraScript
+{
+    PrepareAuraScript(aura_ascension_mountain_thane);
+
+    void Extend(AuraEffect const*, AuraEffectHandleModes)
+    {
+        Unit* owner = GetTarget();
+        if (!owner->IsPlayer() || !owner->HasAura(MountainThane) || GetStackAmount() != 5)
+            return;
+        GetAura()->SetStackAmount(6);
+    }
+
+    void Register() override
+    {
+        AfterEffectApply += AuraEffectApplyFn(aura_ascension_mountain_thane::Extend,
+            EFFECT_0, SPELL_AURA_MOD_INCREASE_SPEED, AURA_EFFECT_HANDLE_CHANGE_AMOUNT_MASK);
+    }
+};
+
 class mountain_talent_metadata : public GlobalScript
 {
 public:
@@ -298,5 +322,6 @@ void AddSC_AscensionPrimalistMountain()
     RegisterSpellScript(aura_ascension_bash);
     RegisterSpellScript(aura_ascension_ursocs_bellow);
     RegisterSpellScript(aura_ascension_earthenforged_barrier);
+    RegisterSpellScript(aura_ascension_mountain_thane);
     new mountain_talent_metadata();
 }
