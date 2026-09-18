@@ -35,6 +35,14 @@ void ApplyContracts(SpellInfo* info)
         info->Effects[EFFECT_0].MiscValue = SPELLMOD_CRITICAL_CHANCE;
         info->Effects[EFFECT_1].ApplyAuraName = SPELL_AURA_MOD_EXPERTISE;
     }
+    if (id == 704966)
+    {
+        // Demonfire Plating's halves ship untyped: map them to damage-taken reduction
+        // and the flat stamina aura the engine sums into base stats.
+        info->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_MOD_DAMAGE_PERCENT_TAKEN;
+        info->Effects[EFFECT_1].ApplyAuraName = SPELL_AURA_MOD_STAT;
+        info->Effects[EFFECT_1].MiscValue = STAT_STAMINA;
+    }
     if (id == 704999)
         // Combusting Blade's flat modifier must land on the cost op to trim
         // Infernal Strike's Rage price by 5 (DBC stores Rage in tenth-units).
