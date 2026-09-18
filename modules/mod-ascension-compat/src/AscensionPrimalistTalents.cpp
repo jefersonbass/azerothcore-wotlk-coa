@@ -33,6 +33,8 @@ enum PrimalistAbilitySpells : uint32
     SPELL_SEISMIC_CRASH = 503258,
     SPELL_ONE_WITH_THE_EARTH = 704402,
     SPELL_STONESHARD = 680448,
+    SPELL_PRIMAL_SHAMANS_MASK = 800185,
+    SPELL_GEODE = 804002,
     SPELL_BEARSKIN = 800094,
     SPELL_PRIMAL_CONVERGENCE = 800181,
     SPELL_BOULDER_DASH = 500692,
@@ -216,6 +218,11 @@ public:
                 if (root == sSpellMgr->GetFirstSpellInChain(SPELL_STONESHARD))
                     player->ModifyPower(POWER_MANA,
                         CalculatePct(player->GetMaxPower(POWER_MANA), 4));
+        // Primal Shaman's Mask (800185): direct damage has a ten percent chance to
+        // hurl a Geode, whose damage and Rage energize are native.
+        if (damage && player->HasAura(SPELL_PRIMAL_SHAMANS_MASK) && !spell->IsTriggered() &&
+            roll_chance_i(10))
+            player->CastSpell(target, SPELL_GEODE, true);
             }
         }
         if (info->Id == SPELL_GEODE_BARRAGE_DAMAGE && !spell->GetScriptValue(SPELL_GEODE_BARRAGE_RAGE))
