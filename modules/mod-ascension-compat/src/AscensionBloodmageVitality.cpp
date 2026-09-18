@@ -153,8 +153,12 @@ class spell_ascension_bloodmage_empowered : public SpellScript
         {
             Unit* caster = GetCaster();
             Unit* target = GetHitUnit();
+            // Blood Redistribution (706256): the Fleshcraft pool grows by a
+            // quarter while the passive is held.
+            uint32 const pool = caster->HasAura(706256)
+                ? caster->CountPctFromMaxHealth(50) : caster->CountPctFromMaxHealth(25);
             uint32 bonus = caster->SpellHealingBonusDone(target, GetSpellInfo(),
-                caster->CountPctFromMaxHealth(25), HEAL, EFFECT_0);
+                pool, HEAL, EFFECT_0);
             bonus = target->SpellHealingBonusTaken(caster, GetSpellInfo(), bonus, HEAL);
             SetHitHeal(int32(std::min<int64>(int64(GetHitHeal()) + bonus, std::numeric_limits<int32>::max())));
         }
