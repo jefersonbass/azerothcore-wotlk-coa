@@ -31,7 +31,9 @@ enum ChronomancerSecondarySpells : uint32
     SPELL_RIPPLE_HEAL = 806298,
     SPELL_ECHO_FRAGMENT = 804455,
     SPELL_ARC_COLLISION = 524853,
-    SPELL_ECHO_DURATION = 807711
+    SPELL_ECHO_DURATION = 807711,
+    SPELL_INFINITE_HORIZON = 560528,
+    SPELL_TIMEREND = 707430
 };
 
 Player* SecondaryChronomancer(Unit* unit)
@@ -265,6 +267,27 @@ public:
     }
 };
 
+// Infinite Horizon (560528): "your Unmake and Timerend gain an additional 20%
+// bonus spell scaling." The raid-wide 3% damage aura comes from the DBC's
+// area-aura slot natively; the scaling part has no engine support.
+class chronomancer_infinite_horizon : public UnitScript
+{
+public:
+    chronomancer_infinite_horizon() : UnitScript("chronomancer_infinite_horizon", true,
+        {UNITHOOK_MODIFY_SPELL_DAMAGE_TAKEN}) { }
+
+    void ModifySpellDamageTaken(Unit* target, Unit* source, int32& damage, SpellInfo const* spellInfo) override
+    {
+        Player* player = source ? source->ToPlayer() : nullptr;
+        if (!player || !damage || !spellInfo || !player->HasAura(SPELL_INFINITE_HORIZON))
+            return;
+        uint32 const root = sSpellMgr->GetFirstSpellInChain(spellInfo->Id);
+        if (root != SPELL_UNMAKE && root != SPELL_TIMEREND)
+            return;
+        damage += CalculatePct(damage, 20);
+    }
+};
+
 class chronomancer_secondary_metadata : public GlobalScript
 {
 public:
@@ -294,6 +317,8 @@ void AddSC_AscensionChronomancerSecondary()
 {
     new chronomancer_melt_periodic();
     new chronomancer_secondary_casts();
+    new chronomancer_black_hole();
+    new chronomancer_infinite_horizon();
     new chronomancer_secondary_metadata();
     RegisterSpellScript(spell_ascension_melt_copy);
     RegisterSpellScript(aura_ascension_desynchronization);
