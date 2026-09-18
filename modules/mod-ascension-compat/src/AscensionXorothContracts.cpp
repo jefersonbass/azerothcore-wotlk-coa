@@ -80,6 +80,24 @@ void ApplyContracts(SpellInfo* info)
         // Combusting Blade's flat modifier must land on the cost op to trim
         // Infernal Strike's Rage price by 5 (DBC stores Rage in tenth-units).
         info->Effects[EFFECT_1].MiscValue = SPELLMOD_COST;
+    if (id == 804354)
+        // Black Skull Shield: the +25% damage half ships with an empty mask and
+        // the -50 Rage cost half also keys Burning Blade (word 0, bit 8); both
+        // must key Shieldgore alone (word 1, bit 8). Ops and amounts are correct.
+        info->Effects[EFFECT_0].SpellClassMask = flag96(0, 256, 0),
+        info->Effects[EFFECT_1].SpellClassMask = flag96(0, 256, 0);
+    if (id == 804014)
+    {
+        // Hellwrath: the +5 stack half keys the Demon's Blood SLS2/Infernal Shield
+        // pair instead of Demon's Blood itself (word 2, bit 4), and the +1% absorb
+        // half ships with an empty mask. Key the stacks half to Demon's Blood and
+        // bump its base points (DBC says 4), then key the absorb half to Black
+        // Shield's absorb spell (word 1, bit 26), consumed via SPELLMOD_EFFECT1 in
+        // the aura script's per-stack scale.
+        info->Effects[EFFECT_0].SpellClassMask = flag96(0, 0, 16);
+        info->Effects[EFFECT_0].BasePoints = 5;
+        info->Effects[EFFECT_1].SpellClassMask = flag96(0, 67108864, 0);
+    }
     if (id == SPELL_WARPATH_PROTECTION && info->Effects[EFFECT_0].ApplyAuraName == SPELL_AURA_MOD_MINIMUM_SPEED)
         info->DurationEntry = sSpellDurationStore.LookupEntry(27); // Three seconds after Unleash Pestilence.
     if (id == SPELL_FLESH_HOOK_PULL)

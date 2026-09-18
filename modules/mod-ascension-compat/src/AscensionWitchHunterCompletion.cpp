@@ -107,6 +107,11 @@ void ApplyContracts(SpellInfo* info)
         // Trapper's percent modifier must read as the cooldown op so the engine
         // trims the Trap spells; the DBC mask already keys them.
         info->Effects[EFFECT_0].MiscValue = SPELLMOD_COOLDOWN;
+    if (id == 680331)
+        // One Shot: the +20% crit-chance spellmod ships with an empty mask (the
+        // DBC parked the Heartseeking Bolt bit on an effectless slot); key it to
+        // Heartseeking Bolt (word 1, bit 11).
+        info->Effects[EFFECT_0].SpellClassMask = flag96(0, 2048, 0);
     if (id == 504677 || id == 504891)
         // Duskwood Renegade's flat modifier must read as the cooldown op so the
         // engine trims Burrow Bolt; the DBC mask already keys that chain.

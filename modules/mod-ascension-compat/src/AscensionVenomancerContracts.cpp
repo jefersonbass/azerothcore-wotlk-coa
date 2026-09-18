@@ -184,6 +184,12 @@ void ApplyContracts(SpellInfo* info)
     }
     if (id == 800293)
         info->Effects[2].SpellClassMask = flag96(0,8388608,0);
+    if (id == 807601)
+        // Rotting Sores: the -20% tick-rate half (activation-time op, applied to the
+        // aura amplitude) ships with an empty mask and the periodic-crit half also
+        // keys Venoxis Rage (word 0, bit 20); both must key Rotfang alone (word 1, bit 20).
+        info->Effects[0].SpellClassMask = flag96(0,1048576,0),
+        info->Effects[1].SpellClassMask = flag96(0,1048576,0);
     if (id == 805933)
         dummy(1);
     if (id == 707563)

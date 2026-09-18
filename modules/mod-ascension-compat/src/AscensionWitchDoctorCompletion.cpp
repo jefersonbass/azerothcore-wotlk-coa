@@ -401,6 +401,22 @@ void ApplyContracts(SpellInfo* info)
             }
     if (id == SenjinWisdom)
         info->Effects[EFFECT_0].SpellClassMask = flag96(0, 0, 1073741824); // pointed at the wrong classmask word, so its +20s duration mod never matched Mirage
+    if (id == 706368)
+    {
+        // Loa Empowerment: the -50% cost half misses Power Wuju and the +20%
+        // Power Wuju half ships with an empty mask; key the cost half to every
+        // Wuju (Spirit/Resourceful word 0 bit 8, Power word 2 bit 24) and the
+        // Power half to Power Wuju alone.
+        info->Effects[EFFECT_0].SpellClassMask = flag96(256, 0, 16777216);
+        info->Effects[EFFECT_1].SpellClassMask = flag96(0, 0, 16777216);
+    }
+    if (id == 705856 || id == 707858)
+        // Fresh Ingredients: the pct-modifier aura ships with op 0 (damage) and
+        // an empty mask, so it never engages. Point it at every effect of the
+        // Voodoo Cauldron (word 1, bit 24) so the cauldron's healing pulse
+        // (VoodooCauldron EFFECT_2 read via CalcValue) gains the rank bonus.
+        info->Effects[EFFECT_0].MiscValue = SPELLMOD_ALL_EFFECTS,
+        info->Effects[EFFECT_0].SpellClassMask = flag96(0, 16777216, 0);
     if (id == RageBrewBuff)
         info->Effects[EFFECT_1].BasePoints = 14;
     if (id == Voice)

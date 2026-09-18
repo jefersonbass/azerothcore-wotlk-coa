@@ -35,7 +35,7 @@ class aura_ascension_xoroth_lifecycle : public AuraScript
         if (id == 520294 && effect->GetEffIndex() == EFFECT_1)
             amount = int32(amount * (1 + .2f * State(player).blood));
         if (id == 805680 && effect->GetEffIndex() == EFFECT_0)
-            amount = int32(amount * (1 + .2f * State(player).blood));
+            amount = int32(amount * (1 + (.2f + (player->HasAura(804014) ? .01f : 0.f)) * State(player).blood));
         if (id == 803889)
             amount = int32(amount * (1 + .2f * State(player).fire));
     }

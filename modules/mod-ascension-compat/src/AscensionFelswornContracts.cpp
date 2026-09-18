@@ -234,6 +234,12 @@ void ApplyContracts(SpellInfo* info)
         info->Effects[EFFECT_0].MiscValue = SPELLMOD_COOLDOWN;
         info->Effects[EFFECT_1].MiscValue = SPELLMOD_COOLDOWN;
     }
+    if (id == 805255)
+        // Mannoroth's Rage: the -60s cooldown half's mask keys Burning Hatred
+        // (word 0, bit 18) already; the stray -100% cost spellmod (empty mask)
+        // would halve every family-20 spell's resource price, so drop it — the
+        // tooltip only promises the cooldown trim.
+        info->Effects[EFFECT_1].ApplyAuraName = SPELL_AURA_NONE;
     if (id == 500067)
     {
         // Fel Monstrosity: the shipped stat aura covers Stamina only; the stray
