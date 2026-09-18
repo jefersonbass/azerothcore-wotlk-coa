@@ -45,8 +45,13 @@ enum BloodmageSecondarySpells : uint32
     SPELL_SATED = 570024,
     SPELL_RAVENOUS = 570025,
     SPELL_BLOOD_PRINCES_COMMAND = 704641,
-    SPELL_FANG_OVER_FANG = 504116
+    SPELL_FANG_OVER_FANG = 504116,
+    SPELL_ENTHRALLER = 706619
 };
+
+// Every rank of the two abilities Enthraller empowers.
+constexpr uint32 EnthralledRanks[] = {560249, 561175, 561176, 561177,
+    560315, 561027, 561028, 561029};
 
 // Every rank of Bloodfang Bite the kit currently teaches.
 constexpr uint32 BloodfangBiteRanks[] = {501695, 501696, 501697, 503613, 503614,
@@ -189,6 +194,12 @@ public:
                     chance = 100;
                     break;
                 }
+        // Enthraller (706619): Valanar's Vengeance and Keleseth's Calamity gain
+        // ten percent critical strike chance.
+        if (player && player->HasAura(SPELL_ENTHRALLER) &&
+            std::find(std::begin(EnthralledRanks), std::end(EnthralledRanks), spell->GetSpellInfo()->Id) !=
+                std::end(EnthralledRanks))
+            chance += 10.0f;
     }
 
     void OnSpellCalculatedTarget(Spell* spell, Unit* target, TargetInfo& hit) override
