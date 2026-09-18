@@ -222,6 +222,13 @@ void ApplyContracts(SpellInfo* info)
         info->Effects[0].BasePoints = 10;
         info->Effects[1].MiscValue = SPELLMOD_CRITICAL_CHANCE;
     }
+    if (id == 803905)
+    {
+        // Shadow Magi's two flat modifiers read as cooldown trims keyed to
+        // Annihilation and Sunder respectively by the shipped masks.
+        info->Effects[EFFECT_0].MiscValue = SPELLMOD_COOLDOWN;
+        info->Effects[EFFECT_1].MiscValue = SPELLMOD_COOLDOWN;
+    }
     if (id == 500067)
     {
         // Fel Monstrosity: the shipped stat aura covers Stamina only; the stray

@@ -3122,6 +3122,10 @@ int32 SpellInfo::CalcPowerCost(Unit const* caster, SpellSchoolMask schoolMask, S
         (sSpellMgr->GetFirstSpellInChain(Id) == sSpellMgr->GetFirstSpellInChain(503149) ||
          sSpellMgr->GetFirstSpellInChain(Id) == sSpellMgr->GetFirstSpellInChain(573061)))
         powerCost += 30;
+    // Smasher: Skull Smash costs no Energy.
+    if (caster->IsPlayer() && caster->getClass() == CLASS_BARBARIAN && caster->HasAura(561394) &&
+        sSpellMgr->GetFirstSpellInChain(Id) == sSpellMgr->GetFirstSpellInChain(805780))
+        return 0;
     // Wizened: every spell and ability costs 3% (or 6%) less mana.
     if (caster->IsPlayer() && caster->getClass() == CLASS_PROPHET && GetPowerType() == POWER_MANA)
     {

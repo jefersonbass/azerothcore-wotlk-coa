@@ -572,6 +572,13 @@ class witch_doctor_scaling : public UnitScript
     {
         if (!target || !attacker || !info || !damage)
             return;
+        // Loa Communion: Veil of Darkness's damage helper strikes twice as hard.
+        if (Player* doctor = Owner(attacker); doctor && doctor == attacker && doctor->HasAura(705907) &&
+            sSpellMgr->GetFirstSpellInChain(info->Id) == sSpellMgr->GetFirstSpellInChain(VeilDamage))
+        {
+            if (AuraEffect const* communion = doctor->GetAuraEffect(705907, EFFECT_0))
+                damage = uint32(std::min<uint64>(UINT32_MAX, uint64(damage) * (100 + communion->GetAmount()) / 100));
+        }
         Aura* aura = target->GetAura(info->Id, attacker->GetGUID());
         if (!aura || !aura->GetScriptValue(ConcoctionsBuff))
             return;

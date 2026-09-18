@@ -40,6 +40,12 @@ void ApplyContracts(SpellInfo* info)
         // Knight of Pestilence's percent modifier must read as the crit-damage op so the
         // engine adds it to crit bonuses; the DBC family mask already keys the Pestilences.
         info->Effects[EFFECT_0].MiscValue = SPELLMOD_CRIT_DAMAGE_BONUS;
+    if (id == 704986)
+    {
+        // Warden of Hellfire's percent modifier must read as the damage op so the engine
+        // scales Skulltaker, Flames of Xoroth, and Meatsaw; the mask already keys them.
+        info->Effects[EFFECT_0].MiscValue = SPELLMOD_DAMAGE;
+    }
     if (id == 707388)
     {
         // Consuming Blade's crit chance reads through the crit chance op keyed to the
