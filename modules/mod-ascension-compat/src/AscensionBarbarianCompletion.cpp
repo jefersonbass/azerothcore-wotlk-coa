@@ -54,6 +54,13 @@ void ApplyContracts(SpellInfo* info)
     if (!info || info->SpellFamilyName != 18)
         return;
     uint32 id = info->Id;
+    if (id == 705173)
+    {
+        // Pure Power's damage half reads through the damage op (the DBC mask already
+        // keys Smash); its expertise half is a plain expertise aura, not a spell mod.
+        info->Effects[EFFECT_0].MiscValue = SPELLMOD_DAMAGE;
+        info->Effects[EFFECT_1].ApplyAuraName = SPELL_AURA_MOD_EXPERTISE;
+    }
     if (id == 705186)
         info->Effects[EFFECT_0].SpellClassMask = flag96(0, 64 | 2 | 2048, 0);
     if (id == 705234 || id == 707779)
