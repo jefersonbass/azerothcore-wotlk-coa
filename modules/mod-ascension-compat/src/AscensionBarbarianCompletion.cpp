@@ -159,6 +159,13 @@ void ApplyContracts(SpellInfo* info)
     if (id == 804337)
         // The native DBC targets the ~1.5s global cooldown instead of ability cooldowns.
         info->Effects[EFFECT_0].MiscValue = SPELLMOD_COOLDOWN;
+    if (id == 681473)
+        // Breaking Morale's DBC masks are shifted: the flat cost half must key
+        // Break (word 1, bit 21) and the +25% damage half must key Smash
+        // (word 0, bit 28) and Ancestral Strike (word 1, bit 20). The ops and
+        // amounts (-15 Energy, +25%) are already correct in the DBC.
+        info->Effects[EFFECT_0].SpellClassMask = flag96(0, 2097152, 0),
+        info->Effects[EFFECT_1].SpellClassMask = flag96(268435456, 1048576, 0);
     if (id == 706353)
         // Unstoppable Rage extends Unbridled Rage; the engine reads that through
         // the duration modifier op keyed to the enrage's own family mask.
