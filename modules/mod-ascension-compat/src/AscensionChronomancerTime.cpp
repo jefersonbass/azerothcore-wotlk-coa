@@ -46,7 +46,10 @@ enum TimeSpells : uint32
     TimeOut = 802229,
     TimeOutRankTwo = 803896,
     TimeOutRankThree = 803897,
-    ContinuumRestoration = 801271
+    ContinuumRestoration = 801271,
+    Unmake = 804418,
+    BuyTime = 520185,
+    BuyTimeStasis = 520186
 };
 
 Player* Chronomancer(Unit* caster)
@@ -331,6 +334,27 @@ void ApplyTimeContracts(SpellInfo* info)
     }
 }
 
+class spell_ascension_chronomancer_unmake : public SpellScript
+{
+    PrepareSpellScript(spell_ascension_chronomancer_unmake);
+
+    // "Casting Unmake on a target will remove this effect" (Buy Time).
+    // Unmake's DBC carries a Dummy slot for exactly this interaction; stock
+    // AzerothCore leaves it inert, so pop the stasis aura here.
+    void HandleUnmake(SpellEffIndex effIndex)
+    {
+        if (effIndex != EFFECT_1 || !GetHitUnit())
+            return;
+        GetHitUnit()->RemoveAurasDueToSpell(BuyTime);
+        GetHitUnit()->RemoveAurasDueToSpell(BuyTimeStasis);
+    }
+
+    void Register() override
+    {
+        OnEffectHitTarget += SpellEffectFn(spell_ascension_chronomancer_unmake::HandleUnmake, EFFECT_1, SPELL_EFFECT_DUMMY);
+    }
+};
+
 class chronomancer_time_contracts : public GlobalScript
 {
 public:
@@ -349,4 +373,5 @@ void AddSC_AscensionChronomancerTime()
     new chronomancer_time_casts();
     new chronomancer_time_contracts();
     RegisterSpellScript(aura_ascension_timeline_tether);
+    RegisterSpellScript(spell_ascension_chronomancer_unmake);
 }
