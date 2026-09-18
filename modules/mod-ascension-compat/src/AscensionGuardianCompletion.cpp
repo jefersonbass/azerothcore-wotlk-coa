@@ -107,6 +107,43 @@ public:
     }
 };
 
+// Axe Training (704515): "While an axe is equipped, your critical strike
+// chance is increased by 2% and critical damage increased by 5%." The DBC
+// auras apply unconditionally, so gate them on the weapon check here.
+class guardian_axe_training : public UnitScript
+{
+public:
+    guardian_axe_training() : UnitScript("guardian_axe_training", true,
+        {UNITHOOK_ON_AURA_APPLY, UNITHOOK_ON_AURA_REMOVE}) { }
+
+    void OnAuraApply(Unit* unit, Aura* aura) override
+    {
+        Player* player = unit ? unit->ToPlayer() : nullptr;
+        if (!player || player->getClass() != CLASS_GUARDIAN || !aura ||
+            aura->GetId() != SPELL_AXE_TRAINING)
+            return;
+        if (!HasAxe(player))
+            player->RemoveAurasDueToSpell(SPELL_AXE_TRAINING);
+    }
+
+private:
+    static constexpr uint32 SPELL_AXE_TRAINING = 704515;
+
+    static bool HasAxe(Player* player)
+    {
+        if (Item* weapon = player->GetWeaponForAttack(BASE_ATTACK, true))
+            switch (weapon->GetTemplate()->SubClass)
+            {
+                case ITEM_SUBCLASS_WEAPON_AXE:
+                case ITEM_SUBCLASS_WEAPON_AXE2:
+                    return true;
+                default:
+                    break;
+            }
+        return false;
+    }
+};
+
 class aura_ascension_guardian_lifecycle : public AuraScript
 {
     PrepareAuraScript(aura_ascension_guardian_lifecycle);
@@ -325,5 +362,6 @@ void AscensionGuardian::ApplyContracts(SpellInfo* info)
 void AddAscensionGuardianCompletionScripts()
 {
     new guardian_scaling();
+    new guardian_axe_training();
     RegisterSpellScript(aura_ascension_guardian_lifecycle);
 }
