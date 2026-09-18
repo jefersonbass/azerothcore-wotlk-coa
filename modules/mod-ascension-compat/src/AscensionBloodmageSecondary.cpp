@@ -56,6 +56,8 @@ enum BloodmageSecondarySpells : uint32
     SPELL_CRIMSON_SCION = 806424,
     SPELL_CRIMSON_SCION_PROC = 806425,
     SPELL_SANGUINE_MEND = 504079,
+    SPELL_HEMAL_EXCISION = 803681,
+    SPELL_HEMAL_EXCISION_HOLD = 803734,
     SPELL_ROTCLAW = 804197,
     SPELL_ROTCLAW_ENERGIZE = 805352 // Ravenous Strike (Energize): 30..70 internal, i.e. 3 to 7 Rage
 };
@@ -63,6 +65,19 @@ enum BloodmageSecondarySpells : uint32
 // Every rank of the two abilities Enthraller empowers.
 constexpr uint32 EnthralledRanks[] = {560249, 561175, 561176, 561177,
     560315, 561027, 561028, 561029};
+
+// Hemal Excision: collects the target's curse auras for the reactivation window.
+std::vector<Aura*> CollectCurses(Unit* target)
+{
+    std::vector<Aura*> curses;
+    if (!target)
+        return curses;
+    for (auto const& [_, applications] : target->GetAppliedAuras())
+        if (Aura* aura = applications.GetBase(); aura && aura->GetSpellInfo()->Dispel == DISPEL_CURSE &&
+            aura->GetCasterGUID() != target->GetGUID())
+            curses.push_back(aura);
+    return curses;
+}
 
 // Every rank of Bloodfang Bite the kit currently teaches.
 constexpr uint32 BloodfangBiteRanks[] = {501695, 501696, 501697, 503613, 503614,
@@ -190,6 +205,19 @@ public:
         if (damage && player->HasAura(SPELL_CRIMSON_SCION) && !spell->IsTriggered() &&
             roll_chance_i(10) && !player->HasAura(SPELL_CRIMSON_SCION_PROC))
             player->CastSpell(player, SPELL_CRIMSON_SCION_PROC, true);
+        // Hemal Excision (803681): the Dispel effect siphons curses natively; the
+        // reactivation window is banked here so the second cast can reapply them.
+        if (info->Id == SPELL_HEMAL_EXCISION && !spell->IsTriggered())
+        {
+            if (Unit* target = spell->GetUnitTarget())
+                if (std::vector<Aura*> curses = CollectCurses(target); !curses.empty())
+                {
+                    spell->SetScriptValue(SPELL_HEMAL_EXCISION_HOLD, 1);
+                    for (Aura* curse : curses)
+                        spell->SetScriptValue(uint32(curse->GetId()), 1);
+                }
+            player->CastSpell(player, SPELL_HEMAL_EXCISION_HOLD, true);
+        }
         // Thirst for Blood (570023): mirror the Thirst stack range onto the
         // Sated (1-5) and Ravenous (6-10) bonuses.
         if (player->HasAura(SPELL_THIRST_FOR_BLOOD))
