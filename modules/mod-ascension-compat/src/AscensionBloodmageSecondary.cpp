@@ -47,6 +47,8 @@ enum BloodmageSecondarySpells : uint32
     SPELL_BLOOD_PRINCES_COMMAND = 704641,
     SPELL_FANG_OVER_FANG = 504116,
     SPELL_ENTHRALLER = 706619,
+    SPELL_AORTIC_AEGIS = 806274,
+    SPELL_BLOOD_VEIL = 504263,
     SPELL_ROTCLAW = 804197,
     SPELL_ROTCLAW_ENERGIZE = 805352 // Ravenous Strike (Energize): 30..70 internal, i.e. 3 to 7 Rage
 };
@@ -157,6 +159,15 @@ public:
             std::find(std::begin(BloodfangBiteRanks), std::end(BloodfangBiteRanks), info->Id) !=
                 std::end(BloodfangBiteRanks))
             player->RemoveSpellCooldown(SPELL_REAVE, true);
+        // Aortic Aegis (806274): Blood Veil spreads to the target's party members.
+        if (player->HasAura(SPELL_AORTIC_AEGIS) && RankOf(info->Id, SPELL_BLOOD_VEIL) && !spell->IsTriggered())
+            if (Player* target = spell->GetUnitTarget() ? spell->GetUnitTarget()->ToPlayer() : nullptr)
+                for (auto const& reference : target->GetMap()->GetPlayers())
+                    if (Player* member = reference.GetSource())
+                        if (member->IsInWorld() && member != target &&
+                            member->IsWithinDistInMap(target, 30.0f) &&
+                            (member->IsInPartyWith(target) || member->IsInRaidWith(target)))
+                            player->CastSpell(member, info->Id, true);
         // Thirst for Blood (570023): mirror the Thirst stack range onto the
         // Sated (1-5) and Ravenous (6-10) bonuses.
         if (player->HasAura(SPELL_THIRST_FOR_BLOOD))
