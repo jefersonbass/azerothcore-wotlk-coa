@@ -213,6 +213,13 @@ void ApplyContracts(SpellInfo* info)
         info->Effects[EFFECT_0].MiscValue = SPELLMOD_CRITICAL_CHANCE;
         info->Effects[EFFECT_1].MiscValue = SPELLMOD_CRIT_DAMAGE_BONUS;
     }
+    if (id == 705922)
+    {
+        // Dark Magic's flat modifiers read as cast-time trims keyed to Malefic Wrath
+        // and Bad Juju by the shipped masks.
+        info->Effects[EFFECT_0].MiscValue = SPELLMOD_ACTIVATION_TIME;
+        info->Effects[EFFECT_1].MiscValue = SPELLMOD_ACTIVATION_TIME;
+    }
     if (id == 705903 || id == 705904)
     {
         // Wizened's mana half keys to the max-mana percent aura; its cost half is
