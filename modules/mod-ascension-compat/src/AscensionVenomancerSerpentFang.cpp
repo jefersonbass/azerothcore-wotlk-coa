@@ -3,13 +3,16 @@
 #include "ScriptMgr.h"
 #include "Spell.h"
 #include "SpellMgr.h"
+#include "AscensionVenomancer.h"
 
 namespace
 {
 enum SerpentFangSpells : uint32
 {
     SPELL_SERPENTS_FANG = 800946,
-    SPELL_SERPENTS_FANG_HEAL = 560202
+    SPELL_SERPENTS_FANG_DAMAGE = 503931,
+    SPELL_SERPENTS_FANG_HEAL = 560202,
+    SPELL_VENOM_FANATIC = 681059
 };
 
 class venomancer_serpent_fang : public AllSpellScript
@@ -17,7 +20,7 @@ class venomancer_serpent_fang : public AllSpellScript
 public:
     venomancer_serpent_fang() : AllSpellScript("venomancer_serpent_fang", {ALLSPELLHOOK_ON_HIT_RESULT}) { }
 
-    void OnSpellHitResult(Spell* spell, Unit* target, uint8 miss, uint32, uint32, bool) override
+    void OnSpellHitResult(Spell* spell, Unit* target, uint8 miss, uint32 damage, uint32, bool) override
     {
         Player* player = spell->GetCaster()->ToPlayer();
         if (!player || player->getClass() != CLASS_PROPHET || !player->IsAlive() || !player->IsInWorld() ||
@@ -36,6 +39,21 @@ public:
         SpellCastTargets targets;
         targets.SetDst(target->GetPosition());
         player->CastSpell(targets, heal, nullptr, TRIGGERED_FULL_MASK);
+        // Venom Fanatic: Serpent's Fang also strikes 2 additional nearby enemies.
+        // Only fan from untriggered casts so the copied strikes (triggered) do not recurse.
+        if (player->HasAura(SPELL_VENOM_FANATIC) && !spell->IsTriggered() && damage)
+        {
+            uint32 remaining = 2;
+            for (Unit* enemy : Nearby(target, 10.0f))
+            {
+                if (!remaining)
+                    break;
+                if (enemy == target || !player->IsValidAttackTarget(enemy) || !target->IsWithinLOSInMap(enemy))
+                    continue;
+                Copy(player, enemy, Highest(player, SPELL_SERPENTS_FANG_DAMAGE), damage);
+                --remaining;
+            }
+        }
     }
 };
 
