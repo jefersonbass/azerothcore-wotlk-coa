@@ -343,7 +343,20 @@ void Aspect(Player* player, Unit* target, uint32 damage, bool forced)
         }
         else
         {
-            Copy(player, target, 800507, std::max(0, Amount(id, 1, player)));
+            uint32 amount = std::max(0, Amount(id, 1, player));
+            Copy(player, target, 800507, amount);
+            if (player->HasAura(680788)) // Will of Elune: Aspect damage strikes 2 additional nearby enemies.
+            {
+                uint32 extra = 2;
+                for (Unit* enemy : Nearby(target, 10))
+                {
+                    if (enemy == target || !player->IsValidAttackTarget(enemy))
+                        continue;
+                    Copy(player, enemy, 800507, amount);
+                    if (!--extra)
+                        break;
+                }
+            }
         }
         break;
     }
