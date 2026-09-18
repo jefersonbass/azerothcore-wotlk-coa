@@ -24,6 +24,10 @@ void ApplyContracts(SpellInfo* info)
     if (!info || info->SpellFamilyName != 23)
         return;
     uint32 id = info->Id;
+    if (id == 804947)
+        // Screamin' Demon's flat modifier must read as the cooldown op so the engine
+        // trims Unleash Pestilence; the DBC mask already keys the Unleash button.
+        info->Effects[EFFECT_0].MiscValue = SPELLMOD_COOLDOWN;
     if (id == 704981)
         // Knight of Pestilence's percent modifier must read as the crit-damage op so the
         // engine adds it to crit bonuses; the DBC family mask already keys the Pestilences.
