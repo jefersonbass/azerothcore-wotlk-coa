@@ -279,6 +279,11 @@ void Refresh(Player* player)
     SetHelper(player,803329,mech);
     SetHelper(player,680999,mech && player->HasAura(806631));
     SetAmount(player,801385,1,mech && player->HasAura(681001) ? -std::abs(Amount(681001)) : 0);
+    // Augmechtation (503568): the Mechsuit's damage aura gains ten percentage
+    // points over its base while the passive is learned.
+    if (AuraEffect* damage = player->GetAuraEffect(801385,EFFECT_2))
+        SetAmount(player,801385,EFFECT_2,int32(damage->GetBaseAmount()) +
+            (player->HasAura(503568) ? 10 : 0));
     if (!mech)
     {
         player->RemoveAurasDueToSpell(803451,player->GetGUID());
