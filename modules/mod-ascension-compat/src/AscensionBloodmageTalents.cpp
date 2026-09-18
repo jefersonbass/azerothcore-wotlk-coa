@@ -162,6 +162,13 @@ public:
             if (AuraEffect* bank = aura->GetEffect(EFFECT_2); bank && bank->GetAmount() > 0)
                 player->CastCustomSpell(SPELL_ATHERANNS_ANGUISH_BURST,
                     SPELLVALUE_BASE_POINT0, bank->GetAmount(), unit, true);
+        // Thirst for Blood: without a Thirst stack the Sated and Ravenous bonuses
+        // lose their basis and are stripped.
+        if (aura->GetId() == 706613)
+        {
+            player->RemoveAurasDueToSpell(570024);
+            player->RemoveAurasDueToSpell(570025);
+        }
         if (aura->GetId() == SPELL_LIQUIFY && aura->GetCasterGUID() == player->GetGUID() &&
             player->HasAura(SPELL_BLOODMOON_POWER))
         {

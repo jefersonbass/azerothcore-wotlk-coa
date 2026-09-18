@@ -39,7 +39,11 @@ enum BloodmageSecondarySpells : uint32
     SPELL_BLOOD_RITUALS_MARK = 706623,
     SPELL_BLOOD_RITUALS_HEAL = 704119,
     SPELL_INFUSE = 681403,
-    SPELL_INFUSE_BURST = 681404
+    SPELL_INFUSE_BURST = 681404,
+    SPELL_THIRST_FOR_BLOOD = 570023,
+    SPELL_THIRST = 706613,
+    SPELL_SATED = 570024,
+    SPELL_RAVENOUS = 570025
 };
 
 // Dark Essence (680732): heals a Blood-Rituals-marked ally every 1.5 seconds for
@@ -133,6 +137,24 @@ public:
                 player->m_Events.CalculateTime(1500));
             player->m_Events.AddEvent(new DarkEssenceTick(player->GetGUID(), ally->GetGUID(), amount),
                 player->m_Events.CalculateTime(3000));
+        }
+        // Thirst for Blood (570023): mirror the Thirst stack range onto the
+        // Sated (1-5) and Ravenous (6-10) bonuses.
+        if (player->HasAura(SPELL_THIRST_FOR_BLOOD))
+        {
+            uint32 const thirst = player->GetAura(SPELL_THIRST) ? player->GetAura(SPELL_THIRST)->GetStackAmount() : 0;
+            bool const wantSated = thirst >= 1 && thirst <= 5;
+            bool const wantRavenous = thirst >= 6;
+            if (wantSated != bool(player->GetAura(SPELL_SATED)))
+                if (wantSated)
+                    player->CastSpell(player, SPELL_SATED, true);
+                else
+                    player->RemoveAurasDueToSpell(SPELL_SATED);
+            if (wantRavenous != bool(player->GetAura(SPELL_RAVENOUS)))
+                if (wantRavenous)
+                    player->CastSpell(player, SPELL_RAVENOUS, true);
+                else
+                    player->RemoveAurasDueToSpell(SPELL_RAVENOUS);
         }
     }
 
