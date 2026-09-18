@@ -28,7 +28,10 @@ enum ReaperSecondarySpells : uint32
     SPELL_CRIMSON_THIRST = 807415,
     SPELL_CRIMSON_STACK = 807416,
     SPELL_CRIMSON_AMOUNT = 807417,
-    SPELL_CRIMSON_HEAL = 807545
+    SPELL_CRIMSON_HEAL = 807545,
+    SPELL_GRAVESITE_PASSIVE = 572213,
+    SPELL_GRAVESITE_AREA = 804722,
+    SPELL_GRAVESITE_HIT = 300979
 };
 
 void HealFromDamage(Player* player, uint32 reference, uint32 helper, uint32 damage)
@@ -96,7 +99,7 @@ public:
             caster->RemoveAurasDueToSpell(SPELL_CRIMSON_STACK, caster->GetGUID());
     }
 
-    void OnSpellHitResult(Spell* spell, Unit* target, uint8 miss, uint32 damage, uint32, bool) override
+    void OnSpellHitResult(Spell* spell, Unit* target, uint8 miss, uint32 damage, uint32, bool critical) override
     {
         Player* player = spell->GetCaster()->ToPlayer();
         if (!player || player->getClass() != CLASS_REAPER || !player->IsAlive() || !player->IsInWorld() ||
@@ -107,6 +110,15 @@ public:
             HealFromDamage(player, SPELL_ENDBRINGER_AMOUNT, SPELL_ENDBRINGER_HEAL, damage);
         if (id == SPELL_SPECTRE_HIT && target->IsAlive())
             player->CastSpell(target, SPELL_SPECTRE_ROOT, true);
+        // Casting Endbringer marks the caster's position as a Gravesite.
+        if (id == SPELL_ENDBRINGER && target == player && player->HasAura(SPELL_GRAVESITE_PASSIVE))
+            player->CastSpell(player, SPELL_GRAVESITE_AREA, true);
+        // Gravesite (572213): "Direct critical strikes made against enemies
+        // within a Gravesite now deals Shadow damage." The area marker (804722)
+        // is dropped by the Endbringer cast below.
+        if (critical && damage && player->HasAura(SPELL_GRAVESITE_PASSIVE) &&
+            target->HasAura(SPELL_GRAVESITE_AREA, player->GetGUID()))
+            player->CastSpell(target, SPELL_GRAVESITE_HIT, true);
         if (spell->IsTriggered())
             return;
         uint32 root = sSpellMgr->GetFirstSpellInChain(id);
