@@ -28,7 +28,20 @@ enum MountainSpells : uint32
     Earthbreaker = 560147,
     GeodeBarrageDamage = 803138,
     Stonebound = 680415,
-    BoonOfTheTurtle = 500935
+    BoonOfTheTurtle = 500935,
+    Spiritbound = 681364
+};
+
+// Seismic abilities on the eight-second cooldown track. Cooldowns are
+// stored per spell id, so every rank is trimmed; entries that are not on
+// cooldown are untouched no-ops.
+constexpr uint32 SeismicAbilities[] = {
+    300693, 301276, 301277, 301278, 301279,                      // Seismic Smash
+    503258, 503259, 503260, 503261, 503262,                      // Seismic Crash
+    503263, 503264, 503265, 503266, 803981,
+    560171, 560172, 560173, 560174, 560175,                      // Seismic Spike
+    582532, 804433, 807093,
+    807432, 807843                                               // Seismic Grasp
 };
 
 class aura_ascension_blessed_by_earth : public AuraScript
@@ -386,6 +399,44 @@ class aura_ascension_stonebound : public AuraScript
     }
 };
 
+// Spiritbound (681364): avoiding an attack grants five Rage and trims one
+// second off every Seismic ability. The avoidance roll rides the proc
+// system like the other avoidance talents; the Rage gain and cooldown
+// trim happen in the proc hook.
+class aura_ascension_spiritbound : public AuraScript
+{
+    PrepareAuraScript(aura_ascension_spiritbound);
+
+    bool CheckProc(ProcEventInfo& event)
+    {
+        Unit* owner = GetTarget();
+        return owner->IsPlayer() && owner->getClass() == CLASS_WILDWALKER && owner->IsAlive() &&
+            event.GetActionTarget() == owner && event.GetActor() &&
+            !event.GetActor()->IsFriendlyTo(owner) &&
+            (event.GetHitMask() & (PROC_HIT_MISS | PROC_HIT_DODGE | PROC_HIT_PARRY));
+    }
+
+    void Reward(AuraEffect const*, ProcEventInfo&)
+    {
+        PreventDefaultAction();
+        Player* player = GetTarget()->ToPlayer();
+        if (!player)
+            return;
+        player->ModifyPower(POWER_RAGE, 50);
+        for (uint32 ability : SeismicAbilities)
+            player->ModifySpellCooldown(ability, -1000);
+    }
+
+    void Register() override
+    {
+        DoCheckProc += AuraCheckProcFn(aura_ascension_spiritbound::CheckProc);
+        OnEffectProc += AuraEffectProcFn(aura_ascension_spiritbound::Reward,
+            EFFECT_0, SPELL_AURA_PROC_TRIGGER_SPELL);
+        OnEffectProc += AuraEffectProcFn(aura_ascension_spiritbound::Reward,
+            EFFECT_1, SPELL_AURA_PROC_TRIGGER_SPELL);
+    }
+};
+
 class mountain_talent_metadata : public GlobalScript
 {
 public:
@@ -421,5 +472,6 @@ void AddSC_AscensionPrimalistMountain()
     RegisterSpellScript(aura_ascension_thanes_guidance);
     RegisterSpellScript(aura_ascension_earthbreaker);
     RegisterSpellScript(aura_ascension_stonebound);
+    RegisterSpellScript(aura_ascension_spiritbound);
     new mountain_talent_metadata();
 }
