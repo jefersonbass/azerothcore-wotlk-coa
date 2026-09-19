@@ -9,6 +9,7 @@
 #include "SpellAuraEffects.h"
 #include "SpellAuras.h"
 #include "SpellMgr.h"
+#include "SpellScript.h"
 #include <algorithm>
 #include <memory>
 #include <mutex>
