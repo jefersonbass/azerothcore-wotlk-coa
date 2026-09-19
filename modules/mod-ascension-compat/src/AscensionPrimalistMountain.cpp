@@ -30,6 +30,7 @@ enum MountainSpells : uint32
     MountainFury = 806185,
     Earthmaker = 560150,
     EarthDestroyer = 560508,
+    LegacyOfTheBronzebeards = 680424,
     EarthenAvatar = 680421,
     Stonebound = 680415,
     BoonOfTheTurtle = 500935,
@@ -410,6 +411,20 @@ class aura_ascension_earth_destroyer : public AuraScript
     void Register() override { }
 };
 
+// Legacy of the Bronzebeards (680424): Earthen Avatar is one hundred percent
+// more effective. Both authored effects are native spell modifiers against
+// Earthen Avatar's family mask (0x80000 in flag B): effect 0 adds a flat
+// minus one second through SPELLMOD_COOLDOWN and effect 1 adds ninety-nine
+// percent through SPELL_AURA_ADD_PCT_MODIFIER with SPELLMOD_ALL_EFFECTS,
+// which recalculates the passive aura's amounts through CalcValue. This
+// script only registers the talent binding.
+class aura_ascension_legacy_bronzebeards : public AuraScript
+{
+    PrepareAuraScript(aura_ascension_legacy_bronzebeards);
+
+    void Register() override { }
+};
+
 // Stonebound (680415): Boon of the Turtle and Earth's Rage are fifty
 // percent more effective while the passive is held. Both auras' amounts
 // are recalculated from the base on every application, so refreshes
@@ -572,5 +587,6 @@ void AddSC_AscensionPrimalistMountain()
     RegisterSpellScript(aura_ascension_spiritbound);
     RegisterSpellScript(aura_ascension_earthmaker);
     RegisterSpellScript(aura_ascension_earth_destroyer);
+    RegisterSpellScript(aura_ascension_legacy_bronzebeards);
     new mountain_talent_metadata();
 }
