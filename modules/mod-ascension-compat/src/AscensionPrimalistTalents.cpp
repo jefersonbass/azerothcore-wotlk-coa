@@ -36,6 +36,7 @@ enum PrimalistAbilitySpells : uint32
     SPELL_SEISMIC_CRASH = 503258,
     SPELL_ONE_WITH_THE_EARTH = 704402,
     SPELL_STONESHARD = 680448,
+    SPELL_ROCKSLIDE = 560154,
     SPELL_PRIMAL_SHAMANS_MASK = 800185,
     SPELL_GEODE = 804002,
     SPELL_TILLING_THE_EARTH = 680409,
@@ -359,6 +360,19 @@ public:
                         CalculatePct(player->GetMaxPower(POWER_MANA), 4));
             }
         }
+        // Rockslide (560154): Stoneshard has a fifteen percent chance to cast an
+        // additional time, and the extra stone can trigger Rockslide again. The
+        // authored proc trigger (effect 0, aura 42 triggering the 560155 recast
+        // helper) carries no proc flags in the DBC, so the chain never fires;
+        // the additional cast is rolled here on every successful Stoneshard hit.
+        if (hit.damage && player->HasAura(SPELL_ROCKSLIDE) &&
+            sSpellMgr->GetFirstSpellInChain(info->Id) == sSpellMgr->GetFirstSpellInChain(SPELL_STONESHARD) &&
+            roll_chance_i(15))
+        {
+            SpellCastTargets targets;
+            targets.SetUnitTarget(target);
+            player->CastSpell(targets, sSpellMgr->GetSpellInfo(info->Id), nullptr, TRIGGERED_FULL_MASK);
+        }
         // Mountain Mover (805643): Wildclaw deals five percent more damage per
         // stack; the stacks are consumed when the cast completes.
         if (hit.damage && player->HasAura(SPELL_MOUNTAIN_MOVER_STACKS) &&
@@ -445,6 +459,18 @@ void ApplyAscensionPrimalistTalentsContract(SpellInfo* info)
         // would index the handler table out of range. Pin it explicitly.
         if (uint32(info->Effects[1].ApplyAuraName) >= TOTAL_AURAS)
             info->Effects[1].ApplyAuraName = SPELL_AURA_MOD_MELEE_RANGED_HASTE;
+    }
+    if (info->Id == 681494)
+    {
+        // Whispers of the Earth: effect 0 is filler — an Agility drop (aura 137,
+        // misc 3, amount -1) that nothing in the tooltip mentions — so zero it.
+        // Effect 1 is the authored cast-time cut (aura 107, op SPELLMOD_CASTING_TIME,
+        // flat -301 = 0.3 sec) but its mask (0x200 in flags[1]) only covers the
+        // Stoneshard ranks; the tooltip also names Geode Barrage (flags[0] 0x800),
+        // so that bit is added to the same modifier.
+        info->Effects[0].Effect = SpellEffects(0);
+        info->Effects[0].ApplyAuraName = SPELL_AURA_NONE;
+        info->Effects[1].SpellClassMask = flag96(0x800, 0x200, 0);
     }
 }
 
