@@ -55,7 +55,7 @@ class spell_ascension_starcaller_prayer_of_elune : public SpellScript
     static constexpr uint32 SPELL_PRAYER_OF_ELUNE = 801987;
     static constexpr uint32 SPELL_FINAL_PRAYER = 704745;
 
-    void AddFinalPrayer()
+    void AddFinalPrayer(SpellEffIndex /*effIndex*/)
     {
         Player* player = GetCaster()->ToPlayer();
         if (!player || !GetHitUnit() || !player->HasAura(SPELL_FINAL_PRAYER))
