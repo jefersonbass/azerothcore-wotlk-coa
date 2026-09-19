@@ -33,6 +33,7 @@ enum PrimalistAbilitySpells : uint32
     SPELL_SEISMIC_CRASH = 503258,
     SPELL_ONE_WITH_THE_EARTH = 704402,
     SPELL_STONESHARD = 680448,
+    SPELL_ROCKSLIDE = 560154,
     SPELL_PRIMAL_SHAMANS_MASK = 800185,
     SPELL_GEODE = 804002,
     SPELL_TILLING_THE_EARTH = 680409,
@@ -337,6 +338,19 @@ public:
                     player->ModifyPower(POWER_MANA,
                         CalculatePct(player->GetMaxPower(POWER_MANA), 4));
             }
+        }
+        // Rockslide (560154): Stoneshard has a fifteen percent chance to cast an
+        // additional time, and the extra stone can trigger Rockslide again. The
+        // authored proc trigger (effect 0, aura 42 triggering the 560155 recast
+        // helper) carries no proc flags in the DBC, so the chain never fires;
+        // the additional cast is rolled here on every successful Stoneshard hit.
+        if (hit.damage && player->HasAura(SPELL_ROCKSLIDE) &&
+            sSpellMgr->GetFirstSpellInChain(info->Id) == sSpellMgr->GetFirstSpellInChain(SPELL_STONESHARD) &&
+            roll_chance_i(15))
+        {
+            SpellCastTargets targets;
+            targets.SetUnitTarget(target);
+            player->CastSpell(targets, sSpellMgr->GetSpellInfo(info->Id), nullptr, TRIGGERED_FULL_MASK);
         }
         // Mountain Mover (805643): Wildclaw deals five percent more damage per
         // stack; the stacks are consumed when the cast completes.
