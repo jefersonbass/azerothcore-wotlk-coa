@@ -36,7 +36,8 @@ enum BloodmageTalentSpells : uint32
     SPELL_ETERNAL_CURSE = 800157,
     SPELL_ETERNAL_CURSE_ARMOR = 804320,
     SPELL_CURSED_BLOOD = 681792,
-    SPELL_CURSED_BLOOD_DEBUFF = 803722
+    SPELL_CURSED_BLOOD_DEBUFF = 803722,
+    SPELL_SANGUINE_SCION = 807292
 };
 
 // Every creature Animated Blood can leave behind: worms, parasites and the rank 3 amalgam.
@@ -318,6 +319,15 @@ public:
             info->Attributes |= SPELL_ATTR0_PASSIVE;
             info->Effects[EFFECT_1].DieSides = 1;
             info->Effects[EFFECT_2].DieSides = 1;
+            return;
+        }
+        if (info->Id == SPELL_SANGUINE_SCION)
+        {
+            // "Increases the critical strike chance of Sanguine Mend and
+            // Bloodbolt by 10%." The shipped mask matches neither spell, so
+            // rekey to their union: Sanguine Mend (word0 0x80000), Bloodbolt
+            // (word1 0x20000).
+            info->Effects[EFFECT_0].SpellClassMask = flag96(0x80000, 0x20000, 0);
             return;
         }
         if (info->Id != SPELL_VAMPIRIC_POOLS_LEECH ||

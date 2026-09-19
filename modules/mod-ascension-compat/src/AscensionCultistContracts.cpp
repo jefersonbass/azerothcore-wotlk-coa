@@ -118,6 +118,11 @@ void ApplyContracts(SpellInfo* info)
         dummy(0);
     if (id == 681106 || id == 707753)
         dummy(0);
+    if (id == 706179)
+        // Moment of Clarity's Sanity Tap bonus ships with an empty mask, so
+        // it would amplify every Cultist spell; key it to Sanity Tap's own
+        // family bit. The pushback half is already native.
+        info->Effects[1].SpellClassMask = flag96(0x1000, 0, 0);
     if (id == 300277)
         aura(2, SPELL_AURA_MOD_CRIT_DAMAGE_BONUS, 0, SPELL_SCHOOL_MASK_ALL, TARGET_UNIT_CASTER);
     if (id == 520326)
