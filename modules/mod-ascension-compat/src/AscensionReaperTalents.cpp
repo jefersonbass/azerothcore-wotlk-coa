@@ -48,7 +48,7 @@ class spell_ascension_reaper_limbo : public SpellScript
     // health and Runic Power." Heal %, Energize % and School Immunity run
     // natively; the shell aura (805872, carrying the immunity and its client
     // visual) is the missing cast.
-    void AfterCast()
+    void GrantShell()
     {
         if (Unit* caster = GetCaster())
             caster->CastSpell(caster, SPELL_LIMBO_SHELL, true);
@@ -56,7 +56,7 @@ class spell_ascension_reaper_limbo : public SpellScript
 
     void Register() override
     {
-        AfterCast += SpellCastFn(spell_ascension_reaper_limbo::AfterCast);
+        AfterCast += SpellCastFn(spell_ascension_reaper_limbo::GrantShell);
     }
 };
 
