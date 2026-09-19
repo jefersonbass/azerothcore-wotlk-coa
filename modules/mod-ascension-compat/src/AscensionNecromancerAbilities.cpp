@@ -249,7 +249,13 @@ class necromancer_casts : public AllSpellScript
             Cast(player, player, 706504);
         if (Command(info))
         {
-            if (Chance(player, 300940))
+            // Issue 834: Frigid Winds (504357) adds 5% to the Refreshing
+            // Chill (300940) trigger chance. The talent's native flat-mod
+            // aura (107, op 18) carries an empty mask and never reaches the
+            // scripted Chance() roll, so pass it as the multiplier: with the
+            // talent, the 20% base becomes 25%.
+            float chillChance = player->HasAura(504357) ? 1.25f : 1.0f;
+            if (Chance(player, 300940, chillChance))
             {
                 Reduce(player, 801760, INT32_MAX);
                 Ready(player, 800979);
