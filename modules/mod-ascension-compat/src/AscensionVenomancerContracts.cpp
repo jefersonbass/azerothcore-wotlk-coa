@@ -178,6 +178,20 @@ void ApplyContracts(SpellInfo* info)
         info->Effects[0].Effect = 0;
     if (id == 706038 || id == 804984 || id == 503852 || id == 504704 || id == 574353 || id == 706015)
         dummy(0);
+    if (id == 800894)
+    {
+        // Issue 823: Fury of Anub'Rekhan ships without SPELL_ATTR0_PASSIVE,
+        // so the learn/login passes never applied its max-resource auras,
+        // and its BasePoints are display-minus-1 with DieSides 0. Mark
+        // passive and shift DieSides to 1 so all three effects resolve as
+        // the tooltip's 10% (aura 132 misc 0 = mana, misc 1 = Rage, misc 3
+        // = Energy). The native MOD_INCREASE_ENERGY_PERCENT handler applies
+        // them.
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+        info->Effects[EFFECT_0].DieSides = 1;
+        info->Effects[EFFECT_1].DieSides = 1;
+        info->Effects[EFFECT_2].DieSides = 1;
+    }
     if (id == 503850)
     {
         // Issue 802: Fury of Shadra ships without SPELL_ATTR0_PASSIVE, so the
