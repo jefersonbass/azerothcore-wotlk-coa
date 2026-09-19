@@ -460,6 +460,18 @@ void ApplyAscensionPrimalistTalentsContract(SpellInfo* info)
         if (uint32(info->Effects[1].ApplyAuraName) >= TOTAL_AURAS)
             info->Effects[1].ApplyAuraName = SPELL_AURA_MOD_MELEE_RANGED_HASTE;
     }
+    if (info->Id == 805335)
+    {
+        // Golem Form: effect 0 is a shapeshift into form 59, which has no
+        // registered form entry — the display is already handled by the
+        // transform in effect 2, so the slot is repurposed as the authored
+        // +20 percent haste (aura 216, HandleModCastingSpeed). The
+        // cast-while-moving half is granted in Unit::CanCastSpellWhileMoving.
+        info->Effects[0].ApplyAuraName = SPELL_AURA_HASTE_SPELLS;
+        info->Effects[0].MiscValue = 0;
+        info->Effects[0].BasePoints = 20;
+        info->Effects[0].DieSides = 0;
+    }
     if (info->Id == 681494)
     {
         // Whispers of the Earth: effect 0 is filler — an Agility drop (aura 137,
