@@ -71,6 +71,17 @@ void ApplyContracts(SpellInfo* info)
         info->Effects[0].TriggerSpell = 0;
         dummy(1);
     }
+    if (id == 680774)
+    {
+        // Elune's Presence: "Gain the blessing of a goddess, granting all
+        // party or raid members within 40 yds 20% temporary maximum health
+        // for 10 sec." The DBC record is already correct (aura 133
+        // MOD_INCREASE_HEALTH_PERCENT, bp 19, raid-around-caster target 56);
+        // it only lacks the passive-style application the learn/login passes
+        // need, and its BasePoints are display-minus-1 with DieSides 0.
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+        info->Effects[EFFECT_0].DieSides = 1;
+    }
     if (id == 706301)
         dummy(0);
     if (id == 704389 || id == 572416)
