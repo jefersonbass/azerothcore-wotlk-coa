@@ -178,6 +178,20 @@ void ApplyContracts(SpellInfo* info)
         info->Effects[0].Effect = 0;
     if (id == 706038 || id == 804984 || id == 503852 || id == 504704 || id == 574353 || id == 706015)
         dummy(0);
+    if (id == 503850)
+    {
+        // Issue 802: Fury of Shadra ships without SPELL_ATTR0_PASSIVE, so the
+        // learn/login passes never applied its versus-aurastate auras, and its
+        // BasePoints are display-minus-1 with DieSides 0. Mark passive and
+        // shift DieSides to 1 so both effects resolve as the tooltip's 15%.
+        // Native handlers cover both halves: aura 303 (damage) in
+        // Unit::SpellDamageBonus/MeleeDamageBonus and aura 360 (healing) in
+        // Unit::SpellHealingBonusDone, both keyed on aurastate 13
+        // (AURA_STATE_HEALTHLESS_35_PERCENT).
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+        info->Effects[EFFECT_0].DieSides = 1;
+        info->Effects[EFFECT_1].DieSides = 1;
+    }
     if (id == 805104)
     {
         dummy(0);

@@ -240,6 +240,17 @@ void ApplyContracts(SpellInfo* info)
     // Chosen One pushed it to three.
     if (id == Mimic && info->Effects[EFFECT_2].Effect == SPELL_EFFECT_SUMMON)
         info->Effects[EFFECT_2].BasePoints = 1;
+    if (id == 572871)
+    {
+        // Issue 803: Presence of the Loa ships without SPELL_ATTR0_PASSIVE,
+        // so the learn/login passes never applied its crit aura, and its
+        // BasePoints are display-minus-1 with DieSides 0. Mark passive and
+        // shift DieSides to 1 so the value resolves as the tooltip's 4%.
+        // The native SPELL_AURA_MOD_CRIT_PCT handler covers both melee and
+        // spell crit (Player::GetMeleeCritChance, Unit::GetUnitSpellCriticalChance).
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+        info->Effects[EFFECT_0].DieSides = 1;
+    }
     if (Family(info, 0, 4))
     {
         // Keep all victims in one cast, including rank coefficients and actual hit accounting.
