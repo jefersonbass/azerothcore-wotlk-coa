@@ -152,6 +152,30 @@ void ApplyContracts(SpellInfo* info)
     if (id == 804337)
         // The native DBC targets the ~1.5s global cooldown instead of ability cooldowns.
         info->Effects[EFFECT_0].MiscValue = SPELLMOD_COOLDOWN;
+    if (id == 805807)
+    {
+        // Issue 805: Fury of the North's speed buff. The DBC ships a DUMMY
+        // aura with display-minus-1 BasePoints; retarget it as a 40%
+        // movement-speed increase tied to the enrage duration.
+        info->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_MOD_INCREASE_SPEED;
+        info->Effects[EFFECT_0].BasePoints = 39;
+        info->Effects[EFFECT_0].DieSides = 1;
+    }
+    if (id == 560938)
+    {
+        // Issue 805: Fury of the North ships without SPELL_ATTR0_PASSIVE, so
+        // the learn/login passes never applied its flat-mod auras. Mark
+        // passive. Effect 0 (op 1, bp 5999) and effect 2 (op 1, bp 1999) are
+        // duration mods whose authored values are display-minus-1 with
+        // DieSides 0; shifting DieSides to 1 resolves them as 6000ms (+6s)
+        // and 2000ms. Effect 1 (op 23, bp 39) resolves as the tooltip's 40%
+        // movement speed. The duration half is applied in script on the
+        // Ramhorn Rage self-buff (805805); the speed half rides natively.
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+        info->Effects[EFFECT_0].DieSides = 1;
+        info->Effects[EFFECT_1].DieSides = 1;
+        info->Effects[EFFECT_2].DieSides = 1;
+    }
 }
 }
 
@@ -198,6 +222,19 @@ class aura_ascension_barbarian_lifecycle : public AuraScript
         if (GetId() == 805804)
             if (Unit* caster = GetCaster())
                 caster->AddAura(805843, GetTarget());
+        // Issue 805: Fury of the North extends the Ramhorn Rage enrage
+        // (805804) by 6s and adds 40% movement speed for its duration. The
+        // 805804 aura carries the lifecycle script binding, so extend +
+        // buff here when the caster owns the talent.
+        if (GetId() == 805804)
+            if (Unit* caster = GetCaster())
+                if (caster->HasAura(560938))
+                {
+                    Extend(caster, 805804, 6000, 0);
+                    caster->CastSpell(caster, 805807, true);
+                    if (Aura* speed = caster->GetAura(805807, caster->GetGUID()))
+                        speed->SetDuration(GetAura()->GetDuration());
+                }
         if (Family(GetSpellInfo(), 0, 262144))
             if (Player* caster = Owner(GetCaster()))
             {
