@@ -70,6 +70,19 @@ void ApplyContracts(SpellInfo* info)
         info->AttributesEx2 &= ~SPELL_ATTR2_CANT_CRIT; // Holy Form may crit and trigger Redeemer once.
     if (id == 807058)
         info->Effects[0].TargetA = SpellImplicitTargetInfo(TARGET_UNIT_TARGET_ENEMY);
+    if (id == 807507)
+    {
+        // Issue 820: Valkyr's Grip ships without SPELL_ATTR0_PASSIVE, so the
+        // learn/login passes never applied its auras, and its BasePoints are
+        // display-minus-1 with DieSides 0. Mark passive and shift DieSides
+        // to 1 so effect 0 resolves as the tooltip's 31% off-hand damage
+        // (aura 122, native MOD_OFFHAND_DAMAGE_PCT path) and effect 1 as
+        // -15% disarm duration (aura 232 misc 3 = MECHANIC_DISARM, native
+        // MECHANIC_DURATION_MOD path).
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+        info->Effects[EFFECT_0].DieSides = 1;
+        info->Effects[EFFECT_1].DieSides = 1;
+    }
     if (id == 704911)
     {
         info->Effects[0].TargetA = SpellImplicitTargetInfo(TARGET_UNIT_TARGET_ALLY);
