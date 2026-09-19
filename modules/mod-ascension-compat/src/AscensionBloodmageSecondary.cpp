@@ -374,14 +374,15 @@ public:
             bank->ChangeAmount(bank->GetAmount() + int32(damage));
     }
 
-    void OnAuraRemove(Unit* unit, Aura* aura, AuraRemoveMode mode) override
+    void OnAuraRemove(Unit* unit, AuraApplication* aurApp, AuraRemoveMode mode) override
     {
-        if (aura->GetId() != SPELL_INFUSE || mode != AURA_REMOVE_BY_EXPIRE || !unit)
+        Aura const* aura = aurApp ? aurApp->GetBase() : nullptr;
+        if (!aura || aura->GetId() != SPELL_INFUSE || mode != AURA_REMOVE_BY_EXPIRE || !unit)
             return;
         Player* infuser = ObjectAccessor::FindConnectedPlayer(aura->GetCasterGUID());
         if (!infuser || !infuser->IsAlive() || !infuser->IsInWorld())
             return;
-        if (AuraEffect* bank = aura->GetEffect(EFFECT_0); bank && bank->GetAmount() > 0)
+        if (AuraEffect const* bank = aura->GetEffect(EFFECT_0); bank && bank->GetAmount() > 0)
             infuser->CastCustomSpell(SPELL_INFUSE_BURST, SPELLVALUE_BASE_POINT0,
                 bank->GetAmount(), unit, true);
     }
