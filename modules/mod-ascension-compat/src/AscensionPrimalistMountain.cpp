@@ -31,6 +31,7 @@ enum MountainSpells : uint32
     Earthmaker = 560150,
     EarthDestroyer = 560508,
     LegacyOfTheBronzebeards = 680424,
+    EverythingsANail = 680405,
     EarthenAvatar = 680421,
     Stonebound = 680415,
     BoonOfTheTurtle = 500935,
@@ -425,6 +426,19 @@ class aura_ascension_legacy_bronzebeards : public AuraScript
     void Register() override { }
 };
 
+// Everythings A Nail (680405): Mountain Hammer deals fifty percent more
+// damage. The authored effect is a native spell modifier (aura 108,
+// SPELLMOD_DAMAGE) against Mountain Hammer's family mask (0x100000 in
+// flag A, carried by 681130 and ranks 681420-681424), applied through
+// MeleeDamageBonusDone once the passive aura is held. This script only
+// registers the talent binding.
+class aura_ascension_everythings_a_nail : public AuraScript
+{
+    PrepareAuraScript(aura_ascension_everythings_a_nail);
+
+    void Register() override { }
+};
+
 // Stonebound (680415): Boon of the Turtle and Earth's Rage are fifty
 // percent more effective while the passive is held. Both auras' amounts
 // are recalculated from the base on every application, so refreshes
@@ -588,5 +602,6 @@ void AddSC_AscensionPrimalistMountain()
     RegisterSpellScript(aura_ascension_earthmaker);
     RegisterSpellScript(aura_ascension_earth_destroyer);
     RegisterSpellScript(aura_ascension_legacy_bronzebeards);
+    RegisterSpellScript(aura_ascension_everythings_a_nail);
     new mountain_talent_metadata();
 }
