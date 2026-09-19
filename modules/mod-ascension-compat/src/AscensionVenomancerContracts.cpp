@@ -143,6 +143,17 @@ void ApplyContracts(SpellInfo* info)
         info->Effects[0].Effect = 0;
     if (id == 706038 || id == 804984 || id == 503852 || id == 504704 || id == 574353 || id == 706015)
         dummy(0);
+    if (id == 706002)
+    {
+        // Issue 846: Reinforced Exoskeleton ships with PASSIVE already set
+        // (Attributes 0x44d), so the aura applies; only its BasePoints are
+        // display-minus-1 with DieSides 0. Shift DieSides to 1 so effect 0
+        // resolves as the tooltip's 3% max health (aura 133 misc 2 =
+        // POWER_HEALTH, native MOD_INCREASE_HEALTH_PERCENT path) and effect
+        // 1 as 3% dodge (aura 49, native MOD_DODGE_PERCENT path).
+        info->Effects[EFFECT_0].DieSides = 1;
+        info->Effects[EFFECT_1].DieSides = 1;
+    }
     if (id == 800894)
     {
         // Issue 823: Fury of Anub'Rekhan ships without SPELL_ATTR0_PASSIVE,
