@@ -350,9 +350,18 @@ void MarkedHeal(Player* player)
 void Aspect(Player* player, Unit* target, uint32 damage, bool forced)
 {
     float bonus = player->HasAura(806739) ? float(Amount(806739)) : 0.0f;
+    // Issue 974: Aspect Mastery adds +5%/+10% trigger chance to every Aspect.
+    // The talent's native CHANCE_OF_SUCCESS mod never reaches the scripted
+    // roll in Chance(), so add it here (the effectiveness half engages
+    // natively via the aura-108 spellmod once the talent is passive).
+    float mastery = 0.0f;
+    if (player->HasAura(704389, player->GetGUID()))
+        mastery = 5.0f;
+    else if (player->HasAura(572416, player->GetGUID()))
+        mastery = 10.0f;
     for (uint32 id : {801128, 805356, 801123, 800510, 803887, 803888})
     {
-        if (!player->HasAura(id) || (!forced && !Chance(player, id, 0, id == 801128 ? bonus : 0)))
+        if (!player->HasAura(id) || (!forced && !Chance(player, id, 0, (id == 801128 ? bonus : 0.0f) + mastery)))
             continue;
         Stars(player, target);
         if (id == 801128)
