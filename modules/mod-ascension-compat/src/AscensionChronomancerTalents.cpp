@@ -19,7 +19,9 @@ enum ChronomancerTalentSpells : uint32
     SPELL_AEON_OBLIVION = 806293,
     SPELL_DIMENSIONAL_DIVERGENCE = 802790,
     SPELL_DIVERGENCE_SLOW = 803301,
-    SPELL_DIVERGENCE_SPEED = 803703
+    SPELL_DIVERGENCE_SPEED = 803703,
+    SPELL_RIPPLING_POWER = 806300,
+    SPELL_RIPPLING_POWER_RANK_2 = 807893
 };
 
 bool IsAeonActivation(uint32 id)
@@ -174,6 +176,18 @@ void ApplyAscensionChronomancerTalentContracts(SpellInfo* info)
         info->Effects[EFFECT_1].Effect = 0;
         info->Effects[EFFECT_2].Effect = 0;
         info->_InitializeExplicitTargetMask();
+    }
+    if (info->Id == SPELL_RIPPLING_POWER || info->Id == SPELL_RIPPLING_POWER_RANK_2)
+    {
+        // "Increases your Spirit by 8%/15%." Both ranks ship without
+        // SPELL_ATTR0_PASSIVE, so the talent learn and the login-load pass
+        // (Player::addSpell casts only IsPassive spellbooks) never applied the
+        // auras. Mark passive and shift DieSides to 1 so BasePoints resolve as
+        // the displayed values: Intellect -1+1=0 (a no-op, not a -1% penalty)
+        // and Spirit 7+1=8 / 14+1=15.
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+        info->Effects[EFFECT_0].DieSides = 1;
+        info->Effects[EFFECT_1].DieSides = 1;
     }
     if (info->Id != SPELL_SHIMMER)
         return;
