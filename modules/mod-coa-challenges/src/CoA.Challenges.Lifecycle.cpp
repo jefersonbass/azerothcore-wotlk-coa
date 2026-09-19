@@ -227,6 +227,7 @@ namespace CoAChallenges
 
         // DB rows.
         CharacterDatabase.DirectExecute("DELETE FROM coa_character_challenge WHERE guid = {}", guid);
+        ClearCharChallengeCache(guid);
         CharacterDatabase.DirectExecute("DELETE FROM coa_character_objective WHERE guid = {}", guid);
         CharacterDatabase.DirectExecute("DELETE FROM coa_challenge_completion WHERE guid = {}", guid);
         CharacterDatabase.DirectExecute("DELETE FROM coa_challenge_failure WHERE guid = {}", guid);
@@ -512,6 +513,7 @@ namespace CoAChallenges
             "REPLACE INTO coa_character_challenge (guid, challengeId, level, deaths, hunger, thirst, startTime) "
             "VALUES ({}, {}, {}, 0, 0, 0, UNIX_TIMESTAMP())",
             guid, challengeID, level);
+        ClearCharChallengeCache(guid);
         ApplyChallengeSpell(player, challengeID, level);
         TrackHunger(player, challengeID);
         TrackFatigue(player, challengeID);
@@ -560,6 +562,7 @@ namespace CoAChallenges
         CharacterDatabase.DirectExecute(
             "DELETE FROM coa_character_challenge WHERE guid = {} AND challengeId = {}",
             guid, challengeID);
+        ClearCharChallengeCache(guid);
         RemoveChallengeSpell(player, challengeID);
         RemoveMeterAuras(player);
         RemoveHungerChallenge(player, challengeID);
@@ -595,22 +598,67 @@ namespace CoAChallenges
         return CoAParse::ListContains(list, rule);
     }
 
-    bool PlayerHasRule(Player* player, char const* rule)
-    {
-        if (!player)
-            return false;
-        uint32 guid = player->GetGUID().GetCounter();
+    // In-memory mirror of coa_character_challenge, for the same reason the game mode mask has one:
+    // PlayerHasRule is called from the combat hooks and must not reach the database.
+    std::mutex CharChallengeMutex;
+    std::unordered_map<uint32, std::vector<std::pair<uint32, uint32>>> CharChallengeCache;
 
+    std::vector<std::pair<uint32, uint32>> LoadCharChallenges(uint32 guid)
+    {
+        std::vector<std::pair<uint32, uint32>> active;
         if (QueryResult r = CharacterDatabase.Query(
-                "SELECT challengeId FROM coa_character_challenge WHERE guid = {}", guid))
+                "SELECT challengeId, level FROM coa_character_challenge WHERE guid = {}", guid))
         {
             do
             {
-                uint32 cid = r->Fetch()[0].Get<uint32>();
-                std::string rules = ChallengeRules(cid);
-                if (RuleListContains(rules, rule))
-                    return true;
+                Field* f = r->Fetch();
+                active.emplace_back(f[0].Get<uint32>(), f[1].Get<uint32>());
             } while (r->NextRow());
+        }
+        return active;
+    }
+
+    // The character's active challenges, kept in memory the way the game mode mask already is.
+    // PlayerHasRule runs from the combat hooks - every hit, every heal, every melee roll - and
+    // asking the database there put a synchronous query on the map threads: measured at 18 000
+    // SELECT a second on a realm with a thousand characters fighting, against an empty table.
+    //
+    // A copy is returned on purpose. A reference would point inside a map that another map
+    // thread can rehash under the caller, which is the failure #4021 had to fix elsewhere.
+    std::vector<std::pair<uint32, uint32>> CachedCharChallenges(uint32 guid)
+    {
+        {
+            std::lock_guard<std::mutex> lock(CharChallengeMutex);
+            auto it = CharChallengeCache.find(guid);
+            if (it != CharChallengeCache.end())
+                return it->second;
+        }
+        std::vector<std::pair<uint32, uint32>> active = LoadCharChallenges(guid);
+        std::lock_guard<std::mutex> lock(CharChallengeMutex);
+        CharChallengeCache[guid] = active;
+        return active;
+    }
+
+    // Called wherever the module adds or removes a row of coa_character_challenge, and at logout.
+    void ClearCharChallengeCache(uint32 guid)
+    {
+        std::lock_guard<std::mutex> lock(CharChallengeMutex);
+        CharChallengeCache.erase(guid);
+    }
+
+    bool PlayerHasRule(Player* player, char const* rule)
+    {
+        // The combat hooks read the rules through here, and they are registered whatever the
+        // setting says: without this an operator who turns the module off still pays for it.
+        if (!player || !sConfigMgr->GetOption<bool>("CoAChallenges.Enable", true))
+            return false;
+        uint32 guid = player->GetGUID().GetCounter();
+
+        for (auto const& [cid, unusedLevel] : CachedCharChallenges(guid))
+        {
+            std::string rules = ChallengeRules(cid);
+            if (RuleListContains(rules, rule))
+                return true;
         }
 
         // Game mode scope: a mode that is on without a trial applies its base
@@ -635,32 +683,23 @@ namespace CoAChallenges
         if (!player)
             return 0;
         uint32 guid = player->GetGUID().GetCounter();
-        QueryResult r = CharacterDatabase.Query(
-            "SELECT challengeId, level FROM coa_character_challenge WHERE guid = {}", guid);
-        if (!r)
-            return 0;
-        do
+        for (auto const& [cid, challengeLevel] : CachedCharChallenges(guid))
         {
-            Field* f = r->Fetch();
-            uint32 cid = f[0].Get<uint32>();
             std::string rules = ChallengeRules(cid);
             if (RuleListContains(rules, rule))
             {
-                level = f[1].Get<uint32>();
+                level = challengeLevel;
                 return cid;
             }
-        } while (r->NextRow());
+        }
         return 0;
     }
 
     std::set<uint32> ActiveChallenges(uint32 guid)
     {
         std::set<uint32> out;
-        if (QueryResult r = CharacterDatabase.Query(
-                "SELECT challengeId FROM coa_character_challenge WHERE guid = {}", guid))
-        {
-            do { out.insert(r->Fetch()[0].Get<uint32>()); } while (r->NextRow());
-        }
+        for (auto const& [cid, unusedLevel] : CachedCharChallenges(guid))
+            out.insert(cid);
         return out;
     }
 
@@ -1008,6 +1047,7 @@ namespace CoAChallenges
             "VALUES ({}, {}, {}, UNIX_TIMESTAMP(), {})", guid, challengeID, level, startTime);
         CharacterDatabase.DirectExecute(
             "DELETE FROM coa_character_challenge WHERE guid = {} AND challengeId = {}", guid, challengeID);
+        ClearCharChallengeCache(guid);
         RemoveChallengeSpell(player, challengeID);
         RemoveMeterAuras(player);
         RemoveHungerChallenge(player, challengeID);
@@ -1234,6 +1274,7 @@ namespace CoAChallenges
         CharacterDatabase.DirectExecute(
             "DELETE FROM coa_character_challenge WHERE guid = {} AND challengeId = {}",
             guid, challengeID);
+        ClearCharChallengeCache(guid);
         RemoveChallengeSpell(player, challengeID);
         RemoveMeterAuras(player);
         RemoveHungerChallenge(player, challengeID);

@@ -44,6 +44,43 @@ TinkerState& State(Player* player)
     // rehashing the map cannot leave that caller writing into freed memory.
     return *states.try_emplace(player->GetGUID(), std::make_unique<TinkerState>()).first->second;
 }
+bool NotifyAttack(Player* player, Unit* target)
+{
+    if (!player || !target || !player->IsValidAttackTarget(target))
+        return false;
+    State(player).focus = target->GetGUID();
+    return true;
+}
+bool NotifySpellAttack(Player* player, SpellInfo const* spellInfo, Unit* target)
+{
+    if (!spellInfo || spellInfo->SpellFamilyName != 34 || spellInfo->IsPositive() || !NotifyAttack(player,target))
+        return false;
+    Unit* victim = player->GetVictim();
+    State(player).observedVictim = victim ? victim->GetGUID() : ObjectGuid();
+    return true;
+}
+void ObserveAttack(Player* player)
+{
+    if (!player)
+        return;
+    auto& state = State(player);
+    Unit* victim = player->GetVictim();
+    ObjectGuid victimGuid = victim ? victim->GetGUID() : ObjectGuid();
+    if (victimGuid != state.observedVictim)
+    {
+        state.observedVictim = victimGuid;
+        NotifyAttack(player,victim);
+    }
+    Spell* autoRepeat = player->GetCurrentSpell(CURRENT_AUTOREPEAT_SPELL);
+    Unit* rangedTarget = autoRepeat && autoRepeat->GetSpellInfo()->IsAutoRepeatRangedSpell() ?
+        autoRepeat->m_targets.GetUnitTarget() : nullptr;
+    ObjectGuid rangedGuid = rangedTarget ? rangedTarget->GetGUID() : ObjectGuid();
+    if (rangedGuid != state.observedAutoRepeatTarget)
+    {
+        state.observedAutoRepeatTarget = rangedGuid;
+        NotifyAttack(player,rangedTarget);
+    }
+}
 bool Named(SpellInfo const* info, uint32 root)
 {
     return info && sSpellMgr->GetFirstSpellInChain(info->Id) == sSpellMgr->GetFirstSpellInChain(root);
@@ -329,6 +366,8 @@ public:
     void OnPlayerUpdate(Player* player, uint32 diff) override
     {
         using namespace AscensionTinker;
+        if (Owner(player) == player)
+            ObserveAttack(player);
         auto& state = State(player);
         state.timers.Update(diff);
         while (state.timers.ExecuteEvent()) { }

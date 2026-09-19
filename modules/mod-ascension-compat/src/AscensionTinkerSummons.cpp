@@ -370,19 +370,12 @@ struct npc_ascension_tinker_device : ScriptedAI
             return target && target->IsAlive() && player->IsValidAttackTarget(target) &&
                 me->IsWithinDistInMap(target,range) && me->CanSeeOrDetect(target) && me->IsWithinLOSInMap(target);
         };
-        if (Unit* target = ObjectAccessor::GetUnit(*me,focus); valid(target))
+        // The shared focus is updated by explicit hostile Tinker casts and by changes to
+        // the player's actual attack victim. It is deliberately not inferred from selection,
+        // combat membership or nearby hostility.
+        if (Unit* target = ObjectAccessor::GetUnit(*me,State(player).focus); valid(target))
             return target;
-        if (Unit* target = player->GetVictim(); valid(target))
-            return target;
-        // Spell and ranged attacks need not set the player's melee victim.
-        if (Unit* target = player->GetSelectedUnit(); valid(target) && player->IsInCombatWith(target))
-            return target;
-        Unit* nearest = nullptr;
-        for (Unit* target : Nearby(me,range))
-            if (valid(target) && (player->IsInCombatWith(target) || player->IsHostileTo(target)) &&
-                (!nearest || me->GetExactDist(target) < me->GetExactDist(nearest)))
-                nearest = target;
-        return nearest;
+        return nullptr;
     }
     void UpdateTurret(Player* player)
     {

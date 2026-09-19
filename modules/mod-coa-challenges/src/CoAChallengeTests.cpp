@@ -142,6 +142,7 @@ namespace CoAChallenges
         CharacterDatabase.DirectExecute(
             "REPLACE INTO coa_character_challenge (guid, challengeId, level, deaths, hunger, thirst, startTime) "
             "VALUES ({}, {}, 1, 0, 0, 0, UNIX_TIMESTAMP())", guid, challengeId);
+        ClearCharChallengeCache(guid);
         ApplyChallengeSpell(player, challengeId);
         TrackHunger(player, challengeId);
         SendChallengeResponse(player, SMSG_COA_CHALLENGE_START_RESPONSE,
@@ -1881,6 +1882,7 @@ namespace CoAChallenges
                 "SELECT challengeId FROM coa_character_challenge WHERE guid = {}", guid))
             do { original.push_back(r->Fetch()[0].Get<uint32>()); } while (r->NextRow());
         CharacterDatabase.DirectExecute("DELETE FROM coa_character_challenge WHERE guid = {}", guid);
+        ClearCharChallengeCache(guid);
 
         uint32 divergences = 0;
         for (uint32 id : ids)
@@ -1892,11 +1894,13 @@ namespace CoAChallenges
             CharacterDatabase.DirectExecute(
                 "INSERT INTO coa_character_challenge (guid, challengeId, level, deaths) VALUES ({}, {}, 1, 0)",
                 guid, id);
+            ClearCharChallengeCache(guid);
             bool const manaAllowed = sScriptMgr->OnPlayerCanEnterManastorm(player);
             bool const guildAllowed = sScriptMgr->CanGuildSendBankList(
                 player->GetGuild(), player->GetSession(), 0, true);
             CharacterDatabase.DirectExecute(
                 "DELETE FROM coa_character_challenge WHERE guid = {} AND challengeId = {}", guid, id);
+            ClearCharChallengeCache(guid);
 
             if (manaAllowed == declaredMana || guildAllowed == declaredGuild)
             {
@@ -1911,6 +1915,7 @@ namespace CoAChallenges
             CharacterDatabase.DirectExecute(
                 "INSERT INTO coa_character_challenge (guid, challengeId, level, deaths) VALUES ({}, {}, 1, 0)",
                 guid, id);
+        ClearCharChallengeCache(guid);
 
         SendTestLine(player, "ruleaudit: {} IDs checked, {} divergence(s)", ids.size(), divergences);
     }
