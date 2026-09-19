@@ -120,6 +120,18 @@ void ApplyContracts(SpellInfo* info)
         info->Effects[id == 524854 ? EFFECT_2 : EFFECT_0].ApplyAuraName = SPELL_AURA_MOD_DAMAGE_PERCENT_TAKEN;
     if (id == 504478 || id == 500569)
         info->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_DUMMY;
+    if (id == 705477)
+    {
+        // Issue 804: Houndfeeder ships without SPELL_ATTR0_PASSIVE, so the
+        // learn/login passes never applied its crit aura, and its BasePoints
+        // are display-minus-1 with DieSides 0. Mark passive and shift
+        // DieSides to 1 so effect 0 resolves as the tooltip's 4% on the
+        // hunter. Effect 1 (APPLY_AURA_TO_SUMMONS) carries the same aura to
+        // the Shadow Hound through the native EffectApplyAreaAura path.
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+        info->Effects[EFFECT_0].DieSides = 1;
+        info->Effects[EFFECT_1].DieSides = 1;
+    }
     if (id == 804192 || id == 680275)
     {
         info->Effects[EFFECT_2].ApplyAuraName = SPELL_AURA_DUMMY;
