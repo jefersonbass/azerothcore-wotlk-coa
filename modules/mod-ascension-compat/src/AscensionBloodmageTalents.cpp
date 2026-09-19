@@ -292,6 +292,20 @@ public:
     {
         if (!info || info->SpellFamilyName != 26)
             return;
+        if (info->Id == 520493)
+        {
+            // Issue 828: Red Thirst is a Bloodlust-style raid haste (30%
+            // for 20s on allies in 40 yds, then the 804457 Worn Out lockout
+            // for 5 min). Its DBC already carries the right shape: effect 0
+            // aura 65 (cast haste), effect 1 aura 192 (melee/ranged haste),
+            // effect 2 trigger 804457, all on TARGET_UNIT_PARTY_CASTER (56).
+            // The only defect is display-minus-1 BasePoints with DieSides 0;
+            // shift DieSides to 1 so both haste halves resolve as the
+            // tooltip's 30%. The native aura handlers apply them.
+            info->Effects[EFFECT_0].DieSides = 1;
+            info->Effects[EFFECT_1].DieSides = 1;
+            return;
+        }
         if (info->Id == SPELL_CURSED_BLOOD)
         {
             // Issue 806: Cursed Blood ships without SPELL_ATTR0_PASSIVE, so the

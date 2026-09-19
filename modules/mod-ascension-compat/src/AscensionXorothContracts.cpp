@@ -235,6 +235,20 @@ void ApplyContracts(SpellInfo* info)
         dummy(0);
     if (id == 704987)
         dummy(1);
+    if (id == 560655)
+    {
+        // Issue 833: Hellfire Forgemaster ships without SPELL_ATTR0_PASSIVE,
+        // so the learn/login passes never applied its block-value aura, and
+        // its BasePoints are display-minus-1 with DieSides 0. Mark passive
+        // and shift DieSides to 1 so the value resolves as the tooltip's
+        // 30% (aura 150 = MOD_SHIELD_BLOCKVALUE_PCT, native
+        // HandleShieldBlockValuePercent path). The "60% increased chance to
+        // block fierce blows" half has no DBC slot; fierce blows are
+        // unblockable boss mechanics by design, so only the block-value half
+        // is implemented.
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+        info->Effects[EFFECT_0].DieSides = 1;
+    }
     if (id == 704981)
     {
         // Issue 811: Knight of Pestilence ships without SPELL_ATTR0_PASSIVE,

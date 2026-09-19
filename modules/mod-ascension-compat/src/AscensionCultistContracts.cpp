@@ -202,6 +202,19 @@ void ApplyContracts(SpellInfo* info)
         info->Effects[0].ApplyAuraName = SPELL_AURA_PERIODIC_DUMMY;
         info->Effects[0].TriggerSpell = 0;
     }
+    if (id == 706915)
+    {
+        // Issue 830: Cunning Nature ships without SPELL_ATTR0_PASSIVE, so
+        // the learn/login passes never applied its auras. Mark passive.
+        // Effect 0 (aura 333 misc 32 = SPELL_SCHOOL_MASK_SHADOW) resolves
+        // as the tooltip's 3% hit via the native
+        // ASCENSION_MOD_HIT_CHANCE_ALL_PCT handler; effect 1 (aura 10 misc
+        // 32) as -15% Shadow threat via the native MOD_THREAT handler.
+        // Effect 1's BasePoints are already the authored -15 (no DieSides
+        // shift needed); effect 0 is display-minus-1 with DieSides 0.
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+        info->Effects[EFFECT_0].DieSides = 1;
+    }
     if (id == 704895)
     {
         // Issue 808: Empire's Blessing ships without SPELL_ATTR0_PASSIVE, so
