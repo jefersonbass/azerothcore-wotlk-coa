@@ -6,6 +6,7 @@
 #include "AccountMgr.h"
 #include "AscensionWisdomball.h"
 #include "AsyncCallbackProcessor.h"
+#include "Bag.h"
 #include "CharacterCache.h"
 #include "Chat.h"
 #include "Config.h"
@@ -729,6 +730,8 @@ private:
             return player->GetFreeTalentPoints();
         if (metric == "bank_bag_slots")
             return player->GetBankBagSlotCount();
+        if (metric == "taxi_node")
+            return player->m_taxi.IsTaximaskNodeKnown(step.get<uint32>("entry"));
         if (metric == "private_instance")
             return player->GetMap()->IsScriptedPrivateInstance();
         if (metric == "controls_self")
@@ -788,6 +791,19 @@ private:
             uint32 item = step.get<uint32>("item");
             Require(sObjectMgr->GetItemTemplate(item) != nullptr, "Unknown item in metric");
             return player->GetItemCount(item);
+        }
+        if (metric == "carried_item_count")
+        {
+            uint32 count = 0;
+            for (uint8 slot = EQUIPMENT_SLOT_START; slot < INVENTORY_SLOT_ITEM_END; ++slot)
+                if (Item* item = player->GetItemByPos(INVENTORY_SLOT_BAG_0, slot))
+                    count += item->GetCount();
+            for (uint8 bag = INVENTORY_SLOT_BAG_START; bag < INVENTORY_SLOT_BAG_END; ++bag)
+                if (Bag* container = player->GetBagByPos(bag))
+                    for (uint32 slot = 0; slot < container->GetBagSize(); ++slot)
+                        if (Item* item = container->GetItemByPos(uint8(slot)))
+                            count += item->GetCount();
+            return count;
         }
         if (metric == "quest_status" || metric == "quest_takeable")
         {
@@ -994,7 +1010,9 @@ private:
             Require(item != nullptr, "Item must be granted before opening");
             WorldPacket request(CMSG_OPEN_ITEM, 2);
             request << item->GetBagSlot() << item->GetSlot();
-            player->GetSession()->HandleOpenItemOpcode(request);
+            // WorldSession::Update offers every packet to the packet hooks before its handler.
+            if (sScriptMgr->CanPacketReceive(player->GetSession(), request))
+                player->GetSession()->HandleOpenItemOpcode(request);
         }
         else if (action == "close_loot")
         {

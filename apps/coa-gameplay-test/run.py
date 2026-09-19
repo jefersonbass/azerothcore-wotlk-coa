@@ -29,8 +29,8 @@ LOCAL_HOSTS = {'127.0.0.1', 'localhost', '::1'}
 METRICS = {
     'health', 'health_pct', 'max_health', 'power', 'max_power', 'alive', 'combat', 'casting', 'level',
     'aura', 'aura_stacks', 'aura_charges', 'aura_duration_ms', 'aura_amount', 'aura_positive',
-    'knows_spell', 'has_talent', 'talent_points', 'cooldown_ms', 'item_count', 'bank_bag_slots',
-    'pet_entry', 'pet_aura_stacks', 'owned_creature_count',
+    'knows_spell', 'has_talent', 'talent_points', 'cooldown_ms', 'item_count', 'carried_item_count', 'bank_bag_slots',
+    'taxi_node', 'pet_entry', 'pet_aura_stacks', 'owned_creature_count',
     'charm_entry', 'charm_aura_stacks', 'controls_self', 'private_instance',
     'dynamic_object', 'dynamic_object_duration_ms', 'gossip_options',
     'cast_speed_multiplier', 'spell_crit_chance', 'spell_power_cost', 'spell_damage_done', 'melee_damage_done',
@@ -272,13 +272,16 @@ def validate(scenario):
                 require('quest' in step, f'{where}: metric needs quest')
             if metric == 'dialog_status':
                 require('entry' in step, f'{where}: metric needs creature entry')
+            if metric == 'taxi_node':
+                number(step.get('entry'), f'{where}.entry', 1, 2**31 - 1, True)
             if metric == 'ball_offers_quest':
                 require('quest' in step, f'{where}: metric needs quest')
             if metric in {'ball_carried_quest', 'ball_turn_in_quest'}:
                 require('quest' in step, f'{where}: metric needs quest')
             if metric == 'gossip_text':
                 require('id' in step, f'{where}: metric needs text id')
-            if metric in {'knows_spell', 'has_talent', 'talent_points', 'cooldown_ms', 'item_count', 'bank_bag_slots',
+            if metric in {'knows_spell', 'has_talent', 'talent_points', 'cooldown_ms', 'item_count',
+                          'carried_item_count', 'bank_bag_slots', 'taxi_node',
                           'pet_entry', 'pet_aura_stacks', 'owned_creature_count', 'charm_entry',
                           'charm_aura_stacks', 'controls_self', 'private_instance',
                           'dynamic_object', 'dynamic_object_duration_ms', 'gossip_options',
