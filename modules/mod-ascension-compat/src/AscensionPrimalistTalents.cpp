@@ -17,7 +17,9 @@ enum PrimalistAbilitySpells : uint32
     SPELL_GEODE_BARRAGE_RAGE = 802885,
     SPELL_REXXARS_MIGHT = 806559,
     SPELL_REXXARS_MIGHT_PROC = 806561,
-    SPELL_REXXARS_MIGHT_BLEED = 806562
+    SPELL_REXXARS_MIGHT_BLEED = 806562,
+    SPELL_VOLCANIC_BLAST = 680451,
+    SPELL_VOLCANIC_BLAST_BONUS = 681353
 };
 
 Player* Primalist(Unit* unit)
@@ -66,7 +68,7 @@ public:
     primalist_talent_casts() : AllSpellScript("primalist_talent_casts",
         {ALLSPELLHOOK_ON_CRIT_CHANCE, ALLSPELLHOOK_ON_HIT_RESULT}) { }
 
-    void OnSpellHitResult(Spell* spell, Unit* target, uint8 miss, uint32, uint32, bool critical) override
+    void OnSpellHitResult(Spell* spell, Unit* target, uint8 miss, uint32 damage, uint32, bool critical) override
     {
         Player* player = Primalist(spell->GetCaster());
         SpellInfo const* info = spell->GetSpellInfo();
@@ -100,6 +102,22 @@ public:
         if (critical && player->HasAura(SPELL_REXXARS_MIGHT) && !spell->IsTriggered())
             if (Pet* pet = player->GetPet(); pet && pet->IsAlive() && !pet->HasAura(SPELL_REXXARS_MIGHT_PROC))
                 pet->AddAura(SPELL_REXXARS_MIGHT_PROC, pet);
+        // Issue 836: Volcanic Blast makes Physical or Nature crits deal an
+        // additional 20% of the damage as Fire to the target and nearby
+        // enemies. The talent's aura 354 has no engine handler, so deal it
+        // here: on any successful family-37 crit with the talent (excluding
+        // triggered spells and the pet branch above, which already
+        // returned), strike the victim for 20% of the resolved damage as
+        // Fire via the 681353 helper (tgtA 53 = area around the target).
+        // Once per cast via script value.
+        if (critical && player->HasAura(SPELL_VOLCANIC_BLAST) && !spell->IsTriggered() &&
+            !spell->GetScriptValue(SPELL_VOLCANIC_BLAST) &&
+            (info->SchoolMask & (SPELL_SCHOOL_MASK_NORMAL | SPELL_SCHOOL_MASK_NATURE)))
+        {
+            spell->SetScriptValue(SPELL_VOLCANIC_BLAST, 1);
+            player->CastCustomSpell(SPELL_VOLCANIC_BLAST_BONUS, SPELLVALUE_BASE_POINT0,
+                int32(damage * 20 / 100), target, true);
+        }
     }
 
     void OnSpellCritChance(Spell* spell, Unit* target, float& chance) override
