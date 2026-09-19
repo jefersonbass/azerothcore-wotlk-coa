@@ -152,6 +152,7 @@ constexpr uint32 SPELL_RANGER_SNIPERS_FOCUS = 680470;
 constexpr uint32 SPELL_RANGER_SNIPERS_FOCUS_ENERGIZE = 807318;
 constexpr uint32 SPELL_RANGER_MAXIMUM_POWER = 560688;
 constexpr uint32 SPELL_RANGER_MAXIMUM_POWER_EXTENSION = 560689;
+constexpr uint32 SPELL_RANGER_FALCON_GUIDE = 520586;
 constexpr uint32 SPELL_RANGER_LETHAL_CUNNING = 704320;
 constexpr uint32 SPELL_RANGER_LETHAL_CUNNING_EFFECTS = 704321;
 constexpr uint32 SPELL_RANGER_SKIRMISH = 802039;
@@ -442,6 +443,39 @@ bool IsRangerHuntingShot(uint32 spellId)
 bool IsRangerToxicDart(uint32 spellId)
 {
     return spellId == 807237 || IsSpellInRange(spellId, 807324, 807330);
+}
+
+bool IsRangerFalconGuideTrigger(uint32 spellId)
+{
+    // Falcon Guide (520586): Falconstrike ranks carry word1 bit 22, Battle
+    // Screech ranks carry word2 bit 3.
+    switch (spellId)
+    {
+        case 806345:
+        case 806437:
+        case 806438:
+        case 806439:
+        case 806440:
+        case 806441:
+        case 806442:
+        case 806443:
+        case 567234:
+        case 567235:
+        case 567236:
+        case 567237:
+        case 705069:
+        case 705070:
+        case 706394:
+        case 706395:
+        case 706396:
+        case 706397:
+        case 706398:
+        case 706399:
+        case 706400:
+            return true;
+        default:
+            return false;
+    }
 }
 
 void ApplyRangerEludeExitEffects(Player* player, bool removedByDeath)
@@ -747,6 +781,33 @@ void ApplyAdditionalTargetContracts(SpellInfo* spellInfo)
         }
         return;
     }
+}
+
+void ApplyRangerFalconGuideContract(SpellInfo* spellInfo)
+{
+    if (!spellInfo || spellInfo->Id != SPELL_RANGER_FALCON_GUIDE ||
+        spellInfo->SpellFamilyName != uint32(CLASS_RANGER) + 6)
+        return;
+
+    SpellEffectInfo& trigger = spellInfo->Effects[EFFECT_0];
+    if (trigger.Effect != SPELL_EFFECT_APPLY_AURA ||
+        trigger.ApplyAuraName != SPELL_AURA_PROC_TRIGGER_SPELL || trigger.TriggerSpell != 0 ||
+        trigger.TargetA.GetTarget() != TARGET_UNIT_CASTER)
+    {
+        LOG_ERROR("module.ascension_compat", "Skipped unexpected Falcon Guide record {}", spellInfo->Id);
+        return;
+    }
+
+    // "Falconstrike and Battle Screech now increase your movement speed by 30%
+    // for 3 sec." The shipped proc trigger names no spell, so the effect
+    // becomes the speed aura itself; the cast hook refreshes it on each
+    // Falconstrike or Battle Screech.
+    trigger.ApplyAuraName = SPELL_AURA_MOD_INCREASE_SPEED;
+    trigger.BasePoints = 29;
+    trigger.DieSides = 0;
+    trigger.MiscValue = 0;
+    trigger.Amplitude = 0;
+    spellInfo->DurationEntry = sSpellDurationStore.LookupEntry(27); // Three seconds.
 }
 
 void ApplyRangerForestDwellerContract(SpellInfo* spellInfo)
@@ -1163,6 +1224,7 @@ void ApplyAscensionClassMechanics(SpellInfo* spellInfo)
     ApplyAdditionalTargetContracts(spellInfo);
     ApplyRangerOffensiveSpellContracts(spellInfo);
     ApplyRangerForestDwellerContract(spellInfo);
+    ApplyRangerFalconGuideContract(spellInfo);
 
     if (spellInfo->Id == SPELL_GUARDIAN_RAISE_SHIELD_ENERGIZE)
     {
@@ -1423,6 +1485,11 @@ void HandleAscensionClassMechanicsCast(Spell* spell)
         player->ModifySpellCooldown(info->Id, -5000);
     if (player->getClass() == CLASS_RANGER)
         HandleRangerAdvantageCast(spell, player);
+    if (player->getClass() == CLASS_RANGER && player->HasAura(SPELL_RANGER_FALCON_GUIDE) &&
+        IsRangerFalconGuideTrigger(info->Id))
+        // Falcon Guide refreshes its own speed aura on each Falconstrike or
+        // Battle Screech; the DBC's proc trigger names no spell.
+        player->CastSpell(player, SPELL_RANGER_FALCON_GUIDE, true);
 
     if (player->getClass() == CLASS_RANGER &&
         info->CasterAuraSpell == SPELL_RANGER_ADVANTAGE)
