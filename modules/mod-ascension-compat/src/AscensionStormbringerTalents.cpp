@@ -27,11 +27,9 @@ enum StormbringerTalentSpells : uint32
     SPELL_GALE = 804036,
     SPELL_ENVELOPING_WINDS = 707546,
     SPELL_TEMPEST_SOVEREIGN = 560020,
-    SPELL_SHOCK = 500039,
-    SPELL_CALL_LIGHTNING = 500040,
+    SPELL_SHOCK_STATIC_GRANT = 500039,
     SPELL_TORRENTIAL_WRATH = 503352,
     SPELL_CONDUCTION = 567560,
-    SPELL_STATIC = 803102,
     SPELL_UNDERTOW = 705666,
     SPELL_DROWN_HIT = 806408
 };
@@ -65,7 +63,7 @@ public:
             spell->IsTriggered() || !player->HasAura(SPELL_TEMPEST_SOVEREIGN))
             return;
         uint32 const root = sSpellMgr->GetFirstSpellInChain(info->Id);
-        if (root == SPELL_SHOCK || root == SPELL_CALL_LIGHTNING)
+        if (root == SPELL_SHOCK || root == SPELL_SHOCK_STATIC_GRANT || root == SPELL_CALL_LIGHTNING)
         {
             if (Aura* staticAura = player->GetAura(SPELL_STATIC))
                 staticAura->ModStackAmount(25);
