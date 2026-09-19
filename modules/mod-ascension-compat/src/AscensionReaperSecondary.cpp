@@ -183,13 +183,16 @@ public:
         // Soulstrider (572340): "Increases the movement speed granted by
         // Veilwalk by 25%." The DBC's Add Flat Modifier slot has no family to
         // match the Veilwalk chain, so top the speed aura up on cast.
-        if (sSpellMgr->GetFirstSpellInChain(info->Id) != SPELL_VEILWALK ||
-            !player->HasAura(SPELL_SOULSTRIDER))
-            return;
-        if (Aura* veil = player->GetAura(SPELL_VEILWALK))
-            if (AuraEffect* speed = veil->GetEffect(EFFECT_0);
-                speed && speed->GetAuraType() == SPELL_AURA_MOD_INCREASE_SPEED)
-                speed->ChangeAmount(speed->GetAmount() + 12); // 50% -> 62.5% rounded to 62
+        if (sSpellMgr->GetFirstSpellInChain(info->Id) == SPELL_VEILWALK &&
+            player->HasAura(SPELL_SOULSTRIDER))
+            if (Aura* veil = player->GetAura(SPELL_VEILWALK))
+                if (AuraEffect* speed = veil->GetEffect(EFFECT_0);
+                    speed && speed->GetAuraType() == SPELL_AURA_MOD_INCREASE_SPEED)
+                    speed->ChangeAmount(speed->GetAmount() + 12); // 50% -> 62.5% rounded to 62
+        // Damage and cost have been calculated. A projectile retains its selected stack count.
+        if (sSpellMgr->GetFirstSpellInChain(info->Id) == SPELL_MURDER &&
+            spell->GetScriptValue(SPELL_CRIMSON_STACK))
+            caster->RemoveAurasDueToSpell(SPELL_CRIMSON_STACK, caster->GetGUID());
     }
 
     void OnSpellBeforeEffects(Spell* spell, Unit* caster, SpellInfo const* info) override
@@ -198,15 +201,6 @@ public:
             sSpellMgr->GetFirstSpellInChain(info->Id) == SPELL_MURDER)
             if (Aura const* stacks = caster->GetAura(SPELL_CRIMSON_STACK, caster->GetGUID()))
                 spell->SetScriptValue(SPELL_CRIMSON_STACK, stacks->GetStackAmount());
-    }
-
-    void OnSpellCast(Spell* spell, Unit* caster, SpellInfo const* info, bool) override
-    {
-        if (caster->IsPlayer() && caster->getClass() == CLASS_REAPER && !spell->IsTriggered() &&
-            sSpellMgr->GetFirstSpellInChain(info->Id) == SPELL_MURDER &&
-            spell->GetScriptValue(SPELL_CRIMSON_STACK))
-            // Damage and cost have been calculated. A projectile retains its selected stack count.
-            caster->RemoveAurasDueToSpell(SPELL_CRIMSON_STACK, caster->GetGUID());
     }
 
     void OnSpellHitResult(Spell* spell, Unit* target, uint8 miss, uint32 damage, uint32, bool critical) override
