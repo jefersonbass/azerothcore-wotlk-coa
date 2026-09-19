@@ -167,6 +167,10 @@ void ApplyContracts(SpellInfo* info)
         dummy(0), info->Effects[1].Effect = 0;
     if (id == 706877 || id == 706889 || id == 300751)
         dummy(0);
+    if (id == 706875)
+        // Cinderstorm's crit half ships with Effect NONE, so the authored +10%
+        // Firefall crit never loads; the threat half is already native.
+        info->Effects[2].Effect = SPELL_EFFECT_APPLY_AURA;
     if (id == 805474)
         dummy(0); // Target's caster-owned modifier is evaluated at heal time.
     if (id == 807542)
