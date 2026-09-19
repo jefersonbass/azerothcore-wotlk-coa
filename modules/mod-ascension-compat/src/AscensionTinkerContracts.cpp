@@ -160,6 +160,18 @@ void ApplyContracts(SpellInfo* info)
         dummy(2); // The old blanket caster critical aura is not Rocket Launcher's conditional rule.
     if (Named(info,805351))
         info->Effects[2].Effect = 0;
+    if (id == 807498 || id == 807897)
+    {
+        // Issue 801: Over-Repaired ships without SPELL_ATTR0_PASSIVE, so the
+        // learn/login passes never applied its spellmod aura, and its
+        // BasePoints are display-minus-1 with DieSides 0. Mark passive and
+        // shift DieSides to 1 so the values resolve as the tooltip's 15%
+        // (rank 1) and 30% (rank 2). The native SPELLMOD_DAMAGE mod never
+        // reaches Repair Shot's heal (DmgClass NONE short-circuits the
+        // engine's heal-mod path), so tinker_scaling applies it in script.
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+        info->Effects[EFFECT_0].DieSides = 1;
+    }
     if (id == 807966 || id == 704475)
         info->Effects[0].SpellClassMask |= flag96(1073741824,1073741824,2684354560u);
     if (id == 805657)
@@ -270,7 +282,7 @@ class tinker_scaling : public UnitScript
 {
 public:
     tinker_scaling() : UnitScript("tinker_scaling",true,
-        {UNITHOOK_MODIFY_SPELL_EFFECT_BASE_VALUE,UNITHOOK_MODIFY_SPELL_DAMAGE_TAKEN,UNITHOOK_MODIFY_MELEE_DAMAGE}) { }
+        {UNITHOOK_MODIFY_SPELL_EFFECT_BASE_VALUE,UNITHOOK_MODIFY_SPELL_DAMAGE_TAKEN,UNITHOOK_MODIFY_MELEE_DAMAGE,UNITHOOK_MODIFY_HEAL_RECEIVED}) { }
     void ModifySpellEffectBaseValue(Unit const* caster, SpellInfo const* info, uint8 index, float& value) override
     {
         Player* player = Owner(caster);
@@ -316,6 +328,20 @@ public:
         if (player->HasAura(707256) && (Shot(info) || info->Id == 500601))
             if (Aura* aura = target->GetAura(Napalm,player->GetGUID()))
                 AddPct(damage,Amount(707256) * aura->GetStackAmount());
+    }
+    void ModifyHealReceived(Unit* target, Unit* caster, uint32& heal, SpellInfo const* info) override
+    {
+        Player* player = Owner(caster);
+        if (!player || !target || !info || info->SpellFamilyName != 34 || Derived(info))
+            return;
+        // Issue 801: Over-Repaired adds +15%/+30% healing to Repair Shot.
+        // The talent's native SPELLMOD_DAMAGE mod never reaches the heal
+        // (Repair Shot's DmgClass NONE short-circuits the engine's heal-mod
+        // path), so apply it here. Repair Shot carries family-34 flag
+        // 0x8000, which is exactly the talent's spell-class mask.
+        if (info->SpellFamilyFlags & flag96(0x8000,0,0))
+            if (Aura* aura = player->GetAuraOfRankedSpell(807498))
+                AddPct(heal,Amount(aura->GetId()));
     }
 };
 }
