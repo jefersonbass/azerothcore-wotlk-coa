@@ -27,6 +27,9 @@ enum MountainSpells : uint32
     ThanesGuidance = 680410,
     Earthbreaker = 560147,
     GeodeBarrageDamage = 803138,
+    MountainFury = 806185,
+    Earthmaker = 560150,
+    EarthenAvatar = 680421,
     Stonebound = 680415,
     BoonOfTheTurtle = 500935,
     Spiritbound = 681364
@@ -42,6 +45,12 @@ constexpr uint32 SeismicAbilities[] = {
     560171, 560172, 560173, 560174, 560175,                      // Seismic Spike
     582532, 804433, 807093,
     807432, 807843                                               // Seismic Grasp
+};
+
+// Quake ranks on the same damage track as the Seismic abilities. Damage from
+// any of these ranks feeds Earthmaker's Earthen Avatar cooldown trim.
+constexpr uint32 QuakeAbilities[] = {
+    503267, 503268, 504571, 505155, 505156, 505157                  // Quake
 };
 
 class aura_ascension_blessed_by_earth : public AuraScript
@@ -357,6 +366,21 @@ class aura_ascension_earthbreaker : public AuraScript
     void Register() override { }
 };
 
+// Mountain Fury (806185): the channeled cone is fully authored in the DBC —
+// the parent's two periodic-trigger effects fire 807724 (cone damage plus
+// pull through 806186) and 807434 (the stacking two percent damage-taken
+// reduction) every two seconds, and the pull's leap destination resolves
+// natively from its three-yard radius. The damage helper's flat base and
+// per-level term are native; only the Attack Power coefficient from its
+// description rides in `spell_bonus_data`. This script only registers the
+// talent binding.
+class aura_ascension_mountain_fury : public AuraScript
+{
+    PrepareAuraScript(aura_ascension_mountain_fury);
+
+    void Register() override { }
+};
+
 // Stonebound (680415): Boon of the Turtle and Earth's Rage are fifty
 // percent more effective while the passive is held. Both auras' amounts
 // are recalculated from the base on every application, so refreshes
@@ -426,6 +450,60 @@ class aura_ascension_spiritbound : public AuraScript
     }
 };
 
+// Earthmaker (560150): damage dealt by Seismic abilities and Quake trims one
+// second off Earthen Avatar. The authored proc trigger (effect 0) and the
+// triggered cooldown helper (560151) carry no proc flags or class mask in
+// the DBC, so the native proc chain never fires; the trim happens here on
+// the shared Seismic/Quake damage check instead. The minus three second
+// Seismic cooldown part is native through the authored Add Flat Modifier
+// (effect 1, SPELLMOD_COOLDOWN with the Seismic class mask).
+class aura_ascension_earthmaker : public AuraScript
+{
+    PrepareAuraScript(aura_ascension_earthmaker);
+
+    bool CheckProc(ProcEventInfo& event)
+    {
+        Unit* owner = GetTarget();
+        DamageInfo const* damage = event.GetDamageInfo();
+        SpellInfo const* info = damage ? damage->GetSpellInfo() : nullptr;
+        return owner->IsPlayer() && owner->getClass() == CLASS_WILDWALKER && owner->IsAlive() &&
+            event.GetActor() == owner && damage && damage->GetDamage() && info && info->SpellFamilyName == 37 &&
+            !owner->IsFriendlyTo(event.GetActionTarget());
+    }
+
+    void Trim(AuraEffect const*, ProcEventInfo& event)
+    {
+        PreventDefaultAction();
+        if (!CheckProc(event))
+            return;
+        SpellInfo const* info = event.GetDamageInfo()->GetSpellInfo();
+        bool seismic = false;
+        for (uint32 ability : SeismicAbilities)
+            if (sSpellMgr->GetFirstSpellInChain(info->Id) == sSpellMgr->GetFirstSpellInChain(ability))
+            {
+                seismic = true;
+                break;
+            }
+        if (!seismic)
+            for (uint32 ability : QuakeAbilities)
+                if (sSpellMgr->GetFirstSpellInChain(info->Id) == sSpellMgr->GetFirstSpellInChain(ability))
+                {
+                    seismic = true;
+                    break;
+                }
+        if (seismic)
+            if (Player* player = GetTarget()->ToPlayer())
+                player->ModifySpellCooldown(EarthenAvatar, -1000);
+    }
+
+    void Register() override
+    {
+        DoCheckProc += AuraCheckProcFn(aura_ascension_earthmaker::CheckProc);
+        OnEffectProc += AuraEffectProcFn(aura_ascension_earthmaker::Trim,
+            EFFECT_0, SPELL_AURA_PROC_TRIGGER_SPELL);
+    }
+};
+
 class mountain_talent_metadata : public GlobalScript
 {
 public:
@@ -460,7 +538,9 @@ void AddSC_AscensionPrimalistMountain()
     RegisterSpellScript(aura_ascension_mountain_thane);
     RegisterSpellScript(aura_ascension_thanes_guidance);
     RegisterSpellScript(aura_ascension_earthbreaker);
+    RegisterSpellScript(aura_ascension_mountain_fury);
     RegisterSpellScript(aura_ascension_stonebound);
     RegisterSpellScript(aura_ascension_spiritbound);
+    RegisterSpellScript(aura_ascension_earthmaker);
     new mountain_talent_metadata();
 }
