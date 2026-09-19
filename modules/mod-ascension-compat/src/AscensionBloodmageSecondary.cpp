@@ -36,6 +36,8 @@ enum BloodmageSecondarySpells : uint32
     SPELL_BLOOD_FEAST_RESTORE = 706608,
     SPELL_ATHERANNS_ANGUISH = 680680,
     SPELL_ATHERANNS_ANGUISH_BURST = 680681,
+    SPELL_AGONIZING_PAIN = 680745,
+    SPELL_AGONIZING_PAIN_BLEED = 680744,
     SPELL_DARK_ESSENCE = 680732,
     SPELL_BLOOD_RITUALS_MARK = 706623,
     SPELL_BLOOD_RITUALS_HEAL = 704119,
@@ -349,6 +351,11 @@ public:
             if (AuraEffect* bank = mark->GetEffect(EFFECT_2))
                 bank->ChangeAmount(bank->GetAmount() + int32(damage * 0.30f));
         }
+        // Agonizing Pain (680745): the Anguish burst also opens the wound,
+        // bleeding the target. The DBC carries no trigger or proc row, so the
+        // bleed is applied here where the burst damage lands.
+        if (id == SPELL_ATHERANNS_ANGUISH_BURST && player->HasAura(SPELL_AGONIZING_PAIN))
+            player->CastSpell(target, SPELL_AGONIZING_PAIN_BLEED, true);
     }
 };
 
