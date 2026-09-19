@@ -198,6 +198,17 @@ void ApplyContracts(SpellInfo* info)
         info->Effects[0].ApplyAuraName = SPELL_AURA_PERIODIC_DUMMY;
         info->Effects[0].TriggerSpell = 0;
     }
+    if (id == 704895)
+    {
+        // Issue 808: Empire's Blessing ships without SPELL_ATTR0_PASSIVE, so
+        // the learn/login passes never applied its cost-mod aura, and its
+        // BasePoints are display-minus-1 with DieSides 0. Mark passive and
+        // shift DieSides to 1 so the value resolves as the tooltip's -20%
+        // mana cost (op 14 = SPELLMOD_COST, maskA 0x20000000 matches Void
+        // Shield's family-31 flag). The native cost-mod path applies it.
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+        info->Effects[EFFECT_0].DieSides = 1;
+    }
     if (id == 804277)
         info->Effects[2].Effect = 0;
     if (id == 804275)
