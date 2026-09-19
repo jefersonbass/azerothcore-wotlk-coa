@@ -31,8 +31,20 @@ enum StormbringerTalentSpells : uint32
     SPELL_TORRENTIAL_WRATH = 503352,
     SPELL_CONDUCTION = 567560,
     SPELL_UNDERTOW = 705666,
-    SPELL_DROWN_HIT = 806408
+    SPELL_DROWN_HIT = 806408,
+    SPELL_ELECTROCUTIONER_PASSIVE = 500068,
+    SPELL_ELECTROCUTIONER_TALENT = 92096,
+    SPELL_ELECTROCUTIONER = 804592
 };
+
+// The passive's tooltip gives a base chance (92096 carries 5%) and says it grows with
+// Static. No public record has the rate, so each Static adds a fifth of a percent.
+uint32 ElectrocutionerChance(Player const* player)
+{
+    SpellInfo const* talent = sSpellMgr->GetSpellInfo(SPELL_ELECTROCUTIONER_TALENT);
+    Aura const* staticAura = player->GetAura(SPELL_STATIC);
+    return (talent ? talent->ProcChance : 0) + (staticAura ? staticAura->GetStackAmount() / 5 : 0);
+}
 
 class stormbringer_talent_casts : public AllSpellScript
 {
@@ -98,7 +110,14 @@ public:
         if (!player || player->getClass() != CLASS_STORMBRINGER || info->SpellFamilyName != 22 ||
             !target || target == player || player->IsFriendlyTo(target) || miss != SPELL_MISS_NONE)
             return;
-        bool repeat = info->Id == SPELL_PERPETUAL_SHOCK;
+
+        // Neither passive carries proc flags, so the spell-damage event is supplied here.
+        if (damage && !spell->IsTriggered() &&
+            (player->HasSpell(SPELL_ELECTROCUTIONER_PASSIVE) || player->HasSpell(SPELL_ELECTROCUTIONER_TALENT)) &&
+            roll_chance_i(ElectrocutionerChance(player)))
+            player->CastSpell(player, SPELL_ELECTROCUTIONER, true);
+
+        bool repeat =info->Id == SPELL_PERPETUAL_SHOCK;
         if (!repeat && (spell->IsTriggered() || sSpellMgr->GetFirstSpellInChain(info->Id) != SPELL_SHOCK))
             return;
 
