@@ -439,6 +439,19 @@ public:
             info->AttributesCu &= ~SPELL_ATTR0_CU_FORCE_AURA_SAVING;
             info->AttributesCu |= SPELL_ATTR0_CU_AURA_CANNOT_BE_SAVED;
         }
+        if (info->Id == 705540)
+        {
+            // Issue 817: Spellblade ships without SPELL_ATTR0_PASSIVE, so the
+            // learn/login passes never applied its stat auras, and its
+            // BasePoints are display-minus-1 with DieSides 0. Mark passive
+            // and shift DieSides to 1 so both effects resolve as the
+            // tooltip's 5% (effect 0 misc 1 = Agility, effect 1 misc 3 =
+            // Intellect). The native MOD_TOTAL_STAT_PERCENTAGE handler
+            // applies them.
+            info->Attributes |= SPELL_ATTR0_PASSIVE;
+            info->Effects[EFFECT_0].DieSides = 1;
+            info->Effects[EFFECT_1].DieSides = 1;
+        }
     }
 };
 }

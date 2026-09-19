@@ -87,6 +87,16 @@ public:
                     player->CastSpell(targets, flare, &values, TRIGGERED_FULL_MASK);
                 }
         }
+        // Issue 815: Venom-Coated Seeds makes Snapseed damage apply the
+        // 807553 debuff (-15% hit chance, 10s). The talent's native proc aura
+        // (42 -> 807553) carries no ProcFlags, so apply it here on any
+        // successful Snapseed hit (chain head 804027, family-27 flag 0x10).
+        if (sSpellMgr->GetFirstSpellInChain(spell->GetSpellInfo()->Id) == 804027 &&
+            player->HasAura(807459) && !spell->GetScriptValue(807459))
+        {
+            spell->SetScriptValue(807459, 1);
+            player->CastSpell(target, 807553, true);
+        }
         if (spell->GetSpellInfo()->Id != 803105 || !target->IsAlive() ||
             !target->HasAuraState(AURA_STATE_BLEEDING) || spell->GetScriptValue(803106))
             return;
