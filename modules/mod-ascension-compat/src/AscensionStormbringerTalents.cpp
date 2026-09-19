@@ -77,7 +77,7 @@ public:
             uint8 const stacks = staticAura->GetStackAmount();
             staticAura->Remove();
             for (uint8 i = 0; i < stacks; ++i)
-                player->CastSpell(spell->GetUnitTarget(), SPELL_CONDUCTION, true);
+                player->CastSpell(spell->m_targets.GetUnitTarget(), SPELL_CONDUCTION, true);
         }
     }
 
