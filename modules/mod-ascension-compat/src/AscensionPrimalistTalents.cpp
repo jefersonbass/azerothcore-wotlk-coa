@@ -439,6 +439,18 @@ void ApplyAscensionPrimalistTalentsContract(SpellInfo* info)
         if (uint32(info->Effects[1].ApplyAuraName) >= TOTAL_AURAS)
             info->Effects[1].ApplyAuraName = SPELL_AURA_MOD_MELEE_RANGED_HASTE;
     }
+    if (info->Id == 681494)
+    {
+        // Whispers of the Earth: effect 0 is filler — an Agility drop (aura 137,
+        // misc 3, amount -1) that nothing in the tooltip mentions — so zero it.
+        // Effect 1 is the authored cast-time cut (aura 107, op SPELLMOD_CASTING_TIME,
+        // flat -301 = 0.3 sec) but its mask (0x200 in flags[1]) only covers the
+        // Stoneshard ranks; the tooltip also names Geode Barrage (flags[0] 0x800),
+        // so that bit is added to the same modifier.
+        info->Effects[0].Effect = SpellEffects(0);
+        info->Effects[0].ApplyAuraName = SPELL_AURA_NONE;
+        info->Effects[1].SpellClassMask = flag96(0x800, 0x200, 0);
+    }
 }
 
 void AddSC_AscensionPrimalistTalents()
