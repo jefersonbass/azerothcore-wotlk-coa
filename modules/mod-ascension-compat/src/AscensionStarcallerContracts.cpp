@@ -107,6 +107,18 @@ void ApplyContracts(SpellInfo* info)
         // resolves to Physical; rebind it to Arcane with the tooltip amount.
         mod(1, SPELL_AURA_MOD_CRIT_DAMAGE_BONUS, 20, SPELL_SCHOOL_MASK_ARCANE, flag96());
     }
+    if (id == 680757)
+    {
+        // Issue 841: Moonstone Hilt ships without SPELL_ATTR0_PASSIVE, so
+        // the learn/login passes never applied its auras, and its BasePoints
+        // are display-minus-1 with DieSides 0. Mark passive and shift
+        // DieSides to 1 so effect 0 resolves as the tooltip's 5% parry
+        // (aura 47, native MOD_PARRY_PERCENT path) and effect 1 as 50%
+        // block value (aura 150, native MOD_SHIELD_BLOCKVALUE_PCT path).
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+        info->Effects[EFFECT_0].DieSides = 1;
+        info->Effects[EFFECT_1].DieSides = 1;
+    }
     if (id == 500582)
     {
         // Issue 818: Goddess Watch Over ships without SPELL_ATTR0_PASSIVE,

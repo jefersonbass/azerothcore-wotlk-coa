@@ -220,6 +220,15 @@ void ApplyContracts(SpellInfo* info)
     }
     if (id == 704277)
         info->DurationEntry = sSpellDurationStore.LookupEntry(1);
+    if (id == 525018)
+    {
+        // Issue 837: Fiery Intent ships without SPELL_ATTR0_PASSIVE, so the
+        // learn/login passes never applied its cooldown mod. Mark passive.
+        // Effect 0 (op 11 = SPELLMOD_COOLDOWN, bp -30001, maskC 0x20)
+        // matches Cataclysm (520218, family-30 flag 0x20) and resolves as
+        // the tooltip's -30s cooldown via the native cooldown-mod path.
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+    }
     if (id == 707126)
     {
         // Issue 814: Constant Burning ships without SPELL_ATTR0_PASSIVE, so
