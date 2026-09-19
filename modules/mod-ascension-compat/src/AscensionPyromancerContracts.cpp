@@ -33,6 +33,19 @@ void ApplyContracts(SpellInfo* info)
         e.TargetB = SpellImplicitTargetInfo();
         e.TriggerSpell = 0;
     };
+    if (id == 500167 || id == 500644)
+    {
+        // Spirit of Fire: "Increases the effectiveness of your absorption
+        // effects by 20%/40%." Both ranks ship without SPELL_ATTR0_PASSIVE,
+        // so learn/login never applied the aura-317 absorb multiplier, and
+        // their BasePoints are display-minus-1 with DieSides 0. Mark passive
+        // and shift DieSides to 1 so the values resolve as 20/40; the
+        // engine's absorb path (SpellAuraEffects.cpp) picks the aura up
+        // natively for family-30 casters.
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+        info->Effects[EFFECT_0].DieSides = 1;
+        info->Effects[EFFECT_1].DieSides = 1;
+    }
     // Incinerator (807510): the client DBC ships a wrong aura (Mod Spell Damage
     // Taken School -70). The tooltip grants 30 spell penetration, scaling with
     // level via the passive's native level scaling on BasePoints.

@@ -44,7 +44,11 @@ enum RunemasterSecondarySpells : uint32
     SPELL_FIREBRAND_EXPLOSION = 653212,
     SPELL_PRIMORDIAL_FURY = 806543,
     PRIMORDIAL_FURY_CLEAVE_RADIUS = 10,
-    PRIMORDIAL_FURY_CLEAVE_TARGETS = 5
+    PRIMORDIAL_FURY_CLEAVE_TARGETS = 5,
+    SPELL_WINDSAGE = 705568,
+    SPELL_WINDSAGE_STRIKE = 706457,
+    WINDSAGE_CHARGES = 3,
+    WINDSAGE_PCT = 75
 };
 
 bool HasTattoo(Player* player, uint32 root)
@@ -243,6 +247,56 @@ public:
     }
 };
 
+// Windsage (705568): "Level 30 Passive Smolder now envelops you in wind,
+// causing your next 3 Runeblades to strike an additional time equal to 75%
+// of the damage dealt as Nature damage." The talent's Proc Trigger slot is
+// inert (ProcFlags 0, trigger 705569 whose aura-354 effect has no handler),
+// so the envelope and the echo live here: Smolder casts grant 3 charges of
+// the 706457 aura, and each non-triggered Runeblade hit consumes one charge
+// to echo 75% of the dealt damage as Nature. The echo goes through
+// Unit::DealDamage (not the melee helper) so the school is Nature rather
+// than the weapon's physical school.
+class runemaster_windsage : public AllSpellScript
+{
+public:
+    runemaster_windsage() : AllSpellScript("runemaster_windsage",
+        {ALLSPELLHOOK_ON_CAST, ALLSPELLHOOK_ON_HIT_RESULT}) { }
+
+    void OnSpellCast(Spell* spell, Unit* caster, SpellInfo const* info, bool) override
+    {
+        Player* player = caster ? caster->ToPlayer() : nullptr;
+        if (!player || player->getClass() != CLASS_SPIRIT_MAGE || !player->IsAlive() || spell->IsTriggered())
+            return;
+        if (sSpellMgr->GetFirstSpellInChain(info->Id) != SPELL_SMOLDER ||
+            !player->HasAura(SPELL_WINDSAGE, player->GetGUID()))
+            return;
+        if (Aura* envelope = player->AddAura(SPELL_WINDSAGE_STRIKE, player))
+            envelope->SetStackAmount(WINDSAGE_CHARGES);
+    }
+
+    void OnSpellHitResult(Spell* spell, Unit* target, uint8 miss, uint32 damage, uint32, bool) override
+    {
+        Player* player = spell->GetCaster() ? spell->GetCaster()->ToPlayer() : nullptr;
+        if (!player || player->getClass() != CLASS_SPIRIT_MAGE || !player->IsAlive() || !player->IsInWorld() ||
+            spell->IsTriggered() || !damage || miss != SPELL_MISS_NONE || !target || !target->IsAlive() ||
+            target == player || player->IsFriendlyTo(target) ||
+            sSpellMgr->GetFirstSpellInChain(spell->GetSpellInfo()->Id) != SPELL_RUNEBLADE ||
+            spell->GetScriptValue(SPELL_WINDSAGE_STRIKE))
+            return;
+        Aura* envelope = player->GetAura(SPELL_WINDSAGE_STRIKE, player->GetGUID());
+        if (!envelope)
+            return;
+        spell->SetScriptValue(SPELL_WINDSAGE_STRIKE, 1);
+        if (envelope->GetStackAmount() <= 1)
+            player->RemoveAurasDueToSpell(SPELL_WINDSAGE_STRIKE, player->GetGUID());
+        else
+            envelope->SetStackAmount(envelope->GetStackAmount() - 1);
+        uint32 amount = uint32(std::min<uint64>(uint64(damage) * WINDSAGE_PCT / 100, std::numeric_limits<int32>::max()));
+        Unit::DealDamage(player, target, amount, nullptr, SPELL_DIRECT_DAMAGE, SPELL_SCHOOL_MASK_NATURE,
+            spell->GetSpellInfo(), false);
+    }
+};
+
 class aura_ascension_arcane_palm_sigil : public AuraScript
 {
     PrepareAuraScript(aura_ascension_arcane_palm_sigil);
@@ -394,6 +448,7 @@ void AddSC_AscensionRunemasterSecondary()
     new runemaster_secondary_auras();
     new runemaster_secondary_casts();
     new runemaster_primordial_fury();
+    new runemaster_windsage();
     new runemaster_secondary_metadata();
     RegisterSpellScript(aura_ascension_arcane_palm_sigil);
     RegisterSpellScript(aura_ascension_runemaster_fire_engraving);

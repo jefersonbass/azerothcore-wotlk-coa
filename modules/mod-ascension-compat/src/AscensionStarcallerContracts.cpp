@@ -71,8 +71,35 @@ void ApplyContracts(SpellInfo* info)
         info->Effects[0].TriggerSpell = 0;
         dummy(1);
     }
+    if (id == 680774)
+    {
+        // Elune's Presence: "Gain the blessing of a goddess, granting all
+        // party or raid members within 40 yds 20% temporary maximum health
+        // for 10 sec." The DBC record is already correct (aura 133
+        // MOD_INCREASE_HEALTH_PERCENT, bp 19, raid-around-caster target 56);
+        // it only lacks the passive-style application the learn/login passes
+        // need, and its BasePoints are display-minus-1 with DieSides 0.
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+        info->Effects[EFFECT_0].DieSides = 1;
+    }
     if (id == 706301)
         dummy(0);
+    if (id == 704389 || id == 572416)
+    {
+        // Issue 974: Aspect Mastery ships without SPELL_ATTR0_PASSIVE, so the
+        // learn/login passes never applied its spellmod auras, and its
+        // BasePoints are display-minus-1 with DieSides 0. Mark passive and
+        // shift DieSides to 1 so the values resolve as the tooltip's 10%/5%
+        // (rank 1) and 20%/10% (rank 2). The effectiveness half (aura 108,
+        // ALL_EFFECTS) then engages natively: the Aspect damage spells carry
+        // exactly these masks (801129 flags[0] 0x80, 800507 flags[1]
+        // 0x8000000). The trigger-chance half (aura 107, CHANCE_OF_SUCCESS)
+        // is only consulted on native proc paths, so Aspect() adds it in
+        // script instead.
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+        for (uint8 i = 0; i < MAX_SPELL_EFFECTS; ++i)
+            info->Effects[i].DieSides = 1;
+    }
     if (id == 680775)
     {
         // Wrath of the Moon: "Increases your Arcane critical damage dealt by 20%."

@@ -21,7 +21,10 @@ enum ChronomancerTalentSpells : uint32
     SPELL_DIVERGENCE_SLOW = 803301,
     SPELL_DIVERGENCE_SPEED = 803703,
     SPELL_RIPPLING_POWER = 806300,
-    SPELL_RIPPLING_POWER_RANK_2 = 807893
+    SPELL_RIPPLING_POWER_RANK_2 = 807893,
+    SPELL_DISTORTED_TIME = 707553,
+    SPELL_ARCHAEOLOGY = 560130,
+    SPELL_DISCOVERY = 500116
 };
 
 bool IsAeonActivation(uint32 id)
@@ -121,6 +124,19 @@ public:
             player->RemoveSpellCooldown(SPELL_CHROMATIC_SHARD);
         else if (info->Id == SPELL_CHROMATIC_SHARD && player->HasAura(SPELL_INCARNATION_OF_CHAOS))
             player->RemoveSpellCooldown(SPELL_CHROMATIC_SHARD);
+
+        // Archaeology (560130): "Your Discovery now also generates 3% of your
+        // base mana and health." The talent's flat-mod slots point at dead
+        // operations, so pay out here on each Discovery cast.
+        if (info->Id == SPELL_DISCOVERY && !spell->IsTriggered() &&
+            player->HasAura(SPELL_ARCHAEOLOGY, player->GetGUID()))
+        {
+            player->EnergizeBySpell(player, SPELL_ARCHAEOLOGY,
+                int32(CalculatePct(player->GetCreateMana(), ARCHAEOLOGY_PCT)), POWER_MANA);
+            HealInfo heal(player, player, CalculatePct(player->GetCreateHealth(), ARCHAEOLOGY_PCT),
+                info, info->GetSchoolMask());
+            player->HealBySpell(heal);
+        }
     }
 
     void OnSpellHitResult(Spell* spell, Unit* target, uint8 missInfo,
@@ -162,6 +178,7 @@ private:
     static constexpr uint32 SPELL_ANOMALY_SPIKES = 503825;
     static constexpr uint32 SPELL_ANOMALY_SPIKE_HIT = 503826;
     static constexpr uint32 ANOMALY_CHANCE = 8;
+    static constexpr uint32 ARCHAEOLOGY_PCT = 3;
 };
 }
 
@@ -176,6 +193,28 @@ void ApplyAscensionChronomancerTalentContracts(SpellInfo* info)
         info->Effects[EFFECT_1].Effect = 0;
         info->Effects[EFFECT_2].Effect = 0;
         info->_InitializeExplicitTargetMask();
+    }
+    if (info->Id == SPELL_DISTORTED_TIME)
+    {
+        // "Reduces the cooldown of Timerend by 2 sec and increases the
+        // duration of Decomposition by 3 sec." The talent ships without
+        // SPELL_ATTR0_PASSIVE, so the learn/login passes never applied its
+        // spellmod auras. Mark passive and rebind the two slots to the real
+        // targets: the cooldown slot (effect 0, empty mask) to the Timerend
+        // chain root (707430; the castable ranks 801291/501831-35/572578
+        // carry flags[1] 0x1000000), and the duration slot (effect 1) to the
+        // Decomposition chain root (800856; ranks carry flags[1] 0x80000).
+        // BasePoints are display-minus-1 with DieSides 0, so shift DieSides
+        // to 1: cooldown 1999+1=2000 ms, duration 2999+1=3000 ms.
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+        info->Effects[EFFECT_0].MiscValue = SPELLMOD_COOLDOWN;
+        info->Effects[EFFECT_0].BasePoints = 1999;
+        info->Effects[EFFECT_0].DieSides = 1;
+        info->Effects[EFFECT_0].SpellClassMask = flag96(0, 0x1000000, 0);
+        info->Effects[EFFECT_1].MiscValue = SPELLMOD_DURATION;
+        info->Effects[EFFECT_1].BasePoints = 2999;
+        info->Effects[EFFECT_1].DieSides = 1;
+        info->Effects[EFFECT_1].SpellClassMask = flag96(0, 0x80000, 0);
     }
     if (info->Id == SPELL_RIPPLING_POWER || info->Id == SPELL_RIPPLING_POWER_RANK_2)
     {
