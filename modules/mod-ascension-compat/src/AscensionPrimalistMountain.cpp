@@ -32,6 +32,8 @@ enum MountainSpells : uint32
     EarthDestroyer = 560508,
     LegacyOfTheBronzebeards = 680424,
     EverythingsANail = 680405,
+    RagingEarth = 706622,
+    RagingEarthFissure = 681089,
     EarthenAvatar = 680421,
     Stonebound = 680415,
     BoonOfTheTurtle = 500935,
@@ -439,6 +441,33 @@ class aura_ascension_everythings_a_nail : public AuraScript
     void Register() override { }
 };
 
+// Raging Earth (706622): Quake creates a fissure beneath the caster that
+// deals Nature damage every two seconds for six seconds. The authored
+// proc trigger (effect 0, aura 42 triggering 681089) carries no proc
+// flags or class mask in the DBC, so the native proc chain never fires;
+// the fissure is cast here on every Quake instead. The fissure spell
+// (681089, effect 0 type 27 aura 3 amp 2000) is fully authored, so no
+// contract fixups are needed.
+class spell_ascension_raging_earth_quake : public SpellScript
+{
+    PrepareSpellScript(spell_ascension_raging_earth_quake);
+
+    void Fissure()
+    {
+        Unit* caster = GetCaster();
+        if (!caster || GetSpell()->IsTriggered())
+            return;
+        if (!caster->IsPlayer() || !caster->HasAura(RagingEarth))
+            return;
+        caster->CastSpell(caster, RagingEarthFissure, true);
+    }
+
+    void Register() override
+    {
+        AfterCast += SpellCastFn(spell_ascension_raging_earth_quake::Fissure);
+    }
+};
+
 // Stonebound (680415): Boon of the Turtle and Earth's Rage are fifty
 // percent more effective while the passive is held. Both auras' amounts
 // are recalculated from the base on every application, so refreshes
@@ -603,5 +632,6 @@ void AddSC_AscensionPrimalistMountain()
     RegisterSpellScript(aura_ascension_earth_destroyer);
     RegisterSpellScript(aura_ascension_legacy_bronzebeards);
     RegisterSpellScript(aura_ascension_everythings_a_nail);
+    RegisterSpellScript(spell_ascension_raging_earth_quake);
     new mountain_talent_metadata();
 }
