@@ -1824,6 +1824,7 @@ namespace CoAChallenges
             UntrackLootedItems(player->GetGUID().GetCounter());
             UntrackBandage(player);
             ClearGameModeMaskCache(player->GetGUID().GetCounter());
+            ClearCharChallengeCache(player->GetGUID().GetCounter());
             // Not reset elsewhere; a stale craft multiplier / killer label would
             // otherwise survive into the next session.
             {
@@ -3103,7 +3104,7 @@ namespace CoAChallenges
             int32& /*victimDefenseSkill*/, int32& crit_chance, int32& /*miss_chance*/,
             int32& dodge_chance, int32& parry_chance, int32& block_chance) override
         {
-            if (!victim || victim->GetTypeId() != TYPEID_PLAYER)
+            if (!victim || !victim->IsPlayer())
                 return;
             Player* pl = const_cast<Player*>(victim->ToPlayer());
             if (PlayerHasRule(pl, "CHALLENGE_RULES_TYPE_CANNOT_DODGE_BLOCK_OR_PARRY"))
