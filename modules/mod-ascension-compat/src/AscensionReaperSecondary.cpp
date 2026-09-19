@@ -41,6 +41,9 @@ enum ReaperSecondarySpells : uint32
     SPELL_RED_WAKE = 707707,
     SPELL_HAUNTER = 705410,
     SPELL_SOULREND = 572341,
+    SPELL_CHASING_DEATH = 707455,
+    SPELL_CHASING_DEATH_TRACKER = 807418,
+    SPELL_DEATHCHASER_DAMAGE = 805190,
     HAUNTER_BONUS = 10000,
     SPELL_ESSENCE_HARVEST = 707908,
     SPELL_GHOSTLY_WEAPON_HIT = 804474,
@@ -238,6 +241,17 @@ public:
         if (critical && damage && player->HasAura(SPELL_GRAVESITE_PASSIVE) &&
             target->HasAura(SPELL_GRAVESITE_AREA, player->GetGUID()))
             player->CastSpell(target, SPELL_GRAVESITE_HIT, true);
+        // Chasing Death (707455): "Deathchaser used against a target below 20%
+        // health will now reapply itself at the end of its duration until they
+        // die or until 5 sec passes." The talent's Proc Trigger slot is inert
+        // (ProcFlags 0), so start the 5 sec tracker on hit instead. While the
+        // tracker (807418) ticks, its chained 807546 stretches the Deathchaser
+        // damage aura natively via MODIFY_AURA_DURATION.
+        uint32 const hitRoot = sSpellMgr->GetFirstSpellInChain(id);
+        if (player->HasAura(SPELL_CHASING_DEATH) && !spell->IsTriggered() && target->IsAlive() &&
+            target->HealthBelowPct(20) && (hitRoot == SPELL_DEATHCHASER || hitRoot == SPELL_DEATHCHASER_DAMAGE) &&
+            !target->HasAura(SPELL_CHASING_DEATH_TRACKER, player->GetGUID()))
+            player->CastSpell(target, SPELL_CHASING_DEATH_TRACKER, true);
         if (spell->IsTriggered())
             return;
         uint32 root = sSpellMgr->GetFirstSpellInChain(id);
