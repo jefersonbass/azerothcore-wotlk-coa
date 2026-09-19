@@ -673,6 +673,27 @@ void ApplyRangerInstinctualCombatantContract(SpellInfo* spellInfo)
         LOG_ERROR("module.ascension_compat", "Skipped unexpected Instinctual Combatant record {}", spellInfo->Id);
 }
 
+void ApplyRangerAssassinContract(SpellInfo* spellInfo)
+{
+    if (!spellInfo || spellInfo->Id != 803871 ||
+        spellInfo->SpellFamilyName != uint32(CLASS_RANGER) + 6)
+        return;
+
+    SpellEffectInfo& instinct = spellInfo->Effects[EFFECT_0];
+    if (instinct.Effect == SPELL_EFFECT_APPLY_AURA &&
+        instinct.ApplyAuraName == SPELL_AURA_ADD_PCT_MODIFIER &&
+        instinct.MiscValue == SPELLMOD_ALL_EFFECTS && instinct.MiscValueB == 0 &&
+        instinct.BasePoints == 24 && instinct.DieSides == 1 &&
+        instinct.TargetA.GetTarget() == TARGET_UNIT_CASTER && instinct.TargetB.GetTarget() == 0 &&
+        instinct.SpellClassMask == flag96(0, 0, 0))
+        // Assassin promises 25% stronger Instinct. The wildcard mask would
+        // also amplify every other Ranger spell, so key it to Instinct's own
+        // family bit.
+        instinct.SpellClassMask = flag96(16, 0, 0);
+    else
+        LOG_ERROR("module.ascension_compat", "Skipped unexpected Assassin talent record {}", spellInfo->Id);
+}
+
 void ApplyAdditionalTargetContracts(SpellInfo* spellInfo)
 {
     if (!spellInfo)
@@ -1110,6 +1131,7 @@ void ApplyAscensionClassMechanics(SpellInfo* spellInfo)
     ApplyRangerConditionalDamageContracts(spellInfo);
     ApplyRangerUnderhandedContracts(spellInfo);
     ApplyRangerInstinctualCombatantContract(spellInfo);
+    ApplyRangerAssassinContract(spellInfo);
     ApplyAscensionRangerDamageContracts(spellInfo);
     ApplyAscensionWitchHunterTonicContracts(spellInfo);
     ApplyAscensionWitchHunterFlameContracts(spellInfo);
