@@ -108,6 +108,19 @@ void ApplyContracts(SpellInfo* info)
     }
     if (Named(info,801709))
         info->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_PERIODIC_DUMMY;
+    if (id == 560735)
+    {
+        // Issue 845: Technician ships without SPELL_ATTR0_PASSIVE, so the
+        // learn/login passes never applied its auras, and its BasePoints are
+        // display-minus-1 with DieSides 0. Mark passive and shift DieSides
+        // to 1 so effect 0 resolves as the tooltip's 35% pushback reduction
+        // (aura 149, native REDUCE_PUSHBACK path) and effect 1 as 10%
+        // critical healing (aura 50, native MOD_CRITICAL_HEALING_AMOUNT
+        // path).
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+        info->Effects[EFFECT_0].DieSides = 1;
+        info->Effects[EFFECT_1].DieSides = 1;
+    }
     if (id == 573054)
     {
         // The lifecycle tick selects enemies around the recipient; damage belongs
