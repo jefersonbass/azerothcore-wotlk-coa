@@ -824,6 +824,20 @@ bool IsCultistTwilightShieldtoss(uint32 spellId)
     }
 }
 
+bool IsCultistEmpiresGrasp(uint32 spellId)
+{
+    switch (spellId)
+    {
+        case 355685:
+        case 500704:
+        case 804533:
+        case 805447:
+            return true;
+        default:
+            return false;
+    }
+}
+
 void AddRangerAdvantage(Player* player, uint8 amount)
 {
     for (uint8 index = 0; index < amount; ++index)
@@ -1380,6 +1394,11 @@ void HandleAscensionClassMechanicsCast(Spell* spell)
         return;
 
     SpellInfo const* info = spell->GetSpellInfo();
+    if (player->getClass() == CLASS_CULTIST && player->HasAura(524804) &&
+        IsCultistEmpiresGrasp(info->Id))
+        // Seething Void trims 5 sec from the Empire's Grasp cooldown that was
+        // just applied; the DBC's native modifier would hit every spell.
+        player->ModifySpellCooldown(info->Id, -5000);
     if (player->getClass() == CLASS_RANGER)
         HandleRangerAdvantageCast(spell, player);
 
