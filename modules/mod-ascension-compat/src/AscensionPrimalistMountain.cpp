@@ -348,17 +348,6 @@ class aura_ascension_thanes_guidance : public AuraScript
 
 // Earthbreaker (560147): the ten percent melee haste is native through Mod
 // Melee Haste; the authored Add % Modifier threat boost has no scoping
-// data, so Geode Barrage and Geode casts add a quarter of their damage
-// again as threat here.
-class aura_ascension_earthbreaker : public AuraScript
-{
-    PrepareAuraScript(aura_ascension_earthbreaker);
-
-    void Register() override { }
-};
-
-// Earthbreaker (560147): the ten percent melee haste is native through Mod
-// Melee Haste; the authored Add % Modifier threat boost has no scoping
 // data, so the Geode threat bonus rides on the shared cast hooks and this
 // script only registers the talent binding.
 class aura_ascension_earthbreaker : public AuraScript
