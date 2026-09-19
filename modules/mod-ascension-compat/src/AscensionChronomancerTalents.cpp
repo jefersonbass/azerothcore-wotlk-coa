@@ -24,7 +24,9 @@ enum ChronomancerTalentSpells : uint32
     SPELL_RIPPLING_POWER_RANK_2 = 807893,
     SPELL_DISTORTED_TIME = 707553,
     SPELL_ARCHAEOLOGY = 560130,
-    SPELL_DISCOVERY = 500116
+    SPELL_DISCOVERY = 500116,
+    SPELL_TIME_WIZARD = 706779,
+    SPELL_TIME_WIZARD_RANK_2 = 707829
 };
 
 bool IsAeonActivation(uint32 id)
@@ -215,6 +217,15 @@ void ApplyAscensionChronomancerTalentContracts(SpellInfo* info)
         info->Effects[EFFECT_1].BasePoints = 2999;
         info->Effects[EFFECT_1].DieSides = 1;
         info->Effects[EFFECT_1].SpellClassMask = flag96(0, 0x80000, 0);
+    }
+    if (info->Id == SPELL_TIME_WIZARD || info->Id == SPELL_TIME_WIZARD_RANK_2)
+    {
+        // "Increases the critical strike chance of your Reverse Wound, Epoch,
+        // and Correct the Mistake by 8%/15%." The shipped mask matches none of
+        // the three spells' family bits, so rekey to their union: Reverse
+        // Wound (word1 0x20000, word2 0x1), Epoch (word0 0x4), Correct the
+        // Mistake (word1 0x800).
+        info->Effects[EFFECT_0].SpellClassMask = flag96(0x4, 0x20800, 0x1);
     }
     if (info->Id == SPELL_RIPPLING_POWER || info->Id == SPELL_RIPPLING_POWER_RANK_2)
     {
