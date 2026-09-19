@@ -165,6 +165,19 @@ void ApplyContracts(SpellInfo* info)
         info->Effects[id == 524854 ? EFFECT_2 : EFFECT_0].ApplyAuraName = SPELL_AURA_MOD_DAMAGE_PERCENT_TAKEN;
     if (id == 504478 || id == 500569)
         info->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_DUMMY;
+    if (id == 680529)
+    {
+        // Issue 825: Combat Training ships without SPELL_ATTR0_PASSIVE, so
+        // the learn/login passes never applied its auras, and its BasePoints
+        // are display-minus-1 with DieSides 0. Mark passive and shift
+        // DieSides to 1 so effect 0 resolves as the tooltip's 3% Physical
+        // damage (aura 79 misc 1 = SPELL_SCHOOL_MASK_NORMAL, native
+        // MOD_DAMAGE_PERCENT_DONE path) and effect 1 as 3% parry (aura 47,
+        // native MOD_PARRY_PERCENT path).
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+        info->Effects[EFFECT_0].DieSides = 1;
+        info->Effects[EFFECT_1].DieSides = 1;
+    }
     if (id == 705477)
     {
         // Issue 804: Houndfeeder ships without SPELL_ATTR0_PASSIVE, so the
