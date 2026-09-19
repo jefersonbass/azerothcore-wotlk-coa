@@ -2,6 +2,8 @@
 // Mechanical split of review-CoAChallenges.cpp; no logic changes.
 #include "CoA.Challenges.Review.h"
 
+#include <atomic>
+
 namespace CoAChallenges
 {
 
@@ -227,6 +229,7 @@ namespace CoAChallenges
 
         // DB rows.
         CharacterDatabase.DirectExecute("DELETE FROM coa_character_challenge WHERE guid = {}", guid);
+        ClearCharChallengeCache(guid);
         CharacterDatabase.DirectExecute("DELETE FROM coa_character_objective WHERE guid = {}", guid);
         CharacterDatabase.DirectExecute("DELETE FROM coa_challenge_completion WHERE guid = {}", guid);
         CharacterDatabase.DirectExecute("DELETE FROM coa_challenge_failure WHERE guid = {}", guid);
@@ -512,6 +515,7 @@ namespace CoAChallenges
             "REPLACE INTO coa_character_challenge (guid, challengeId, level, deaths, hunger, thirst, startTime) "
             "VALUES ({}, {}, {}, 0, 0, 0, UNIX_TIMESTAMP())",
             guid, challengeID, level);
+        ClearCharChallengeCache(guid);
         ApplyChallengeSpell(player, challengeID, level);
         TrackHunger(player, challengeID);
         TrackFatigue(player, challengeID);
@@ -560,6 +564,7 @@ namespace CoAChallenges
         CharacterDatabase.DirectExecute(
             "DELETE FROM coa_character_challenge WHERE guid = {} AND challengeId = {}",
             guid, challengeID);
+        ClearCharChallengeCache(guid);
         RemoveChallengeSpell(player, challengeID);
         RemoveMeterAuras(player);
         RemoveHungerChallenge(player, challengeID);
@@ -595,22 +600,137 @@ namespace CoAChallenges
         return CoAParse::ListContains(list, rule);
     }
 
-    bool PlayerHasRule(Player* player, char const* rule)
-    {
-        if (!player)
-            return false;
-        uint32 guid = player->GetGUID().GetCounter();
+    // In-memory mirror of coa_character_challenge, for the same reason the game mode mask has one:
+    // PlayerHasRule is called from the combat hooks and must not reach the database.
+    std::mutex CharChallengeMutex;
+    std::unordered_map<uint32, std::vector<std::pair<uint32, uint32>>> CharChallengeCache;
+    // Bumped under CharChallengeMutex on every invalidation. A load that started before the bump
+    // must not publish its now-stale snapshot (time-of-check to time-of-use): without it, a Clear
+    // issued while the entry is still absent is a no-op and the late insert would resurrect an
+    // invalidated row set. A single monotonic counter (not a per-guid map) keeps no per-character
+    // state alive; the only cost is that a clear on any character also invalidates other in-flight
+    // loads, which merely forces an extra reload on the cold path. Scope is in-process and covers
+    // writes made through this module, not direct SQL/external writes.
+    static uint64 CharChallengeGeneration = 0;
 
+    std::vector<std::pair<uint32, uint32>> LoadCharChallenges(uint32 guid)
+    {
+        std::vector<std::pair<uint32, uint32>> active;
         if (QueryResult r = CharacterDatabase.Query(
-                "SELECT challengeId FROM coa_character_challenge WHERE guid = {}", guid))
+                "SELECT challengeId, level FROM coa_character_challenge WHERE guid = {}", guid))
         {
             do
             {
-                uint32 cid = r->Fetch()[0].Get<uint32>();
-                std::string rules = ChallengeRules(cid);
-                if (RuleListContains(rules, rule))
-                    return true;
+                Field* f = r->Fetch();
+                active.emplace_back(f[0].Get<uint32>(), f[1].Get<uint32>());
             } while (r->NextRow());
+        }
+        return active;
+    }
+
+    // Test seam (`.coa cachetoctou`, see CoAChallengeTests.cpp). The hook runs on the calling
+    // thread between the DB load and the cache publish, so a test can inject an invalidation
+    // exactly in the TOCTOU window. Both are inert in production (empty hook, override -1).
+    std::function<void(uint32)> CharChallengeLoadHookForTest;
+    std::mutex CharChallengeHookMutex;
+    static std::atomic<int> CacheGuardOverrideForTest{-1};
+
+    void Test_SetCacheGuard(int value) { CacheGuardOverrideForTest = value; }
+    void Test_SetCharChallengeLoadHook(std::function<void(uint32)> hook)
+    {
+        std::lock_guard<std::mutex> lock(CharChallengeHookMutex);
+        CharChallengeLoadHookForTest = std::move(hook);
+    }
+
+    // Always on in production. Only the `.coa cachetoctou` regression test overrides it, so the
+    // pre-fix behavior (a blind publish that keeps the stale snapshot) can be exercised too.
+    bool CacheGenerationGuardEnabled()
+    {
+        return CacheGuardOverrideForTest.load() != 0;
+    }
+
+    // The character's active challenges, kept in memory the way the game mode mask already is.
+    // PlayerHasRule runs from the combat hooks - every hit, every heal, every melee roll - and
+    // asking the database there put a synchronous query on the map threads: measured at 18 000
+    // SELECT a second on a realm with a thousand characters fighting, against an empty table.
+    //
+    // A copy is returned on purpose. A reference would point inside a map that another map
+    // thread can rehash under the caller, which is the failure #4021 had to fix elsewhere.
+    std::vector<std::pair<uint32, uint32>> CachedCharChallenges(uint32 guid)
+    {
+        for (;;)
+        {
+            uint64 generation = 0;
+            bool guard = false;
+            {
+                std::lock_guard<std::mutex> lock(CharChallengeMutex);
+                auto it = CharChallengeCache.find(guid);
+                if (it != CharChallengeCache.end())
+                    return it->second;
+                guard = CacheGenerationGuardEnabled();
+                if (guard)
+                    generation = CharChallengeGeneration;
+            }
+
+            std::vector<std::pair<uint32, uint32>> active = LoadCharChallenges(guid);
+            {
+                // Copy the hook under its own mutex (the setter can run on the GM command thread
+                // while a map thread is here). Invoke it after unlocking so its Clear* call, which
+                // takes CharChallengeMutex, cannot deadlock.
+                std::function<void(uint32)> hook;
+                {
+                    std::lock_guard<std::mutex> lock(CharChallengeHookMutex);
+                    hook = CharChallengeLoadHookForTest;
+                }
+                if (hook)
+                    hook(guid);
+            }
+
+            std::lock_guard<std::mutex> lock(CharChallengeMutex);
+            // The row set changed while we were loading: the snapshot is stale, reload.
+            if (guard && CharChallengeGeneration != generation)
+                continue;
+            CharChallengeCache[guid] = active;
+            return active;
+        }
+    }
+
+    // Called wherever the module adds or removes a row of coa_character_challenge, and at logout.
+    void ClearCharChallengeCache(uint32 guid)
+    {
+        std::lock_guard<std::mutex> lock(CharChallengeMutex);
+        CharChallengeCache.erase(guid);
+        ++CharChallengeGeneration;
+    }
+
+    // CoAChallenges.Enable is read when the configuration loads, not on every call: the combat hooks
+    // reach it on every hit, and each read of a setting the realm's configuration does not define
+    // logs a warning - millions of lines an hour on a realm shipped without mod-coa-challenges.conf.
+    std::atomic<bool> ChallengesEnabledSetting{true};
+
+    void LoadChallengesEnabled()
+    {
+        ChallengesEnabledSetting = sConfigMgr->GetOption<bool>("CoAChallenges.Enable", true);
+    }
+
+    bool ChallengesEnabled()
+    {
+        return ChallengesEnabledSetting.load(std::memory_order_relaxed);
+    }
+
+    bool PlayerHasRule(Player* player, char const* rule)
+    {
+        // The combat hooks read the rules through here, and they are registered whatever the
+        // setting says: without this an operator who turns the module off still pays for it.
+        if (!player || !ChallengesEnabled())
+            return false;
+        uint32 guid = player->GetGUID().GetCounter();
+
+        for (auto const& [cid, unusedLevel] : CachedCharChallenges(guid))
+        {
+            std::string rules = ChallengeRules(cid);
+            if (RuleListContains(rules, rule))
+                return true;
         }
 
         // Game mode scope: a mode that is on without a trial applies its base
@@ -635,32 +755,23 @@ namespace CoAChallenges
         if (!player)
             return 0;
         uint32 guid = player->GetGUID().GetCounter();
-        QueryResult r = CharacterDatabase.Query(
-            "SELECT challengeId, level FROM coa_character_challenge WHERE guid = {}", guid);
-        if (!r)
-            return 0;
-        do
+        for (auto const& [cid, challengeLevel] : CachedCharChallenges(guid))
         {
-            Field* f = r->Fetch();
-            uint32 cid = f[0].Get<uint32>();
             std::string rules = ChallengeRules(cid);
             if (RuleListContains(rules, rule))
             {
-                level = f[1].Get<uint32>();
+                level = challengeLevel;
                 return cid;
             }
-        } while (r->NextRow());
+        }
         return 0;
     }
 
     std::set<uint32> ActiveChallenges(uint32 guid)
     {
         std::set<uint32> out;
-        if (QueryResult r = CharacterDatabase.Query(
-                "SELECT challengeId FROM coa_character_challenge WHERE guid = {}", guid))
-        {
-            do { out.insert(r->Fetch()[0].Get<uint32>()); } while (r->NextRow());
-        }
+        for (auto const& [cid, unusedLevel] : CachedCharChallenges(guid))
+            out.insert(cid);
         return out;
     }
 
@@ -1008,6 +1119,7 @@ namespace CoAChallenges
             "VALUES ({}, {}, {}, UNIX_TIMESTAMP(), {})", guid, challengeID, level, startTime);
         CharacterDatabase.DirectExecute(
             "DELETE FROM coa_character_challenge WHERE guid = {} AND challengeId = {}", guid, challengeID);
+        ClearCharChallengeCache(guid);
         RemoveChallengeSpell(player, challengeID);
         RemoveMeterAuras(player);
         RemoveHungerChallenge(player, challengeID);
@@ -1234,6 +1346,7 @@ namespace CoAChallenges
         CharacterDatabase.DirectExecute(
             "DELETE FROM coa_character_challenge WHERE guid = {} AND challengeId = {}",
             guid, challengeID);
+        ClearCharChallengeCache(guid);
         RemoveChallengeSpell(player, challengeID);
         RemoveMeterAuras(player);
         RemoveHungerChallenge(player, challengeID);
@@ -1334,7 +1447,7 @@ namespace CoAChallenges
     // the member already removed from `group` (nullptr for a disband).
     void FailSharedFateHolders(Group* group, Player* extra)
     {
-        if (!sConfigMgr->GetOption<bool>("CoAChallenges.Enable", true))
+        if (!ChallengesEnabled())
             return;
 
         std::vector<std::pair<Player*, uint32>> targets;
@@ -1382,7 +1495,7 @@ namespace CoAChallenges
 
     void HandlePlayerDeath(Player* player)
     {
-        if (!sConfigMgr->GetOption<bool>("CoAChallenges.Enable", true))
+        if (!ChallengesEnabled())
             return;
         if (!sConfigMgr->GetOption<bool>("CoAChallenges.RespondToDeath", true))
             return;

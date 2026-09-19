@@ -32,7 +32,9 @@ enum BloodmageTalentSpells : uint32
     SPELL_VAMPYR_LORD = 560259,
     SPELL_COAGULATION = 706258,
     SPELL_SHADOWS_IN_THE_NIGHT = 704662,
-    SPELL_ENDURE_THE_CURSE = 681190
+    SPELL_ENDURE_THE_CURSE = 681190,
+    SPELL_ETERNAL_CURSE = 800157,
+    SPELL_ETERNAL_CURSE_ARMOR = 804320
 };
 
 // Every creature Animated Blood can leave behind: worms, parasites and the rank 3 amalgam.
@@ -165,6 +167,9 @@ public:
                         player->CastSpell(target, SPELL_HUNTER_AND_HUNTED_NET, true);
                     }
         }
+        // "Armor contribution from items" is a hidden passive (804320) that nothing ever applied.
+        if (aura->GetId() == SPELL_ETERNAL_CURSE)
+            player->CastSpell(player, SPELL_ETERNAL_CURSE_ARMOR, true);
     }
 
     void OnAuraRemove(Unit* unit, AuraApplication* application, AuraRemoveMode mode) override
@@ -175,6 +180,8 @@ public:
         Aura* aura = application->GetBase();
         if (IsCursedForm(aura->GetId()))
             SyncCursedFormRequirement(player);
+        if (aura->GetId() == SPELL_ETERNAL_CURSE)
+            player->RemoveAurasDueToSpell(SPELL_ETERNAL_CURSE_ARMOR);
         if (!player->IsAlive() || !player->IsInWorld() || mode == AURA_REMOVE_BY_DEATH)
             return;
         if (aura->GetId() == SPELL_LIQUIFY && aura->GetCasterGUID() == player->GetGUID() &&
@@ -256,6 +263,23 @@ public:
     }
 };
 
+// Passive shapeshift auras survive Unit::RemoveAllAurasOnDeath, so a Bloodmage who died in a Cursed Form
+// (Eternal Curse) stayed shapeshifted as a ghost, and dropping the form then killed the ghost again.
+class bloodmage_cursed_form_death : public PlayerScript
+{
+public:
+    bloodmage_cursed_form_death() : PlayerScript("bloodmage_cursed_form_death", {PLAYERHOOK_ON_PLAYER_JUST_DIED}) { }
+
+    void OnPlayerJustDied(Player* player) override
+    {
+        if (!player || player->getClass() != CLASS_SON_OF_ARUGAL)
+            return;
+        for (uint32 form : CursedForms)
+            player->RemoveAurasDueToSpell(form);
+        SyncCursedFormRequirement(player);
+    }
+};
+
 class bloodmage_talent_contracts : public GlobalScript
 {
 public:
@@ -287,6 +311,7 @@ void AddSC_AscensionBloodmageTalents()
 {
     new bloodmage_talent_events();
     new bloodmage_talent_guard();
+    new bloodmage_cursed_form_death();
     new bloodmage_talent_contracts();
     RegisterSpellScript(spell_ascension_animated_blood);
 }

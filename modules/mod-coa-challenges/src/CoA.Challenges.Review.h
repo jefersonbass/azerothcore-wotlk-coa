@@ -278,6 +278,9 @@ extern std::mutex HungerMutex; // defined in CoA.Challenges.Hunger.cpp
 extern std::unordered_map<uint32, HungerClock> HungerAccum; // defined in CoA.Challenges.Hunger.cpp
 extern std::unordered_set<uint32> HungerGuids; // defined in CoA.Challenges.Hunger.cpp
 extern std::unordered_map<uint32, uint32> GameModeBase; // guarded by GameModeBaseMutex; iterate via GameModeBaseSnapshot()
+extern std::mutex CharChallengeMutex; // defined in CoA.Challenges.Lifecycle.cpp
+// guid -> the character's active challenges, as (challengeId, level)
+extern std::unordered_map<uint32, std::vector<std::pair<uint32, uint32>>> CharChallengeCache;
 extern std::mutex GameModeMaskMutex; // defined in CoA.Challenges.GameModes.cpp
 extern std::unordered_map<uint32, uint32> GameModeMaskCache; // defined in CoA.Challenges.GameModes.cpp
 extern std::mutex FatigueMutex; // defined in CoA.Challenges.Fatigue.cpp
@@ -327,6 +330,9 @@ std::unordered_map<uint32, uint32> GameModeBaseSnapshot();
 uint32 PlayerToggleMaskFor(uint32 guid);
 void ClearPlayerToggleBit(uint32 guid, uint32 bit);
 uint32 LoadGameModeMask(uint32 guid);
+bool CacheGenerationGuardEnabled();
+std::vector<std::pair<uint32, uint32>> CachedCharChallenges(uint32 guid);
+void ClearCharChallengeCache(uint32 guid);
 uint32 CachedGameModeMask(uint32 guid);
 void ClearGameModeMaskCache(uint32 guid);
 void ApplyGameModeSpells(Player* player, uint32 oldMask, uint32 newMask);
@@ -475,6 +481,8 @@ uint32 ActivateChallenge(Player* player, uint32 challengeID, uint32 level);
 void DeactivateChallenge(Player* player, uint32 challengeID);
 bool RuleListContains(std::string const& list, std::string const& rule);
 bool PlayerHasRule(Player* player, char const* rule);
+void LoadChallengesEnabled();
+bool ChallengesEnabled();
 uint32 ActiveChallengeWithRule(Player* player, char const* rule, uint32& level);
 std::set<uint32> ActiveChallenges(uint32 guid);
 void SetConditionFlag(uint32 guid, char const* flag);
