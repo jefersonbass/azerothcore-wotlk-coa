@@ -216,6 +216,18 @@ void ApplyContracts(SpellInfo* info)
     }
     if (id == 704277)
         info->DurationEntry = sSpellDurationStore.LookupEntry(1);
+    if (id == 707126)
+    {
+        // Issue 814: Constant Burning ships without SPELL_ATTR0_PASSIVE, so
+        // the learn/login passes never applied its Spellburn mods. Mark
+        // passive. Effect 0 (op 11 = SPELLMOD_COOLDOWN, bp -4001, maskA/B
+        // 0x8) matches Spellburn (800808, family-30 flag 0x8) and resolves
+        // as the tooltip's -4s cooldown via the native cooldown-mod path.
+        // Effect 1 (op 1 = SPELLMOD_DURATION, bp 999, empty mask) targets
+        // nothing; retarget it to Spellburn so the +1s duration applies.
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+        info->Effects[EFFECT_1].SpellClassMask = flag96(0x8, 0, 0);
+    }
     if (id == 802173 || id == 520826 || id == 680370 || id == 680371)
     {
         info->AscensionIgnoreAbsorbAndResistance = true;

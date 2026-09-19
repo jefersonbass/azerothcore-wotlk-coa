@@ -15,6 +15,9 @@ enum PrimalistAbilitySpells : uint32
 {
     SPELL_GEODE_BARRAGE_DAMAGE = 803138,
     SPELL_GEODE_BARRAGE_RAGE = 802885,
+    SPELL_REXXARS_MIGHT = 806559,
+    SPELL_REXXARS_MIGHT_PROC = 806561,
+    SPELL_REXXARS_MIGHT_BLEED = 806562,
     SPELL_LEGACY_OF_REXXAR = 800184,
     SPELL_BONES_MARK = 806552,
     SPELL_BONES_STACK = 806554,
@@ -283,7 +286,7 @@ public:
             spell->SetScriptValue(SPELL_GEODE_BARRAGE_RAGE, 1);
             player->CastSpell(player, SPELL_GEODE_BARRAGE_RAGE, true);
         }
-        // Legacy of Rexxar (800184): crits with the three Wildwalker attacks grant
+        // Rexxar's Might (806559) + Legacy of Rexxar (800184): crits with the three Wildwalker attacks grant
         // the matching companion buff to the player and the pet. The proc chain in
         // the DBC is inert, so the buffs are granted directly.
         if (critical && player->IsAlive() && player->HasAura(SPELL_LEGACY_OF_REXXAR))
@@ -302,6 +305,24 @@ public:
                     player->CastSpell(pet, buff, true);
             }
         }
+        // Rexxar's Might (806559): physical critical strikes arm the pet's next
+        // attack. The talent's native proc aura (42 -> 806561) carries no
+        // ProcFlags, so arm it here: apply the 806561 marker aura to the pet;
+        // the pet's next successful hit (caster is the pet, owner is the player)
+        // consumes the marker and applies the 806562 bleed to its victim.
+        Unit* caster = spell->GetCaster();
+        if (caster && caster->IsPet() && caster->GetOwnerGUID() == player->GetGUID())
+        {
+            if (caster->HasAura(SPELL_REXXARS_MIGHT_PROC))
+            {
+                caster->RemoveAurasDueToSpell(SPELL_REXXARS_MIGHT_PROC);
+                caster->CastSpell(target, SPELL_REXXARS_MIGHT_BLEED, true);
+            }
+            return;
+        }
+        if (critical && player->HasAura(SPELL_REXXARS_MIGHT) && !spell->IsTriggered())
+            if (Pet* pet = player->GetPet(); pet && pet->IsAlive() && !pet->HasAura(SPELL_REXXARS_MIGHT_PROC))
+                pet->AddAura(SPELL_REXXARS_MIGHT_PROC, pet);
     }
 
     void OnSpellCalculatedTarget(Spell* spell, Unit* target, TargetInfo& hit) override

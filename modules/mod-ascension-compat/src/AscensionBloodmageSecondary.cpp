@@ -61,7 +61,9 @@ enum BloodmageSecondarySpells : uint32
     SPELL_HEMAL_EXCISION_HOLD = 803734,
     SPELL_DISSIPATION = 680730,
     SPELL_ROTCLAW = 804197,
-    SPELL_ROTCLAW_ENERGIZE = 805352 // Ravenous Strike (Energize): 30..70 internal, i.e. 3 to 7 Rage
+    SPELL_ROTCLAW_ENERGIZE = 805352, // Ravenous Strike (Energize): 30..70 internal, i.e. 3 to 7 Rage
+    SPELL_CURSED_BLOOD = 681792,
+    SPELL_CURSED_BLOOD_DEBUFF = 803722
 };
 
 // Every rank of the two abilities Enthraller empowers.
@@ -325,6 +327,11 @@ public:
         if (player->HasAura(SPELL_CRIMSON_SCION) && !spell->IsTriggered() &&
             roll_chance_i(10) && !player->HasAura(SPELL_CRIMSON_SCION_PROC))
             player->CastSpell(player, SPELL_CRIMSON_SCION_PROC, true);
+        // Issue 806: Cursed Blood makes Bloodbolt damage apply the 803722
+        // Jinx (resistance shred + magic damage taken) for 10s.
+        if (AscensionBloodmage::GetEmpowerment(id) == AscensionBloodmage::Bloodbolt &&
+            player->HasAura(SPELL_CURSED_BLOOD))
+            player->CastSpell(target, SPELL_CURSED_BLOOD_DEBUFF, true);
         if (RankOf(id, SPELL_REAVE) && !spell->GetScriptValue(SPELL_REAVE_BLEED))
         {
             spell->SetScriptValue(SPELL_REAVE_BLEED, 1);

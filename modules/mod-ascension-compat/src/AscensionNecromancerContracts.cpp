@@ -158,6 +158,20 @@ void ApplyContracts(SpellInfo* info)
         info->Effects[0].SpellClassMask = flag96(0, 0, 134217728);
         dummy(1);
     }
+    if (id == 707445)
+    {
+        // Issue 812: Runic Animation ships without SPELL_ATTR0_PASSIVE, so
+        // the learn/login passes never applied its cooldown mods. Mark
+        // passive. Effect 0 (op 3 = SPELLMOD_COOLDOWN, maskB 0x400) matches
+        // Command: Hook (504316, family-29 flag 0x400); effect 1 (op 11 =
+        // SPELLMOD_CASTING_TIME, mask 0) is a dead slot with no target.
+        // Retarget effect 1 as a second cooldown mod on Animate: Skeletal
+        // Archer (500330, family-29 flag 0x8). Both resolve as the tooltip's
+        // -20% cooldown via the native cooldown-mod path.
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+        info->Effects[EFFECT_1].MiscValue = SPELLMOD_COOLDOWN;
+        info->Effects[EFFECT_1].SpellClassMask = flag96(0x8, 0, 0);
+    }
     if (id == 300958 || id == 300960 || id == 560852 || id == 704669)
     {
         uint8 index = id == 300958 ? 1 : 0;

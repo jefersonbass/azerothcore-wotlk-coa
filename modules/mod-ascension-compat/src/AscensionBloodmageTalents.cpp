@@ -34,7 +34,9 @@ enum BloodmageTalentSpells : uint32
     SPELL_SHADOWS_IN_THE_NIGHT = 704662,
     SPELL_ENDURE_THE_CURSE = 681190,
     SPELL_ETERNAL_CURSE = 800157,
-    SPELL_ETERNAL_CURSE_ARMOR = 804320
+    SPELL_ETERNAL_CURSE_ARMOR = 804320,
+    SPELL_CURSED_BLOOD = 681792,
+    SPELL_CURSED_BLOOD_DEBUFF = 803722
 };
 
 // Every creature Animated Blood can leave behind: worms, parasites and the rank 3 amalgam.
@@ -288,7 +290,23 @@ public:
 
     void OnLoadSpellCustomAttr(SpellInfo* info) override
     {
-        if (!info || info->Id != SPELL_VAMPIRIC_POOLS_LEECH || info->SpellFamilyName != 26 ||
+        if (!info || info->SpellFamilyName != 26)
+            return;
+        if (info->Id == SPELL_CURSED_BLOOD)
+        {
+            // Issue 806: Cursed Blood ships without SPELL_ATTR0_PASSIVE, so the
+            // learn/login passes never applied its spellmod auras, and its
+            // BasePoints are display-minus-1 with DieSides 0. Mark passive and
+            // shift DieSides to 1 so effect 1 resolves as the tooltip's 20%
+            // damage (op 0, maskB 0x22000 covers Bloodbolt/Bloodmoon Blast)
+            // and effect 2 as 20% SP scaling (op 22). Effect 0's trigger
+            // (803722) is applied in script on Bloodbolt hits.
+            info->Attributes |= SPELL_ATTR0_PASSIVE;
+            info->Effects[EFFECT_1].DieSides = 1;
+            info->Effects[EFFECT_2].DieSides = 1;
+            return;
+        }
+        if (info->Id != SPELL_VAMPIRIC_POOLS_LEECH ||
             info->Effects[EFFECT_0].Effect != SPELL_EFFECT_HEALTH_LEECH)
             return;
 
