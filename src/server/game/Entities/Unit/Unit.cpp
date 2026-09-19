@@ -4587,6 +4587,11 @@ bool Unit::CanCastSpellWhileMoving(SpellInfo const* info) const
          sSpellMgr->GetFirstSpellInChain(info->Id) == 504527 ||
          sSpellMgr->GetFirstSpellInChain(info->Id) == 801387))
         return true;
+    // Golem Form (805335): damaging Primalist spells become castable while
+    // moving for its duration.
+    if (IsPlayer() && HasAura(805335) && info->SpellFamilyName == 37 &&
+        info->HasEffect(SPELL_EFFECT_SCHOOL_DAMAGE))
+        return true;
     // Copied aura 313 grants movement only to spells selected by its family mask.
     return HasAuraTypeWithAffectMask(SPELL_AURA_313, info);
 }
