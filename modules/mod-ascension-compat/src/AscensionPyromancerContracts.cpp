@@ -46,6 +46,23 @@ void ApplyContracts(SpellInfo* info)
         mod(1, SPELL_AURA_MOD_CRIT_PCT, amount, 0, flag96());
         info->Effects[2].Effect = 0;
     }
+    // Hasty Incantation (802169): "Increases the range of Flame Step by 10 yds."
+    // The talent ships without SPELL_ATTR0_PASSIVE, so learn/login never cast the
+    // modifier aura; the DBC also binds the flat mod to SPELLMOD_RADIUS instead
+    // of SPELLMOD_RANGE (range lives in the spell's RangeIndex, not a radius
+    // entry) and leaves the class mask empty so it can never match Flame Step
+    // (family 30, flags 0x40 in slot 2). Mark passive, rebind the operation,
+    // and copy Flame Step's family mask so IsAffected matches all three ranks.
+    if (id == 802169)
+    {
+        auto& range = info->Effects[EFFECT_0];
+        range.ApplyAuraName = SPELL_AURA_ADD_FLAT_MODIFIER;
+        range.BasePoints = 9; // DieSides 1 -> displayed 10 yds
+        range.DieSides = 1;
+        range.MiscValue = SPELLMOD_RANGE;
+        range.SpellClassMask = flag96(0, 0x40, 0);
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+    }
     if (id == 807510)
     {
         auto& e = info->Effects[EFFECT_0];
