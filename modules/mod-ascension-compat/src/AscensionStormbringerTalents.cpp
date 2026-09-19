@@ -22,7 +22,11 @@ enum StormbringerTalentSpells : uint32
     SPELL_GENERATE_STATIC_20 = 804086,
     SPELL_BAROMETRIC_SLOW = 803566,
     SPELL_ELECTRICAL_CHARGE = 800299,
-    SPELL_CHARGED_CONDUIT = 803790
+    SPELL_CHARGED_CONDUIT = 803790,
+    SPELL_VOLTAIC_MASTERY = 706661,
+    SPELL_CONDUCTIVE = 567559,
+    SPELL_DELUGE = 806400,
+    SPELL_DELUGE_BONUS = 806399
 };
 
 class stormbringer_talent_casts : public AllSpellScript
@@ -64,6 +68,21 @@ public:
         {
             spell->SetScriptValue(SPELL_STATIC, 1);
             player->CastSpell(player, SPELL_GENERATE_STATIC_20, true);
+        }
+        // Issue 819: Voltaic Mastery increases Deluge damage by 5% per
+        // Conductive stack. The talent's native flat-mod auras carry empty
+        // masks and no stack scaling, so deal the bonus here: on any
+        // successful Deluge hit (chain head 806400, family-22 flag 0x8000),
+        // read the caster's Conductive (567559) stacks and strike the target
+        // for 5% of the resolved damage per stack as bonus Nature damage.
+        if (sSpellMgr->GetFirstSpellInChain(info->Id) == SPELL_DELUGE &&
+            player->HasAura(SPELL_VOLTAIC_MASTERY) && !spell->GetScriptValue(SPELL_VOLTAIC_MASTERY))
+        {
+            spell->SetScriptValue(SPELL_VOLTAIC_MASTERY, 1);
+            if (Aura* conductive = player->GetAura(SPELL_CONDUCTIVE))
+                if (uint8 stacks = conductive->GetStackAmount())
+                    player->CastCustomSpell(SPELL_DELUGE_BONUS, SPELLVALUE_BASE_POINT0,
+                        int32(damage * stacks * 5 / 100), target, true);
         }
     }
 };
