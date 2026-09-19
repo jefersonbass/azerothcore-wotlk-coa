@@ -22,7 +22,9 @@ enum ChronomancerTalentSpells : uint32
     SPELL_DIVERGENCE_SPEED = 803703,
     SPELL_RIPPLING_POWER = 806300,
     SPELL_RIPPLING_POWER_RANK_2 = 807893,
-    SPELL_DISTORTED_TIME = 707553
+    SPELL_DISTORTED_TIME = 707553,
+    SPELL_ARCHAEOLOGY = 560130,
+    SPELL_DISCOVERY = 500116
 };
 
 bool IsAeonActivation(uint32 id)
@@ -122,6 +124,19 @@ public:
             player->RemoveSpellCooldown(SPELL_CHROMATIC_SHARD);
         else if (info->Id == SPELL_CHROMATIC_SHARD && player->HasAura(SPELL_INCARNATION_OF_CHAOS))
             player->RemoveSpellCooldown(SPELL_CHROMATIC_SHARD);
+
+        // Archaeology (560130): "Your Discovery now also generates 3% of your
+        // base mana and health." The talent's flat-mod slots point at dead
+        // operations, so pay out here on each Discovery cast.
+        if (info->Id == SPELL_DISCOVERY && !spell->IsTriggered() &&
+            player->HasAura(SPELL_ARCHAEOLOGY, player->GetGUID()))
+        {
+            player->EnergizeBySpell(player, SPELL_ARCHAEOLOGY,
+                int32(CalculatePct(player->GetCreateMana(), ARCHAEOLOGY_PCT)), POWER_MANA);
+            HealInfo heal(player, player, CalculatePct(player->GetCreateHealth(), ARCHAEOLOGY_PCT),
+                info, info->GetSchoolMask());
+            player->HealBySpell(heal);
+        }
     }
 
     void OnSpellHitResult(Spell* spell, Unit* target, uint8 missInfo,
@@ -163,6 +178,7 @@ private:
     static constexpr uint32 SPELL_ANOMALY_SPIKES = 503825;
     static constexpr uint32 SPELL_ANOMALY_SPIKE_HIT = 503826;
     static constexpr uint32 ANOMALY_CHANCE = 8;
+    static constexpr uint32 ARCHAEOLOGY_PCT = 3;
 };
 }
 
