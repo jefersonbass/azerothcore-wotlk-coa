@@ -107,6 +107,18 @@ void ApplyContracts(SpellInfo* info)
         // resolves to Physical; rebind it to Arcane with the tooltip amount.
         mod(1, SPELL_AURA_MOD_CRIT_DAMAGE_BONUS, 20, SPELL_SCHOOL_MASK_ARCANE, flag96());
     }
+    if (id == 500582)
+    {
+        // Issue 818: Goddess Watch Over ships without SPELL_ATTR0_PASSIVE,
+        // so the learn/login passes never applied its spellmod aura, and its
+        // BasePoints are display-minus-1 with DieSides 0. Mark passive and
+        // shift DieSides to 1 so the value resolves as the tooltip's 25%
+        // (op 8 = SPELLMOD_ALL_EFFECTS, maskA 0x4 matches Aspect of the
+        // Goddess 802203's family-32 flag 0x4). The native ALL_EFFECTS mod
+        // path applies it to the Aspect's heals.
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+        info->Effects[EFFECT_0].DieSides = 1;
+    }
     if (id == 800386)
     {
         mod(0, SPELL_AURA_ADD_PCT_MODIFIER, -100, SPELLMOD_CASTING_TIME, flag96(537133056, 8, 0));
