@@ -14,7 +14,10 @@ namespace
 enum PrimalistAbilitySpells : uint32
 {
     SPELL_GEODE_BARRAGE_DAMAGE = 803138,
-    SPELL_GEODE_BARRAGE_RAGE = 802885
+    SPELL_GEODE_BARRAGE_RAGE = 802885,
+    SPELL_REXXARS_MIGHT = 806559,
+    SPELL_REXXARS_MIGHT_PROC = 806561,
+    SPELL_REXXARS_MIGHT_BLEED = 806562
 };
 
 Player* Primalist(Unit* unit)
@@ -63,18 +66,40 @@ public:
     primalist_talent_casts() : AllSpellScript("primalist_talent_casts",
         {ALLSPELLHOOK_ON_CRIT_CHANCE, ALLSPELLHOOK_ON_HIT_RESULT}) { }
 
-    void OnSpellHitResult(Spell* spell, Unit* target, uint8 miss, uint32, uint32, bool) override
+    void OnSpellHitResult(Spell* spell, Unit* target, uint8 miss, uint32, uint32, bool critical) override
     {
         Player* player = Primalist(spell->GetCaster());
         SpellInfo const* info = spell->GetSpellInfo();
         if (!player || !target || target == player || player->IsFriendlyTo(target) || miss != SPELL_MISS_NONE ||
-            info->SpellFamilyName != 37 || info->Id != SPELL_GEODE_BARRAGE_DAMAGE ||
-            spell->GetScriptValue(SPELL_GEODE_BARRAGE_RAGE))
+            info->SpellFamilyName != 37)
             return;
-        // Each channel tick casts this damage helper. Its authored energize
-        // companion rolls 30-80 internal Rage (3-8 visible Rage) per successful stone.
-        spell->SetScriptValue(SPELL_GEODE_BARRAGE_RAGE, 1);
-        player->CastSpell(player, SPELL_GEODE_BARRAGE_RAGE, true);
+        if (info->Id == SPELL_GEODE_BARRAGE_DAMAGE && !spell->GetScriptValue(SPELL_GEODE_BARRAGE_RAGE))
+        {
+            // Each channel tick casts this damage helper. Its authored energize
+            // companion rolls 30-80 internal Rage (3-8 visible Rage) per successful stone.
+            spell->SetScriptValue(SPELL_GEODE_BARRAGE_RAGE, 1);
+            player->CastSpell(player, SPELL_GEODE_BARRAGE_RAGE, true);
+            return;
+        }
+        // Issue 813: Rexxar's Might arms the pet's next attack after a
+        // physical critical strike. The talent's native proc aura (42 ->
+        // 806561) carries no ProcFlags, so arm it here: apply the 806561
+        // marker aura to the pet; the pet's next successful hit (caster is
+        // the pet, owner is the player) consumes the marker and applies the
+        // 806562 bleed to its victim.
+        Unit* caster = spell->GetCaster();
+        if (caster && caster->IsPet() && caster->GetOwnerGUID() == player->GetGUID())
+        {
+            if (caster->HasAura(SPELL_REXXARS_MIGHT_PROC))
+            {
+                caster->RemoveAurasDueToSpell(SPELL_REXXARS_MIGHT_PROC);
+                caster->CastSpell(target, SPELL_REXXARS_MIGHT_BLEED, true);
+            }
+            return;
+        }
+        if (critical && player->HasAura(SPELL_REXXARS_MIGHT) && !spell->IsTriggered())
+            if (Pet* pet = player->GetPet(); pet && pet->IsAlive() && !pet->HasAura(SPELL_REXXARS_MIGHT_PROC))
+                pet->AddAura(SPELL_REXXARS_MIGHT_PROC, pet);
     }
 
     void OnSpellCritChance(Spell* spell, Unit* target, float& chance) override
