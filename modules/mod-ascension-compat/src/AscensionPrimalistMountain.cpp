@@ -29,6 +29,7 @@ enum MountainSpells : uint32
     GeodeBarrageDamage = 803138,
     MountainFury = 806185,
     Earthmaker = 560150,
+    EarthDestroyer = 560508,
     EarthenAvatar = 680421,
     Stonebound = 680415,
     BoonOfTheTurtle = 500935,
@@ -372,11 +373,39 @@ class aura_ascension_earthbreaker : public AuraScript
 // reduction) every two seconds, and the pull's leap destination resolves
 // natively from its three-yard radius. The damage helper's flat base and
 // per-level term are native; only the Attack Power coefficient from its
-// description rides in `spell_bonus_data`. This script only registers the
-// talent binding.
+// description rides in `spell_bonus_data`. The local Spell.dbc carries no
+// cooldown for 806185, so the official forty-five second cooldown is set
+// here on cast; Earth Destroyer (560508) shortens it to twenty-five seconds
+// through its own script.
 class aura_ascension_mountain_fury : public AuraScript
 {
     PrepareAuraScript(aura_ascension_mountain_fury);
+
+    void SetCooldown(AuraEffect const*, AuraEffectHandleModes)
+    {
+        if (Player* player = GetTarget()->ToPlayer())
+        {
+            uint32 cooldown = player->HasAura(EarthDestroyer) ? 25000 : 45000;
+            player->AddSpellCooldown(MountainFury, 0, cooldown);
+        }
+    }
+
+    void Register() override
+    {
+        AfterEffectApply += AuraEffectApplyFn(aura_ascension_mountain_fury::SetCooldown,
+            EFFECT_0, SPELL_AURA_PERIODIC_TRIGGER_SPELL, AURA_EFFECT_HANDLE_REAL);
+    }
+};
+
+// Earth Destroyer (560508): Mountain Fury's cooldown is forty-five seconds
+// and its duration is four seconds longer. The plus four second duration is
+// native through the authored Add Flat Modifier (effect 0,
+// SPELLMOD_DURATION with the Mountain Fury class mask). The minus twenty
+// second cooldown is handled by the Mountain Fury script above, which reads
+// this aura; this script only registers the talent binding.
+class aura_ascension_earth_destroyer : public AuraScript
+{
+    PrepareAuraScript(aura_ascension_earth_destroyer);
 
     void Register() override { }
 };
@@ -542,5 +571,6 @@ void AddSC_AscensionPrimalistMountain()
     RegisterSpellScript(aura_ascension_stonebound);
     RegisterSpellScript(aura_ascension_spiritbound);
     RegisterSpellScript(aura_ascension_earthmaker);
+    RegisterSpellScript(aura_ascension_earth_destroyer);
     new mountain_talent_metadata();
 }
