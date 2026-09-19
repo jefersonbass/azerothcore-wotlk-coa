@@ -496,7 +496,7 @@ class starcaller_player : public PlayerScript
 void AddSC_AscensionStarcaller()
 {
     new starcaller_player();
-    RegisterSpellScript(spell_ascension_starcaller_wardens_blade);
-    RegisterSpellScript(spell_ascension_starcaller_highest_order);
-    RegisterSpellScript(spell_ascension_starcaller_prayer_of_elune);
+    RegisterSpellScript(AscensionStarcaller::spell_ascension_starcaller_wardens_blade);
+    RegisterSpellScript(AscensionStarcaller::spell_ascension_starcaller_highest_order);
+    RegisterSpellScript(AscensionStarcaller::spell_ascension_starcaller_prayer_of_elune);
 }
