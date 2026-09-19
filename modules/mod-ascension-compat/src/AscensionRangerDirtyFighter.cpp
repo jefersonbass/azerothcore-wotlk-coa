@@ -147,10 +147,22 @@ public:
 
     void OnLoadSpellCustomAttr(SpellInfo* info) override
     {
-        if (info && info->Id == SPELL_PLAYING_DIRTY && info->SpellFamilyName == 27)
+        if (!info || info->SpellFamilyName != 27)
+            return;
+        if (info->Id == SPELL_PLAYING_DIRTY)
         {
             info->AttributesCu &= ~SPELL_ATTR0_CU_FORCE_AURA_SAVING;
             info->AttributesCu |= SPELL_ATTR0_CU_AURA_CANNOT_BE_SAVED;
+        }
+        if (info->Id == 520804)
+        {
+            // Issue 838: Bloody Focus ships without SPELL_ATTR0_PASSIVE, so
+            // the learn/login passes never applied its cost-mod aura. Mark
+            // passive. Effect 0 (op 14 = SPELLMOD_COST, bp -16, maskA 0x8000)
+            // matches Toxic Dart (chain head 807237, family-27 flag 0x8000)
+            // and resolves as the tooltip's -15 Focus cost via the native
+            // cost-mod path.
+            info->Attributes |= SPELL_ATTR0_PASSIVE;
         }
     }
 };
