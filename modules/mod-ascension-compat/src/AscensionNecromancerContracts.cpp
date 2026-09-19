@@ -228,6 +228,19 @@ void ApplyContracts(SpellInfo* info)
                   // family-mask wildcard aura 271
     if (id == 800979)
         info->Effects[1].SpellClassMask = flag96(0, 64, 0);
+    if (id == 805424)
+    {
+        // Deathly Chill trims Ice Barrage cast and channel time by 25%. The
+        // DBC's duration/activation-time slots do not shorten casts, so both
+        // live effects are rewritten to the native cast-time modifier keyed to
+        // the shared Ice Barrage family bit.
+        for (uint8 slot : {1, 2})
+        {
+            info->Effects[slot].ApplyAuraName = SPELL_AURA_ADD_PCT_MODIFIER;
+            info->Effects[slot].MiscValue = SPELLMOD_CASTING_TIME;
+            info->Effects[slot].SpellClassMask = flag96(0, 64, 0);
+        }
+    }
     if (id == 572777)
     {
         info->Effects[0].Effect = 0;
