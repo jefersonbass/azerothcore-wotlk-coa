@@ -31,6 +31,7 @@ enum StormbringerTalentSpells : uint32
     SPELL_TORRENTIAL_WRATH = 503352,
     SPELL_CONDUCTION = 567560,
     SPELL_UNDERTOW = 705666,
+    SPELL_UNDERTOW_RANK_2 = 707796,
     SPELL_DROWN_HIT = 806408,
     SPELL_ELECTROCUTIONER_PASSIVE = 500068,
     SPELL_ELECTROCUTIONER_TALENT = 92096,
@@ -95,12 +96,19 @@ public:
 
     void OnSpellCritChance(Spell* spell, Unit* target, float& chance) override
     {
-        // Undertow (705666): Drown's burst component crits 25% more often.
+        // Undertow: Drown's burst component crits more often, 25% at rank 1
+        // (705666) and 50% at rank 2 (707796). The authored bonus lives on
+        // the talent's crit effect, so it is read from the aura, not hardcoded.
         Player* player = spell->GetCaster() ? spell->GetCaster()->ToPlayer() : nullptr;
         SpellInfo const* info = spell->GetSpellInfo();
-        if (!player || !player->HasAura(SPELL_UNDERTOW) || info->Id != SPELL_DROWN_HIT)
+        if (!player || info->Id != SPELL_DROWN_HIT)
             return;
-        chance += 25.0f;
+        for (uint32 undertow : {SPELL_UNDERTOW, SPELL_UNDERTOW_RANK_2})
+            if (AuraEffect const* crit = player->GetAuraEffect(undertow, EFFECT_1))
+            {
+                chance += float(crit->GetAmount());
+                return;
+            }
     }
 
     void OnSpellHitResult(Spell* spell, Unit* target, uint8 miss, uint32 damage, uint32, bool) override
