@@ -52,7 +52,7 @@ uint32 StingStacks(Player* player, Unit* target)
     {
         Aura* aura = pair.second->GetBase();
         if (Named(sSpellMgr->GetSpellInfo(aura->GetId()),800882) && aura->GetCasterGUID() == player->GetGUID())
-            stacks = std::max(stacks,aura->GetStackAmount());
+            stacks = std::max<uint32>(stacks, aura->GetStackAmount());
     }
     return stacks;
 }
