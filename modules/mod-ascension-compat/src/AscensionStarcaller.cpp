@@ -52,6 +52,9 @@ class spell_ascension_starcaller_prayer_of_elune : public SpellScript
 {
     PrepareSpellScript(spell_ascension_starcaller_prayer_of_elune);
 
+    static constexpr uint32 SPELL_PRAYER_OF_ELUNE = 801987;
+    static constexpr uint32 SPELL_FINAL_PRAYER = 704745;
+
     void AddFinalPrayer()
     {
         Player* player = GetCaster()->ToPlayer();
