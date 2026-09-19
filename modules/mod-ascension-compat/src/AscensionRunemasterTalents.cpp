@@ -156,6 +156,42 @@ class aura_runemaster_granite_shield : public AuraScript
             EFFECT_1, SPELL_AURA_PERIODIC_TRIGGER_SPELL);
     }
 };
+
+// Elemental Carvings (705618): "Fist of the Ancients now unleashes an elemental
+// carving at random. Fire: +15% Armor penetration 6 s. Water: 300 mana over 6 s.
+// Earth: 3% missing health every 1 s 6 s. Air: +10% melee haste 6 s." The
+// talent's DBC proc points at a dead random-trigger helper, so pick one of the
+// four real carving buffs (all valid auras in the shipped DBC) on each cast.
+constexpr uint32 SPELL_ELEMENTAL_CARVINGS = 705618;
+constexpr uint32 SPELL_FIST_OF_THE_ANCIENTS = 712326;
+constexpr uint32 CARVING_FIRE = 706520;
+constexpr uint32 CARVING_WATER = 707142;
+constexpr uint32 CARVING_EARTH = 712300;
+constexpr uint32 CARVING_AIR = 653253;
+
+class runemaster_elemental_carvings : public AllSpellScript
+{
+public:
+    runemaster_elemental_carvings() : AllSpellScript("runemaster_elemental_carvings", {ALLSPELLHOOK_ON_CAST}) { }
+
+    void OnSpellCast(Spell* spell, Unit* caster, SpellInfo const* info, bool) override
+    {
+        Player* player = caster ? caster->ToPlayer() : nullptr;
+        if (!player || player->getClass() != CLASS_SPIRIT_MAGE || spell->IsTriggered())
+            return;
+        if (!player->HasAura(SPELL_ELEMENTAL_CARVINGS, player->GetGUID()))
+            return;
+        if (sSpellMgr->GetFirstSpellInChain(info->Id) != SPELL_FIST_OF_THE_ANCIENTS)
+            return;
+        switch (urand(0, 3))
+        {
+            case 0: player->CastSpell(player, CARVING_FIRE, true); break;
+            case 1: player->CastSpell(player, CARVING_WATER, true); break;
+            case 2: player->CastSpell(player, CARVING_EARTH, true); break;
+            case 3: player->CastSpell(player, CARVING_AIR, true); break;
+        }
+    }
+};
 }
 
 void ApplyAscensionRunemasterTalentContracts(SpellInfo* info)
@@ -188,11 +224,21 @@ void ApplyAscensionRunemasterTalentContracts(SpellInfo* info)
         // proc; the bound script filters to crits and shaves the Guarding Rune CD.
         info->ProcFlags = PROC_FLAG_TAKEN_DAMAGE | PROC_FLAG_TAKEN_PERIODIC;
     }
+    else if (info->Id == 705618)
+    {
+        // Issue 973: Elemental Carvings ships without SPELL_ATTR0_PASSIVE, so the
+        // talent learn and login-load passes never applied anything, and its DBC
+        // proc points at "Primeval Carving" (712327), whose random-trigger effect
+        // (184) has a null handler and a dead spell id. The bound script picks
+        // the carving directly on Fist of the Ancients casts instead.
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+    }
 }
 
 void AddSC_AscensionRunemasterTalents()
 {
     new runemaster_talent_events();
+    new runemaster_elemental_carvings();
     RegisterSpellScript(aura_runemaster_granite_shield);
     RegisterSpellScript(aura_runemaster_protective_warding);
 }
