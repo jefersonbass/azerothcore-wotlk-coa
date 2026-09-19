@@ -49,7 +49,10 @@ enum TimeSpells : uint32
     ContinuumRestoration = 801271,
     Unmake = 804418,
     BuyTime = 520185,
-    BuyTimeStasis = 520186
+    BuyTimeStasis = 520186,
+    InfiniteKeeper = 806312,
+    InfiniteKeeperVortex = 806313,
+    TimerendRoot = 707430
 };
 
 Player* Chronomancer(Unit* caster)
@@ -258,6 +261,21 @@ public:
             uint32 opposite = IsRank(id, Accelerate) ? Decelerate : Accelerate;
             while (Aura* aura = target->GetAuraOfRankedSpell(opposite))
                 aura->Remove();
+        }
+        // Issue 829: Infinite Keeper makes Unmake erupt a sand vortex on
+        // enemies affected by the caster's Timerend. The talent's native
+        // proc aura (42 -> 806314) carries no ProcFlags, so trigger it here:
+        // on any successful Unmake hit (chain head 804418, family-28 flag
+        // 0x2000000) with the talent, if the victim carries the caster's
+        // Timerend (chain root 707430), cast the 806313 vortex (141
+        // Chromatic every 1s for 6s, up to 8 enemies in 8 yds) on the
+        // victim. Once per Unmake cast via script value.
+        else if (IsRank(id, Unmake) && !spell->IsTriggered() &&
+            player->HasAura(InfiniteKeeper) && !spell->GetScriptValue(InfiniteKeeper))
+        {
+            spell->SetScriptValue(InfiniteKeeper, 1);
+            if (target->GetAuraOfRankedSpell(TimerendRoot, player->GetGUID()))
+                player->CastSpell(target, InfiniteKeeperVortex, true);
         }
     }
 };
