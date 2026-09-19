@@ -27,6 +27,7 @@ enum MountainSpells : uint32
     ThanesGuidance = 680410,
     Earthbreaker = 560147,
     GeodeBarrageDamage = 803138,
+    MountainFury = 806185,
     Stonebound = 680415,
     BoonOfTheTurtle = 500935,
     Spiritbound = 681364
@@ -348,8 +349,8 @@ class aura_ascension_thanes_guidance : public AuraScript
 
 // Earthbreaker (560147): the ten percent melee haste is native through Mod
 // Melee Haste; the authored Add % Modifier threat boost has no scoping
-// data, so Geode Barrage and Geode casts add a quarter of their damage
-// again as threat here.
+// data, so the Geode threat bonus rides on the shared cast hooks and this
+// script only registers the talent binding.
 class aura_ascension_earthbreaker : public AuraScript
 {
     PrepareAuraScript(aura_ascension_earthbreaker);
@@ -357,13 +358,17 @@ class aura_ascension_earthbreaker : public AuraScript
     void Register() override { }
 };
 
-// Earthbreaker (560147): the ten percent melee haste is native through Mod
-// Melee Haste; the authored Add % Modifier threat boost has no scoping
-// data, so the Geode threat bonus rides on the shared cast hooks and this
-// script only registers the talent binding.
-class aura_ascension_earthbreaker : public AuraScript
+// Mountain Fury (806185): the channeled cone is fully authored in the DBC —
+// the parent's two periodic-trigger effects fire 807724 (cone damage plus
+// pull through 806186) and 807434 (the stacking two percent damage-taken
+// reduction) every two seconds, and the pull's leap destination resolves
+// natively from its three-yard radius. The damage helper's flat base and
+// per-level term are native; only the Attack Power coefficient from its
+// description rides in `spell_bonus_data`. This script only registers the
+// talent binding.
+class aura_ascension_mountain_fury : public AuraScript
 {
-    PrepareAuraScript(aura_ascension_earthbreaker);
+    PrepareAuraScript(aura_ascension_mountain_fury);
 
     void Register() override { }
 };
@@ -471,6 +476,7 @@ void AddSC_AscensionPrimalistMountain()
     RegisterSpellScript(aura_ascension_mountain_thane);
     RegisterSpellScript(aura_ascension_thanes_guidance);
     RegisterSpellScript(aura_ascension_earthbreaker);
+    RegisterSpellScript(aura_ascension_mountain_fury);
     RegisterSpellScript(aura_ascension_stonebound);
     RegisterSpellScript(aura_ascension_spiritbound);
     new mountain_talent_metadata();
