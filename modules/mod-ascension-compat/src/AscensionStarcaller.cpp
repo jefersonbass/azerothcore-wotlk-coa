@@ -104,6 +104,31 @@ class spell_ascension_starcaller_wardens_blade : public SpellScript
     }
 };
 
+// Highest Order (680771): "Reduces the cooldown of Shadowsong's Mandate by
+// 25%." The Mandate has no spell family, so the passive's native Add %
+// Modifier slot can never match it; refund a quarter of the cooldown after
+// the Mandate is cast.
+class spell_ascension_starcaller_highest_order : public SpellScript
+{
+    PrepareSpellScript(spell_ascension_starcaller_highest_order);
+
+    static constexpr uint32 SPELL_SHADOWSONGS_MANDATE = 805439;
+    static constexpr uint32 SPELL_HIGHEST_ORDER = 680771;
+
+    void ApplyHighestOrder()
+    {
+        Player* player = GetCaster()->ToPlayer();
+        if (player && player->HasAura(SPELL_HIGHEST_ORDER))
+            if (uint32 cooldown = player->GetSpellCooldownDelay(SPELL_SHADOWSONGS_MANDATE))
+                player->ModifySpellCooldown(SPELL_SHADOWSONGS_MANDATE, -int32(cooldown / 4));
+    }
+
+    void Register() override
+    {
+        AfterCast += SpellCastFn(spell_ascension_starcaller_highest_order::ApplyHighestOrder);
+    }
+};
+
 bool Derived(SpellInfo const* info)
 {
     return info && Any(info, {801129, 807672, 524703, 804736, 707759, 805357, 954791});
@@ -468,5 +493,6 @@ void AddSC_AscensionStarcaller()
 {
     new starcaller_player();
     RegisterSpellScript(spell_ascension_starcaller_wardens_blade);
+    RegisterSpellScript(spell_ascension_starcaller_highest_order);
     RegisterSpellScript(spell_ascension_starcaller_prayer_of_elune);
 }

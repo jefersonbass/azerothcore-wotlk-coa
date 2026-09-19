@@ -112,7 +112,10 @@ class aura_ascension_starcaller_event : public AuraScript
             // chance to apply Scattered Stars to affected enemies." The proc
             // fires on every damaging Cleave instead of requiring a crit, and
             // tags the target with Scattered Stars (804378) in Star().
-            return damage && (crit || player->HasAura(704791)) && Chance(player, id);
+            // Highest Order (680771): "increases the chance to trigger
+            // Warden's Blade by 60%."
+            return damage && (crit || player->HasAura(704791)) &&
+                Chance(player, id, 0, player->HasAura(680771) ? 60.f : 0.f);
         case 804733:
             return healing && info && info->Id != 804736;
         case 704741:
