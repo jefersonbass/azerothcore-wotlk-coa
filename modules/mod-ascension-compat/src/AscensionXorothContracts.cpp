@@ -160,6 +160,20 @@ void ApplyContracts(SpellInfo* info)
         dummy(0);
     if (id == 704987)
         dummy(1);
+    if (id == 704981)
+    {
+        // Issue 811: Knight of Pestilence ships without SPELL_ATTR0_PASSIVE,
+        // so the learn/login passes never applied its crit-damage mod, and
+        // its BasePoints are display-minus-1 with DieSides 0. Mark passive
+        // and shift DieSides to 1 so the value resolves as the tooltip's
+        // 50% (op 15 = SPELLMOD_CRIT_DAMAGE_BONUS). The authored mask
+        // (0x200) matches no Pestilence flag, so retarget the mask to the
+        // five Pestilence roots (801053/802344/802345/804786/801054) via
+        // their shared family-23 flag 0x80 in maskC.
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+        info->Effects[EFFECT_0].DieSides = 1;
+        info->Effects[EFFECT_0].SpellClassMask = flag96(0, 0, 0x80);
+    }
     if (id == 704185)
     {
         dummy(0);
