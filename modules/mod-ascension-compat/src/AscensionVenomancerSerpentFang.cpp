@@ -5,6 +5,8 @@
 #include "SpellMgr.h"
 #include "AscensionVenomancer.h"
 
+using namespace AscensionVenomancer;
+
 namespace
 {
 enum SerpentFangSpells : uint32

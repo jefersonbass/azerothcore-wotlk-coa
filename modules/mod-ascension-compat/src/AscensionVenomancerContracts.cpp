@@ -1,6 +1,7 @@
 /* Copyright (C) 2016+ AzerothCore, GNU AGPL v3. */
 #include "AscensionVenomancer.h"
 #include "AscensionVenomancerData.h"
+#include "AscensionVenomancerVenomData.h"
 #include "DBCStores.h"
 #include "Player.h"
 #include "ScriptMgr.h"
