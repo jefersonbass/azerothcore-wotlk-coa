@@ -151,6 +151,10 @@ void ApplyContracts(SpellInfo* info)
     }
     if (id == 707767)
         dummy(0);
+    if (id == 681448)
+        // Last Call's duration bonus ships keyed to the wrong mask word, so
+        // it never reaches Valkyr's Calling; rekey to its family bit.
+        info->Effects[0].SpellClassMask = flag96(0, 0, 0x200000);
     if (id == 804032 || id == 680650)
         dummy(1);
     if (id == 300353)
