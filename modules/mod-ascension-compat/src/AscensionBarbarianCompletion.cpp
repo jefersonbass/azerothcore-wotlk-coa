@@ -2,6 +2,7 @@
 
 #include "AscensionBarbarianCompletion.h"
 #include "Creature.h"
+#include "DBCStores.h"
 #include "Item.h"
 #include "Pet.h"
 #include "Player.h"
@@ -204,6 +205,17 @@ void ApplyContracts(SpellInfo* info)
         // Barbarian ability. Key it to the spear family bit shared by all Maiming Spear ranks.
         info->Effects[EFFECT_1].MiscValue = SPELLMOD_DAMAGE,
         info->Effects[EFFECT_1].SpellClassMask = flag96(0, 0x00040000, 0);
+    if (id == 560532)
+    {
+        // Skull Smash ships with DurationIndex 0, so the engine reads a 0ms duration and the
+        // disorient never lands. The tooltip authors 40s (8s vs players); entry 64 is the
+        // 40s duration. The authored 8s player cap is enforced by the aura script below.
+        info->DurationEntry = sSpellDurationStore.LookupEntry(64);
+        // The DBC leaves the per-effect mechanic at 0, so the engine never files this under
+        // the disorient DR group. Tag the disorient effect so DR and immunity checks see it.
+        info->Effects[EFFECT_0].Mechanic = MECHANIC_DISORIENTED;
+        // The DBC interrupt flags (0x480002) already carry TAKE_DAMAGE, so damage breaks it.
+    }
 }
 }
 
@@ -282,6 +294,19 @@ class aura_ascension_barbarian_lifecycle : public AuraScript
                             speed->ChangeAmount(40);
                     }
             }
+        if (GetId() == 560532)
+        {
+            // Skull Smash authors 40s vs NPCs, 8s vs players. The contract sets the 40s
+            // duration; clamp player targets to the authored 8s on apply.
+            if (Unit* target = GetTarget())
+                if (target->IsPlayer())
+                    if (Aura* aura = GetAura())
+                    {
+                        aura->SetMaxDuration(8000);
+                        aura->SetDuration(8000);
+                    }
+            return;
+        }
         if (Family(GetSpellInfo(), 0, 262144))
             if (Player* caster = Owner(GetCaster()))
             {
