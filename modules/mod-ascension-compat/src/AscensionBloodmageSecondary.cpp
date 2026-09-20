@@ -66,6 +66,8 @@ enum BloodmageSecondarySpells : uint32
     SPELL_DISSIPATION = 680730,
     SPELL_ROTCLAW = 804197,
     SPELL_ROTCLAW_ENERGIZE = 805352, // Ravenous Strike (Energize): 30..70 internal, i.e. 3 to 7 Rage
+    SPELL_PUNCTURING_FANGS = 804604,
+    SPELL_BLOODMOON_BLAST = 578304
     SPELL_CURSED_BLOOD = 681792,
     SPELL_CURSED_BLOOD_DEBUFF = 803722
 };
@@ -331,6 +333,11 @@ public:
         if (player->HasAura(SPELL_CRIMSON_SCION) && !spell->IsTriggered() &&
             roll_chance_i(10) && !player->HasAura(SPELL_CRIMSON_SCION_PROC))
             player->CastSpell(player, SPELL_CRIMSON_SCION_PROC, true);
+        // Puncturing Fangs (804604): Bloodmoon Blast generates 3 additional
+        // Rage per hit. The shipped flat modifier targets the wrong effect
+        // and mask, so the refund is paid here where the Blast damage lands.
+        if (RankOf(id, SPELL_BLOODMOON_BLAST) && player->HasAura(SPELL_PUNCTURING_FANGS))
+            player->ModifyPower(POWER_RAGE, 30);
         // Issue 806: Cursed Blood makes Bloodbolt damage apply the 803722
         // Jinx (resistance shred + magic damage taken) for 10s.
         if (AscensionBloodmage::GetEmpowerment(id) == AscensionBloodmage::Bloodbolt &&
