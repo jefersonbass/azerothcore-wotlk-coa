@@ -293,6 +293,17 @@ public:
     {
         if (!info || info->SpellFamilyName != 26)
             return;
+        if (info->Id == 806423)
+        {
+            // Issue 851: Bloodleaper ships without SPELL_ATTR0_PASSIVE, so
+            // the learn/login passes never applied its cooldown mod. Mark
+            // passive. Effect 0 (op 11 = SPELLMOD_COOLDOWN, bp -10001, maskA
+            // 0x1000000) matches Lunge (500126, family-26 flag 0x1000000)
+            // and resolves as the tooltip's -10s cooldown via the native
+            // cooldown-mod path.
+            info->Attributes |= SPELL_ATTR0_PASSIVE;
+            return;
+        }
         if (info->Id == 520493)
         {
             // Issue 828: Red Thirst is a Bloodlust-style raid haste (30%

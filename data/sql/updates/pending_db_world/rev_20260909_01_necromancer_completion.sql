@@ -301,6 +301,8 @@ DELETE FROM `spell_script_names` WHERE `spell_id` = 805048 AND `ScriptName` = 's
 INSERT INTO `spell_script_names` (`spell_id`, `ScriptName`) VALUES (805048, 'spell_ascension_necromancer_summon');
 DELETE FROM `spell_script_names` WHERE `spell_id` = 805049 AND `ScriptName` = 'spell_ascension_necromancer_summon';
 INSERT INTO `spell_script_names` (`spell_id`, `ScriptName`) VALUES (805049, 'spell_ascension_necromancer_summon');
+DELETE FROM `spell_script_names` WHERE `spell_id` = 805040 AND `ScriptName` = 'spell_ascension_necromancer_summon';
+INSERT INTO `spell_script_names` (`spell_id`, `ScriptName`) VALUES (805040, 'spell_ascension_necromancer_summon');
 DELETE FROM `spell_script_names` WHERE `spell_id` = 805197 AND `ScriptName` = 'aura_ascension_necromancer_lifecycle';
 INSERT INTO `spell_script_names` (`spell_id`, `ScriptName`) VALUES (805197, 'aura_ascension_necromancer_lifecycle');
 DELETE FROM `spell_script_names` WHERE `spell_id` = 805252 AND `ScriptName` = 'spell_ascension_necromancer_summon';
