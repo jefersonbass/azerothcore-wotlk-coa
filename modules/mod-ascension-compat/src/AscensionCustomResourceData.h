@@ -561,10 +561,8 @@ inline constexpr std::array<NativePowerGainRule, 20> NativePowerGainRules =
     // SPELLMOD_DAMAGE +9 (10 percent) against the Terrasurge mask
     // (flags[0] 0x8) — so the gain rule only needs the talent aura as its
     // gate. Both Seismic Tremor rank chains are covered.
-    {31, 680442, 680442, 560170, 1, ResourceMutation::AuraStacks,
-        ResourceGainEvent::PeriodicDamageTick, 560169},
-    {31, 681114, 681117, 560170, 1, ResourceMutation::AuraStacks,
-        ResourceGainEvent::PeriodicDamageTick, 560169}
+    {31, 680442, 680442, 3, 0, ResourceGainEvent::PeriodicDamageTick, 560169},
+    {31, 681114, 681117, 3, 0, ResourceGainEvent::PeriodicDamageTick, 560169}
 }};
 
 struct ResourceCostRule
