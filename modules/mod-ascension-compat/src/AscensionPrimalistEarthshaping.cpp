@@ -157,6 +157,16 @@ void ApplyAscensionPrimalistEarthshapingContracts(SpellInfo* spellInfo)
         if (spellInfo->Id == spellId && spellInfo->StackAmount == 15)
             spellInfo->AttributesCu |= SPELL_ATTR0_CU_AURA_CANNOT_BE_SAVED;
 
+    if (spellInfo->Id == 706137)
+    {
+        // Keeper of the Grove's native cooldown modifier would trim 30 sec
+        // from every spell the owner casts; the Bramblepatch-only trim is
+        // scripted in the cast hook instead.
+        spellInfo->Effects[EFFECT_0].Effect = SPELL_EFFECT_APPLY_AURA;
+        spellInfo->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_DUMMY;
+        return;
+    }
+
     if (spellInfo->Id != SPELL_STONESHARD_MODIFIER)
         return;
 

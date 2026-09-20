@@ -920,6 +920,22 @@ bool IsCultistEmpiresGrasp(uint32 spellId)
     }
 }
 
+bool IsPrimalistBramblepatch(uint32 spellId)
+{
+    switch (spellId)
+    {
+        case 281130:
+        case 281131:
+        case 281132:
+        case 806415:
+        case 807120:
+        case 807859:
+            return true;
+        default:
+            return false;
+    }
+}
+
 void AddRangerAdvantage(Player* player, uint8 amount)
 {
     for (uint8 index = 0; index < amount; ++index)
@@ -1490,6 +1506,12 @@ void HandleAscensionClassMechanicsCast(Spell* spell)
         // Falcon Guide refreshes its own speed aura on each Falconstrike or
         // Battle Screech; the DBC's proc trigger names no spell.
         player->CastSpell(player, SPELL_RANGER_FALCON_GUIDE, true);
+    if (player->getClass() == CLASS_WILDWALKER && player->HasAura(706137) &&
+        IsPrimalistBramblepatch(info->Id))
+        // Keeper of the Grove trims 30 sec from the Bramblepatch cooldown
+        // that was just applied; the DBC's native modifier would hit every
+        // spell.
+        player->ModifySpellCooldown(info->Id, -30000);
 
     if (player->getClass() == CLASS_RANGER &&
         info->CasterAuraSpell == SPELL_RANGER_ADVANTAGE)
