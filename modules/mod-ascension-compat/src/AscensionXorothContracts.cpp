@@ -160,6 +160,19 @@ void ApplyContracts(SpellInfo* info)
         dummy(0);
     if (id == 704987)
         dummy(1);
+    if (id == 704966)
+    {
+        // Issue 877: Demonfire Plating ships without SPELL_ATTR0_PASSIVE, so
+        // the learn/login passes never applied its auras, and its BasePoints
+        // are display-minus-1 with DieSides 0. Mark passive and shift
+        // DieSides to 1 so effect 0 resolves as the tooltip's 2% damage
+        // reduction (aura 87 misc 126 = all schools, native
+        // MOD_DAMAGE_TAKEN path) and effect 1 as 3% Stamina (aura 137 misc 2
+        // = STAT_STAMINA, native MOD_TOTAL_STAT_PERCENTAGE path).
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+        info->Effects[EFFECT_0].DieSides = 1;
+        info->Effects[EFFECT_1].DieSides = 1;
+    }
     if (id == 560655)
     {
         // Issue 833: Hellfire Forgemaster ships without SPELL_ATTR0_PASSIVE,
