@@ -166,6 +166,17 @@ void ApplyAscensionPrimalistEarthshapingContracts(SpellInfo* spellInfo)
         spellInfo->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_DUMMY;
         return;
     }
+    if (spellInfo->Id == 504220)
+    {
+        // Issue 969: Spiritual Warrior ships without the passive flag, so the
+        // learn/login passes never applied its crit aura, and its mask is
+        // keyed to the wrong word, missing Spirit Charge's own family bit.
+        // Mark passive and rekey; the native crit-chance mod path then grants
+        // the authored +25%.
+        spellInfo->Attributes |= SPELL_ATTR0_PASSIVE;
+        spellInfo->Effects[EFFECT_0].SpellClassMask = flag96(0, 0x20000, 0);
+        return;
+    }
 
     if (spellInfo->Id != SPELL_STONESHARD_MODIFIER)
         return;
