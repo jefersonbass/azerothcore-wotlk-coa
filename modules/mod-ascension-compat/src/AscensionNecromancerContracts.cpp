@@ -287,6 +287,16 @@ void ApplyContracts(SpellInfo* info)
         for (uint8 slot : {0, 1})
             info->Effects[slot].SpellClassMask = flag96(2, 0, 0);
     }
+    if (id == 704715)
+    {
+        // Issue 1020: Gravedigger ships without the passive flag, so the
+        // learn/login passes never applied its cast-time aura, and its mask
+        // is keyed to the wrong word, missing Sacrifice Undead's own family
+        // bit. Mark passive and rekey; the native cast-time mod path then
+        // trims the authored 0.5 sec.
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+        info->Effects[EFFECT_0].SpellClassMask = flag96(0, 0, 0x4000000);
+    }
     if (id == 704528)
     {
         // Issue 1004: Swarmer ships without the passive flag, so the
