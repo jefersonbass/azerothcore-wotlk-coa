@@ -24,7 +24,8 @@ enum RangerTalentSpells : uint32
     SPELL_SNATCH_DISARM = 803123,
     SPELL_TACTICAL_ADVANTAGE = 706748,
     SPELL_TACTICAL_ADVANTAGE_DEBUFF = 706749,
-    SPELL_BUSHWHACK = 557333
+    SPELL_BUSHWHACK = 557333,
+    SPELL_PIERCED = 705033
 };
 
 class spell_ascension_ranger_light_arrows : public SpellScript
@@ -112,8 +113,34 @@ void ApplyAscensionRangerTalentContracts(SpellInfo* info)
     }
 }
 
+class ranger_pierced_crits : public AllSpellScript
+{
+public:
+    ranger_pierced_crits() : AllSpellScript("ranger_pierced_crits", {ALLSPELLHOOK_ON_HIT_RESULT}) { }
+
+    void OnSpellHitResult(Spell* spell, Unit* target, uint8 miss, uint32 damage, uint32, bool critical) override
+    {
+        Player* player = spell->GetCaster() ? spell->GetCaster()->ToPlayer() : nullptr;
+        SpellInfo const* info = spell->GetSpellInfo();
+        if (!player || player->getClass() != CLASS_RANGER || !target || miss != SPELL_MISS_NONE ||
+            !critical || !damage || info->SpellFamilyName != 27 || !player->HasAura(SPELL_PIERCED))
+            return;
+        // Pierced (705033): critical strikes with Skullpiercer and Precision
+        // Shot bleed the enemy for 15% of the damage dealt plus 35% over 4
+        // sec. The DBC's aura has no engine handler, so both halves are paid
+        // here where the crit lands; the over-time half reuses the 4-second
+        // Venom Blade vehicle with a scaled amount.
+        uint32 root = sSpellMgr->GetFirstSpellInChain(info->Id);
+        if (root != 501715 && root != 500075)
+            return;
+        player->CastCustomSpell(target, 803116, SpellValueMod(SPELLVALUE_BASE_POINT0),
+            int32(CalculatePct(damage, 15) + CalculatePct(damage, 35) / 4), nullptr, true);
+    }
+};
+
 void AddSC_AscensionRangerTalents()
 {
+    new ranger_pierced_crits();
     RegisterSpellScript(spell_ascension_ranger_light_arrows);
     RegisterSpellScript(spell_ascension_ranger_knockout);
 }
