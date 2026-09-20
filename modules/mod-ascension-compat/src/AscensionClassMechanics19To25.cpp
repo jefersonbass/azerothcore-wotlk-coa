@@ -25,6 +25,7 @@ constexpr std::uint32_t CHRONOMANCER_FAMILY = 28;
 constexpr std::uint32_t PYROMANCER_FAMILY = 30;
 constexpr std::uint32_t INFINITE_SHIELD_CHARGES = 10;
 constexpr std::uint32_t PARADOX_CANNON_PERIOD_MS = 3000;
+constexpr std::uint32_t SPELL_BLOODMAGE_BLOOD_CLOT = 680657;
 
 bool IsTemplarReckoning(std::uint32_t spellId)
 {
@@ -48,6 +49,17 @@ void ApplyAscensionClassMechanics19To25(SpellInfo* spellInfo)
 {
     if (!spellInfo)
         return;
+
+    if (spellInfo->Id == SPELL_BLOODMAGE_BLOOD_CLOT)
+    {
+        // Blood Clot: without SPELL_ATTR0_PASSIVE the learned talent is never
+        // applied as a standing aura, so its modifier never comes online.
+        // Effect 2 is fully authored (aura 108, SPELLMOD_DOT flat +99 = +100
+        // percent) against the Scarlet Delirium mask (flags[2] 0x100, ranks
+        // 801074/803684-803688), applied through SpellDamageBonusDone's
+        // periodic branch. Effects 0-1 are empty strays.
+        spellInfo->Attributes |= SPELL_ATTR0_PASSIVE;
+    }
 
     if (spellInfo->Id == SPELL_CHRONOMANCER_INFINITE_SHIELD)
     {
