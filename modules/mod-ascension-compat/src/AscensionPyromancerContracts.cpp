@@ -216,6 +216,16 @@ void ApplyContracts(SpellInfo* info)
     }
     if (id == 704277)
         info->DurationEntry = sSpellDurationStore.LookupEntry(1);
+    if (id == 807159)
+    {
+        // Issue 859: Purifying Flames ships without SPELL_ATTR0_PASSIVE, so
+        // the learn/login passes never applied its duration mod. Mark
+        // passive. Effect 0 (op 1 = SPELLMOD_DURATION, bp 2999, maskC 0x1)
+        // matches Essence of Malygos (802120, family-30 flag 0x1) and
+        // resolves as the tooltip's +3s duration via the native
+        // duration-mod path.
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+    }
     if (id == 525018)
     {
         // Issue 837: Fiery Intent ships without SPELL_ATTR0_PASSIVE, so the
