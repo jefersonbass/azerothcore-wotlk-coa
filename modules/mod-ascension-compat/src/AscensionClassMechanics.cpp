@@ -835,6 +835,58 @@ void ApplyRangerFocusedFighterContract(SpellInfo* spellInfo)
     cost.SpellClassMask = flag96(0, 0x20100, 0x10100);
 }
 
+
+void ApplyRangerOutlawContract(SpellInfo* spellInfo)
+{
+    if (!spellInfo || spellInfo->Id != 706277 ||
+        spellInfo->SpellFamilyName != uint32(CLASS_RANGER) + 6)
+        return;
+
+    SpellEffectInfo& adaptation = spellInfo->Effects[EFFECT_0];
+    if (adaptation.Effect != SPELL_EFFECT_APPLY_AURA ||
+        adaptation.ApplyAuraName != SPELL_AURA_ADD_PCT_MODIFIER || adaptation.MiscValue != SPELLMOD_ALL_EFFECTS ||
+        adaptation.BasePoints != 19 || adaptation.DieSides != 1 ||
+        adaptation.TargetA.GetTarget() != TARGET_UNIT_CASTER)
+    {
+        LOG_ERROR("module.ascension_compat", "Skipped unexpected Outlaw record {}", spellInfo->Id);
+        return;
+    }
+
+    // "Increases the effectiveness of your Adaptations by 20%." The shipped
+    // mask is keyed to the wrong word, missing the Adaptations' own family
+    // bit, and the talent ships without the passive flag, so the learn/login
+    // passes never applied it. Mark passive and rekey; the native
+    // ALL_EFFECTS mod path then amplifies the Adaptations.
+    spellInfo->Attributes |= SPELL_ATTR0_PASSIVE;
+    adaptation.SpellClassMask = flag96(0, 0, 0x200);
+}
+
+void ApplyRangerSurefootedContract(SpellInfo* spellInfo)
+{
+    if (!spellInfo || spellInfo->Id != 560814 ||
+        spellInfo->SpellFamilyName != uint32(CLASS_RANGER) + 6)
+        return;
+
+    SpellEffectInfo& cooldown = spellInfo->Effects[EFFECT_0];
+    if (cooldown.Effect != SPELL_EFFECT_APPLY_AURA ||
+        cooldown.ApplyAuraName != SPELL_AURA_ADD_FLAT_MODIFIER || cooldown.MiscValue != SPELLMOD_COOLDOWN ||
+        cooldown.BasePoints != -30001 || cooldown.DieSides != 1 ||
+        cooldown.TargetA.GetTarget() != TARGET_UNIT_CASTER)
+    {
+        LOG_ERROR("module.ascension_compat", "Skipped unexpected Surefooted record {}", spellInfo->Id);
+        return;
+    }
+
+    // "Reduces the cooldown of Adrenaline Rush by 30 sec." The shipped mask
+    // is keyed to the wrong word, missing Adrenaline Rush's own family bit,
+    // and the talent ships without the passive flag, so the learn/login
+    // passes never applied it. Mark passive and rekey; the native
+    // cooldown-mod path then trims the authored 30 sec.
+    spellInfo->Attributes |= SPELL_ATTR0_PASSIVE;
+    cooldown.SpellClassMask = flag96(0, 0x20, 0);
+}
+
+
 void ApplyRangerForestDwellerContract(SpellInfo* spellInfo)
 {
     if (!spellInfo || spellInfo->Id != SPELL_RANGER_FOREST_DWELLER ||
@@ -1268,6 +1320,10 @@ void ApplyAscensionClassMechanics(SpellInfo* spellInfo)
     ApplyRangerForestDwellerContract(spellInfo);
     ApplyRangerFalconGuideContract(spellInfo);
     ApplyRangerFocusedFighterContract(spellInfo);
+
+    ApplyRangerOutlawContract(spellInfo);
+    ApplyRangerSurefootedContract(spellInfo);
+
 
     if (spellInfo->Id == 504144) // Bannerman
     {
