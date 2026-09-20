@@ -73,6 +73,16 @@ void ApplyContracts(SpellInfo* info)
         info->Effects[EFFECT_0].TargetA = SpellImplicitTargetInfo(TARGET_UNIT_CASTER);
         info->Effects[EFFECT_1].ApplyAuraName = SPELL_AURA_DUMMY;
     }
+    if (id == 804749)
+    {
+        // Incredibly Strong: without SPELL_ATTR0_PASSIVE the learned talent is
+        // never applied as a standing aura, so neither effect comes online.
+        // Both are fully authored: effect 0 (aura 312, IGNORE_MIN_RANGE_CLASS_
+        // MASK default) strips the minimum range from every spell matching its
+        // mask 0x1000 — exactly the Maiming Spear ranks — and effect 1 (aura
+        // 108, SPELLMOD_DURATION flat +29 = +30 percent) rides the same mask.
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+    }
     if (id == 807047)
         info->Effects[EFFECT_1].ApplyAuraName = SPELL_AURA_DUMMY;
     // Amounts are computed at the actual cast/tick instead of stale periodic +1 helpers.
