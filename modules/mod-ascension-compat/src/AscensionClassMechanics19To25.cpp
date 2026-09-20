@@ -27,6 +27,7 @@ constexpr std::uint32_t INFINITE_SHIELD_CHARGES = 10;
 constexpr std::uint32_t PARADOX_CANNON_PERIOD_MS = 3000;
 constexpr std::uint32_t SPELL_BLOODMAGE_BLOOD_CLOT = 680657;
 constexpr std::uint32_t SPELL_BLOODMAGE_FORBIDDEN_POWER = 500445;
+constexpr std::uint32_t SPELL_CULTIST_RESIDUAL_ENERGY = 681389;
 
 bool IsTemplarReckoning(std::uint32_t spellId)
 {
@@ -69,6 +70,15 @@ void ApplyAscensionClassMechanics19To25(SpellInfo* spellInfo)
         // rating, +5 percent as spell-hit rating) and work natively. Effect 2
         // (aura 23, every 3 s) re-triggers the spell-pen mirror 500447, whose
         // amount is filled by the aura_ascension_forbidden_pen script.
+        spellInfo->Attributes |= SPELL_ATTR0_PASSIVE;
+    }
+    if (spellInfo->Id == SPELL_CULTIST_RESIDUAL_ENERGY)
+    {
+        // Residual Energy: without SPELL_ATTR0_PASSIVE the learned talent is
+        // never applied as a standing aura, so its duration modifier never
+        // comes online. Effect 0 is fully authored (aura 107, SPELLMOD_
+        // DURATION flat +7999 ms) against Shadow of the Void's mask
+        // (flags[0] 0x100, spell 300277), doubling its 8 s duration.
         spellInfo->Attributes |= SPELL_ATTR0_PASSIVE;
     }
 
