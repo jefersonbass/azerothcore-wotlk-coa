@@ -256,6 +256,16 @@ void ApplyContracts(SpellInfo* info)
         // resolving the tooltip's +5% through the native casting-speed
         // path).
         info->Attributes |= SPELL_ATTR0_PASSIVE;
+    if (id == 707739)
+    {
+        // Issue 986: Corpse Commander ships without the passive flag, so the
+        // learn/login passes never applied its cost aura, and its mask is
+        // keyed to the wrong word, missing Corpse Explosion's own family
+        // bit. Mark passive and rekey; the native cost-mod path then grants
+        // the authored -20 Runic Power.
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+        info->Effects[EFFECT_0].SpellClassMask = flag96(0, 0x100, 0);
+    }
     if (id == 680928)
     {
         info->Effects[1].Effect = SPELL_EFFECT_APPLY_AURA;
