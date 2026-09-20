@@ -326,6 +326,11 @@ void ApplyContracts(SpellInfo* info)
         info->Effects[0].TargetA = SpellImplicitTargetInfo(TARGET_UNIT_TARGET_ENEMY);
         info->Effects[0].TargetB = SpellImplicitTargetInfo();
     }
+    if (id == 560319)
+        // Issue 1043: Celestial Divination ships without the passive flag, so
+        // the learn/login passes never applied its dodge aura (49, resolving
+        // the tooltip's +5% through the native dodge path).
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
     if (id == 503637)
     {
         // Issue 1026: Dance In The Starlight ships without the passive flag,
