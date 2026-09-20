@@ -250,6 +250,12 @@ void ApplyContracts(SpellInfo* info)
         periodic(1, 5000);
     if (id == 808016)
         info->SchoolMask = SPELL_SCHOOL_MASK_FROST | SPELL_SCHOOL_MASK_SHADOW;
+    if (id == 560727)
+        // Issue 968: Cycle of Death ships without the passive flag, so the
+        // learn/login passes never applied its spell-haste aura (216,
+        // resolving the tooltip's +5% through the native casting-speed
+        // path).
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
     if (id == 680928)
     {
         info->Effects[1].Effect = SPELL_EFFECT_APPLY_AURA;
