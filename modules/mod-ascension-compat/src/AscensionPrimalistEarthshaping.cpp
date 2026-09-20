@@ -189,6 +189,18 @@ void ApplyAscensionPrimalistEarthshapingContracts(SpellInfo* spellInfo)
         return;
     }
 
+    if (spellInfo->Id == 504215)
+    {
+        // Issue 987: Vitality Surge's haste buff ships as a self-only instant
+        // with no duration; the authored mark is +5% haste on party and raid
+        // members for 20 sec, so retarget to the caster's raid and set the
+        // 20-second duration. Both haste halves are native.
+        for (uint8 slot : {EFFECT_0, EFFECT_1})
+            spellInfo->Effects[slot].TargetA = SpellImplicitTargetInfo(TARGET_UNIT_CASTER_AREA_RAID);
+        spellInfo->DurationEntry = sSpellDurationStore.LookupEntry(18); // Twenty seconds.
+        return;
+    }
+
     if (spellInfo->Id != SPELL_STONESHARD_MODIFIER)
         return;
 
@@ -200,8 +212,26 @@ void ApplyAscensionPrimalistEarthshapingContracts(SpellInfo* spellInfo)
         effect.ApplyAuraName = SPELL_AURA_DUMMY;
 }
 
+class vitality_surge_heals : public UnitScript
+{
+public:
+    vitality_surge_heals() : UnitScript("vitality_surge_heals", true, {UNITHOOK_ON_HEAL}) { }
+
+    void OnHeal(Unit* healer, Unit*, uint32& gain) override
+    {
+        // Vitality Surge (504214): effective healing rolls 25% to raise party
+        // and raid haste 5% for 20 sec through the authored buff (504215).
+        Player* player = healer ? healer->ToPlayer() : nullptr;
+        if (!player || player->getClass() != CLASS_WILDWALKER || !gain ||
+            !player->HasAura(504214) || !roll_chance_i(25))
+            return;
+        player->CastSpell(player, 504215, true);
+    }
+};
+
 void AddSC_AscensionPrimalistEarthshaping()
 {
+    new vitality_surge_heals();
     RegisterSpellScript(spell_ascension_primalist_earthshaping);
     RegisterSpellScript(spell_ascension_primalist_therazane_update);
 }
