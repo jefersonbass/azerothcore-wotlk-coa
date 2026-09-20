@@ -157,6 +157,11 @@ public:
                 Cast(player, player, 301186);
             }
         }
+        if (id == 560321)
+            // Eldritch Obelisk's trigger names no spell; drop the authored
+            // zone beneath the caster, boosting tentacle damage and ally
+            // speed while it lasts.
+            Cast(player, player, 560322);
         if (Named(info, 800416))
         {
             if (player->HasAura(704892))
