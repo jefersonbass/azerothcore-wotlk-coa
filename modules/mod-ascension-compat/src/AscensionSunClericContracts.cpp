@@ -88,6 +88,19 @@ void ApplyContracts(SpellInfo* info)
         info->Effects[0].TargetA = SpellImplicitTargetInfo(TARGET_UNIT_TARGET_ALLY);
         info->Effects[0].TargetB = SpellImplicitTargetInfo();
     }
+    if (id == 504248)
+    {
+        // Issue 865: Holy Conquest ships without SPELL_ATTR0_PASSIVE, so the
+        // learn/login passes never applied its cost-mod aura. Mark passive.
+        // Effect 0 (op 14 = SPELLMOD_COST, bp -51, maskA 0x1008) matches
+        // Chosen of the Light (800622, family-33 flag 0x1000) and Judgement
+        // Day (806121, family-33 flag 0x8) and resolves as the tooltip's
+        // -50% mana cost via the native cost-mod path. Paragon (680639,
+        // family-33 flag 0x800000 in maskC) is outside the authored mask, so
+        // union it in.
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+        info->Effects[EFFECT_0].SpellClassMask |= flag96(0, 0, 0x800000);
+    }
     if (id == Dawn)
     {
         dummy(0);
