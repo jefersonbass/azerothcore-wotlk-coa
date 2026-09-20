@@ -212,6 +212,7 @@ public:
             info->Attributes |= SPELL_ATTR0_PASSIVE;
             info->Effects[EFFECT_0].DieSides = 1;
         }
+}
 };
 
 class aura_ascension_barometric_pressure : public AuraScript
