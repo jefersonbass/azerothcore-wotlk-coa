@@ -240,6 +240,22 @@ void ApplyContracts(SpellInfo* info)
     // Chosen One pushed it to three.
     if (id == Mimic && info->Effects[EFFECT_2].Effect == SPELL_EFFECT_SUMMON)
         info->Effects[EFFECT_2].BasePoints = 1;
+    if (id == 560545)
+    {
+        // Issue 847: Dark Loa's Blessing ships without SPELL_ATTR0_PASSIVE,
+        // so the learn/login passes never applied its auras, and its
+        // BasePoints are display-minus-1 with DieSides 0. Mark passive and
+        // shift DieSides to 1 so effect 0 resolves as the tooltip's 3% all
+        // damage for party/raid (op 8 = SPELLMOD_ALL_EFFECTS, maskB 0x8
+        // matches Shadow Puppets 500015's family-19 flag 0x8... note the
+        // raid-wide half rides the same mask). Effects 1-2 (op 1/19,
+        // maskB 0x1000000) make Shadow Puppets deal damage 20% faster via
+        // the native duration/cast-time mod paths.
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+        info->Effects[EFFECT_0].DieSides = 1;
+        info->Effects[EFFECT_1].DieSides = 1;
+        info->Effects[EFFECT_2].DieSides = 1;
+    }
     if (id == 572871)
     {
         // Issue 803: Presence of the Loa ships without SPELL_ATTR0_PASSIVE,

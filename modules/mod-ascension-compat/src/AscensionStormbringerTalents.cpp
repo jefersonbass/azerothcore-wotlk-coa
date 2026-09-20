@@ -188,7 +188,18 @@ public:
         if (info->Id == SPELL_CHARGED_CONDUIT)
             // Keep the charges until this ten-second buff ends.
             info->Effects[EFFECT_2].Effect = 0;
-    }
+        if (info->Id == 806397)
+        {
+            // Issue 842: Bursting ships without SPELL_ATTR0_PASSIVE, so the
+            // learn/login passes never applied its Drowning mod, and its
+            // BasePoints are display-minus-1 with DieSides 0. Mark passive
+            // and shift DieSides to 1 so the value resolves as the tooltip's
+            // 20% (op 3 = SPELLMOD_FLAT, maskC 0x40000 matches both Drowning
+            // debuffs 806406/806491's family-22 flag 0x40000). The native
+            // flat-mod path applies it to the Drowning stack value.
+            info->Attributes |= SPELL_ATTR0_PASSIVE;
+            info->Effects[EFFECT_0].DieSides = 1;
+        }
 };
 
 class aura_ascension_barometric_pressure : public AuraScript
