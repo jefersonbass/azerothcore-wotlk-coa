@@ -180,6 +180,14 @@ Arm of Thorim rolls 133–144 base damage at the fixture level, so two independe
 of 1.10–1.31 with its 20% bonus and 0.91–1.09 without it (including integer rounding). Charged Conduit
 preserves Static and must leave the talent without a depletion bonus.
 
+The [damage-led scaling scenario](scenarios/level-scaling-damage-engagement.json) checks that an
+out-of-range attacker scales a fresh creature before a nonlethal or lethal opening hit, and that
+later damage leaves its combat level fixed. It requires `AscensionCompat.LevelScaling=1`,
+`AscensionCompat.LevelScalingMaxLift=5` and `MonsterSight=50`. The level-1 fixtures stand 80–85 yards
+away and must scale to level 6. One fixture has only one maximum HP to expose damage-before-scaling.
+Spell 705798 is learned as a fixture: its one damage and zero initial threat exercise damage-led
+engagement through the normal cast handler. This tests the damage path, not an Overload proc or pet AI.
+
 Players require `id`, numeric `race` and `class`; `level` defaults to 80. Optional `spell_hit_rating`,
 `spell_crit_rating`, `ranged_hit_rating`, `melee_hit_rating` and `expertise_rating` add fixture ratings through
 normal calculations, useful for preventing misses, dodges and parries in deterministic tests.
@@ -212,7 +220,8 @@ before taking baselines; assert stable maximums and final levels when testing da
 | `who` | `actor`, optional name-filter `target`, `class_mask`, `race_mask`: submit a native Who query. |
 | `add_item` | `actor`, `item`, optional `count` (default 1): grant fixture inventory. |
 | `equip` | `actor`, `item`, `slot` (0..18): equip an owned item through the session handler. |
-| `use_item` | `actor`, `item`, `spell`, optional `target`: normal item-use handler. |
+| `use_item` | `actor`, `item`, `spell`, optional `target` and `destination`: normal item-use handler. |
+| `use_gameobject` | `actor`, `entry`: native use request for the actor's single nearby owned gameobject. |
 | `set_level` | `actor`, `value` (1..80): fixture level change through native `GiveLevel`, including level-change hooks. |
 | `set_health`, `set_power` | `actor`, `value` within native maximums; `set_power` accepts `power` (default 0). |
 | `wait` | `ms`: let the real world continue updating. |
@@ -309,6 +318,14 @@ Player commands retain normal permission and gameplay checks; verify their effec
 `owned_creature_count` requires a player and `entry`. It counts living creatures of that entry owned by
 the player, in the same phase and within 100 yards, including summons outside the guardian-pet slot.
 An optional `spell` restricts the count to creatures with that aura; `caster` can select its aura owner.
+`owned_gameobject_count` requires a player and `entry`. It counts their summoned gameobjects of that entry
+in the same phase and within 100 yards. `gameobject_remaining_ms` uses the same lookup and requires exactly
+one object when present; it returns the remaining lifetime with one-second precision, zero when absent,
+or -1 for an object without an expiry. Moving out of range is not proof of despawn.
+`at_homebind` checks that the player is on their homebind map and within five yards of its position.
+`use_gameobject` keeps normal interaction-distance and usability checks. It does not inspect a rendered UI.
+The [portable gadgets scenario](scenarios/portable-gadgets.json) checks item summons, lifetimes, portal
+teleports and expiry. It requires `mod-portablemail`; mailbox and altar client interfaces are not tested.
 `power`/`max_power` accept a numeric `power` (0..6). Aura metrics optionally accept `caster` to select
 ownership; `aura_amount` also accepts an effect index (0..2, default 0). Missing auras yield zero;
 check aura presence separately when zero is a valid effect amount. Permanent aura duration is -1.
