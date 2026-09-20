@@ -116,7 +116,7 @@ struct ResourceGainRule
 // These active abilities advertise resource generation in their tooltips, but
 // their public Spell.dbc records contain no effect that performs it. Ranges are
 // rank chains verified against the local Ascension spell dump.
-inline constexpr std::array<ResourceGainRule, 185> ResourceGainRules =
+inline constexpr std::array<ResourceGainRule, 187> ResourceGainRules =
 {{
     // Native helpers already supply Twin Slice, Fel Fireball, and Seeking Flame.
     // Fel Torpedo and the current Bane variants generate through their class scripts.
@@ -547,7 +547,17 @@ inline constexpr std::array<NativePowerGainRule, 18> NativePowerGainRules =
     {31, 680442, 680442, 1, 10, ResourceGainEvent::EachSuccessfulDamagingHit},
     {31, 681114, 681117, 1, 10, ResourceGainEvent::EachSuccessfulDamagingHit},
     {31, 680442, 680442, 1, 10, ResourceGainEvent::PeriodicDamageTick},
-    {31, 681114, 681117, 1, 10, ResourceGainEvent::PeriodicDamageTick}
+    {31, 681114, 681117, 1, 10, ResourceGainEvent::PeriodicDamageTick},
+    // Geomolding (560169): periodic damage from Seismic Tremor grants a
+    // Geomolding stack (560170, 30 sec, max 10). The stack buff is fully
+    // authored — aura 107 op SPELLMOD_COST +29 (3 Rage) and aura 108
+    // SPELLMOD_DAMAGE +9 (10 percent) against the Terrasurge mask
+    // (flags[0] 0x8) — so the gain rule only needs the talent aura as its
+    // gate. Both Seismic Tremor rank chains are covered.
+    {31, 680442, 680442, 560170, 1, ResourceMutation::AuraStacks,
+        ResourceGainEvent::PeriodicDamageTick, 560169},
+    {31, 681114, 681117, 560170, 1, ResourceMutation::AuraStacks,
+        ResourceGainEvent::PeriodicDamageTick, 560169}
 }};
 
 struct ResourceCostRule

@@ -439,6 +439,15 @@ void ApplyAscensionPrimalistTalentsContract(SpellInfo* info)
         if (uint32(info->Effects[1].ApplyAuraName) >= TOTAL_AURAS)
             info->Effects[1].ApplyAuraName = SPELL_AURA_MOD_MELEE_RANGED_HASTE;
     }
+    if (info->Id == 560169)
+    {
+        // Geomolding: without SPELL_ATTR0_PASSIVE the learned talent is never
+        // applied as a standing aura, so the PeriodicDamageTick gain rules in
+        // AscensionCustomResourceData.h would never see it. The aura-42
+        // proc-trigger effect carries no proc flags in the DBC, so the native
+        // chain never fires; stacks are granted by those gain rules instead.
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+    }
     if (info->Id == 805335)
     {
         // Golem Form: effect 0 is a shapeshift into form 59, which has no
