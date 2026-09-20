@@ -19,6 +19,16 @@ void ApplyContracts(SpellInfo* info)
     // Blood of Mannoroth's sole resource helper must grant all six charges, including from zero.
     if (id == MannorothFelfury)
         info->Effects[EFFECT_0].MiscValue = 6;
+    if (id == 705150)
+    {
+        // Manari Teachings: without SPELL_ATTR0_PASSIVE the learned talent is
+        // never applied as a standing aura, so its crit-damage modifier never
+        // comes online. Effect 0 is fully authored (aura 163,
+        // MOD_CRIT_DAMAGE_BONUS, +99 = +100 percent, school mask 127 = every
+        // school) and is consumed natively by SpellDamageBonusDone's
+        // critical branch (GetTotalAuraModifierByMiscMask).
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+    }
     auto dummy = [info](uint8 slot) {
         info->Effects[slot].ApplyAuraName = SPELL_AURA_DUMMY;
         info->Effects[slot].TriggerSpell = 0;
