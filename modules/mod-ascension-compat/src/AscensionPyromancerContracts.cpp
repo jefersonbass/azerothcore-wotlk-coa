@@ -114,6 +114,16 @@ void ApplyContracts(SpellInfo* info)
         }
     if (id == 503864)
         info->Effects[0].Effect = SPELL_EFFECT_SCHOOL_DAMAGE;
+    if (id == 707325)
+    {
+        // Flames of Fate doubles down on Aspect's Blessing: the extra charges
+        // belong to the Blessing (word0 0x20) while the doubled cooldown and
+        // the +50% mana belong to Echo of Nozdormu (word0 0x4). All three
+        // modifiers ship keyed to a word2 bit that only matches Cataclysm.
+        info->Effects[0].SpellClassMask = flag96(0x20, 0, 0);
+        info->Effects[1].SpellClassMask = flag96(0x4, 0, 0);
+        info->Effects[2].SpellClassMask = flag96(0x4, 0, 0);
+    }
     if (id == 520868)
         info->Effects[0].Effect = SPELL_EFFECT_DUMMY;
     if (id == 572806)
