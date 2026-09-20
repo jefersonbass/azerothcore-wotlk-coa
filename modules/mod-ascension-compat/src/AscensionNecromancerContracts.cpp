@@ -158,6 +158,20 @@ void ApplyContracts(SpellInfo* info)
         info->Effects[0].SpellClassMask = flag96(0, 0, 134217728);
         dummy(1);
     }
+    if (id == 570046)
+    {
+        // Issue 878: Plague Protection ships without SPELL_ATTR0_PASSIVE, so
+        // the learn/login passes never applied its Ward mod, and its
+        // BasePoints are display-minus-1 with DieSides 0. Mark passive and
+        // shift DieSides to 1 so the value resolves as the tooltip's 15%
+        // (op 8 = SPELLMOD_ALL_EFFECTS). The authored mask is empty, so
+        // retarget it to the Ward auras (Fetid/Glacial/Bone 680388/681460/
+        // 681529, family-29 flag 0x80 in maskC). The native ALL_EFFECTS mod
+        // path applies it to the Wards.
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+        info->Effects[EFFECT_0].DieSides = 1;
+        info->Effects[EFFECT_0].SpellClassMask = flag96(0, 0, 0x80);
+    }
     if (id == 707445)
     {
         // Issue 812: Runic Animation ships without SPELL_ATTR0_PASSIVE, so
