@@ -5,5 +5,6 @@
 class SpellInfo;
 
 void ApplyAscensionWitchHunterTonicContracts(SpellInfo* spellInfo);
+void ApplyAscensionWitchHunterRefinedCombatantContracts(SpellInfo* spellInfo);
 
 #endif

@@ -1236,6 +1236,7 @@ void ApplyAscensionClassMechanics(SpellInfo* spellInfo)
     ApplyRangerAssassinContract(spellInfo);
     ApplyAscensionRangerDamageContracts(spellInfo);
     ApplyAscensionWitchHunterTonicContracts(spellInfo);
+    ApplyAscensionWitchHunterRefinedCombatantContracts(spellInfo);
     ApplyAscensionWitchHunterFlameContracts(spellInfo);
     ApplyAscensionWitchHunterScalingContracts(spellInfo);
     ApplyAscensionWitchHunterTargetingContracts(spellInfo);

@@ -169,6 +169,18 @@ class spell_ascension_witch_hunter_holy_water_tonic : public SpellScript
 };
 }
 
+void ApplyAscensionWitchHunterRefinedCombatantContracts(SpellInfo* spellInfo)
+{
+    if (!spellInfo || spellInfo->Id != 572770 ||
+        spellInfo->SpellFamilyName != WITCH_HUNTER_SPELL_FAMILY)
+        return;
+
+    // Issue 996: Refined Combatant ships without the passive flag, so the
+    // learn/login passes never applied its expertise aura (240, resolving
+    // the tooltip's +10 through the native expertise path).
+    spellInfo->Attributes |= SPELL_ATTR0_PASSIVE;
+}
+
 void ApplyAscensionWitchHunterTonicContracts(SpellInfo* spellInfo)
 {
     if (!spellInfo || spellInfo->SpellFamilyName != WITCH_HUNTER_SPELL_FAMILY ||
