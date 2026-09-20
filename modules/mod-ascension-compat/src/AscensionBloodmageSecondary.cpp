@@ -30,6 +30,8 @@ enum BloodmageSecondarySpells : uint32
     SPELL_CURSED_FORM = 562720,
     SPELL_ACCURSED_FORM = 562572,
     SPELL_VAMPYRS_KISS = 504275,
+    SPELL_LINGERING_ESSENCE = 680695,
+    SPELL_LINGERING_ESSENCE_TRIM = 680824,
     SPELL_VAMPYRS_KISS_COPY = 504785,
     SPELL_BLACK_HEART = 680731,
     SPELL_NIGHT_HUNTER = 704659,
@@ -406,7 +408,7 @@ class bloodmage_kiss_periodic : public UnitScript
 {
 public:
     bloodmage_kiss_periodic() : UnitScript("bloodmage_kiss_periodic", true,
-        {UNITHOOK_ON_PERIODIC_DAMAGE_RESULT}) { }
+        {UNITHOOK_ON_PERIODIC_DAMAGE_RESULT, UNITHOOK_MODIFY_HEAL_RECEIVED}) { }
 
     void OnPeriodicDamageResult(Unit* target, Unit*, uint32 damage, SpellInfo const*) override
     {
@@ -432,7 +434,28 @@ public:
                     // Black Heart: Vampyr's Kiss also regenerates 20% of maximum Rage when it copies damage.
                     if (player->HasAura(SPELL_BLACK_HEART))
                         player->ModifyPower(POWER_RAGE, int32(player->GetMaxPower(POWER_RAGE)) / 5);
+                    // Lingering Essence (680695): periodic damage rolls fifty percent
+                    // to trim one second off Vampyr's Kiss (680824's authored effect
+                    // 165, -1001 ms on 504275). The talent's own proc (effect 0,
+                    // aura 42 triggering 680824, no proc flags) never fires, so the
+                    // roll happens here on every damaging tick.
+                    if (player->HasAura(SPELL_LINGERING_ESSENCE) && roll_chance_i(50))
+                        player->CastSpell(player, SPELL_LINGERING_ESSENCE_TRIM, true);
                 }
+    }
+
+    void ModifyHealReceived(Unit* target, Unit* healer, uint32& heal, SpellInfo const* spellInfo) override
+    {
+        // Lingering Essence also reads periodic healing: the heal's spell
+        // carries the SPELL_AURA_PERIODIC_HEAL marker on its own effects.
+        // Healer can be null when the aura's caster has left the world.
+        Player* player = healer ? healer->ToPlayer() : nullptr;
+        if (!player || !target || !heal || !spellInfo || !spellInfo->HasAura(SPELL_AURA_PERIODIC_HEAL) ||
+            player->getClass() != CLASS_SON_OF_ARUGAL ||
+            !player->HasAura(SPELL_LINGERING_ESSENCE) || !player->IsAlive() ||
+            !roll_chance_i(50))
+            return;
+        player->CastSpell(player, SPELL_LINGERING_ESSENCE_TRIM, true);
     }
 };
 
