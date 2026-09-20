@@ -117,6 +117,15 @@ void ApplyContracts(SpellInfo* info)
         // the native crit-chance mod path then grants the authored +5%.
         info->Attributes |= SPELL_ATTR0_PASSIVE,
         info->Effects[0].SpellClassMask = flag96(0x40000210, 0x40000020, 0);
+    if (id == 560547)
+        // Issue 1028: Sun Disc ships without the passive flag, so the
+        // learn/login passes never applied its auras, and its Illumination
+        // half ships with an empty mask that would boost every Sun Cleric
+        // spell. Mark passive and key the Illumination half to its own
+        // family bits; the raid healing half is already native, and the
+        // native damage-mod path then grants the authored +20%.
+        info->Attributes |= SPELL_ATTR0_PASSIVE,
+        info->Effects[1].SpellClassMask = flag96(0, 0x200, 0x200);
     if (id == 681468)
         // Issue 1008: Paying The Tithe ships without the passive flag, so the
         // learn/login passes never applied its auras, and its charges half
