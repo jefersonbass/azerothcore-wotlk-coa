@@ -326,6 +326,16 @@ void ApplyContracts(SpellInfo* info)
         info->Effects[0].TargetA = SpellImplicitTargetInfo(TARGET_UNIT_TARGET_ENEMY);
         info->Effects[0].TargetB = SpellImplicitTargetInfo();
     }
+    if (id == 503637)
+    {
+        // Issue 1026: Dance In The Starlight ships without the passive flag,
+        // so the learn/login passes never applied its cooldown aura, and its
+        // mask is keyed to the wrong word, missing Blanket of Stars' own
+        // family bit. Mark passive and rekey; the native cooldown-mod path
+        // then trims the authored 10 sec.
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+        info->Effects[EFFECT_0].SpellClassMask = flag96(0, 0, 0x2000000);
+    }
     for (uint32 sid : {801148, 100250, 680790, 706436})
         if (id == sid)
             info->AttributesEx3 |= SPELL_ATTR3_IGNORE_CASTER_MODIFIERS;
