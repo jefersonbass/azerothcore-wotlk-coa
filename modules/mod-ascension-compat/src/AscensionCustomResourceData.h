@@ -515,7 +515,7 @@ struct NativePowerGainRule
 // Rage and Runic Power are represented internally in tenths. These Reaper
 // abilities describe fixed gains, but their public DBC records omit the
 // energize effect that Ascension's private server applies.
-inline constexpr std::array<NativePowerGainRule, 18> NativePowerGainRules =
+inline constexpr std::array<NativePowerGainRule, 20> NativePowerGainRules =
 {{
     {19, 0, 0, 3, 10, ResourceGainEvent::PeriodicDamageTick, 301253},
     {23, 704355, 704355, 6, 200,
