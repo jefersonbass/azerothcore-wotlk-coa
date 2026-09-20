@@ -810,6 +810,31 @@ void ApplyRangerFalconGuideContract(SpellInfo* spellInfo)
     spellInfo->DurationEntry = sSpellDurationStore.LookupEntry(27); // Three seconds.
 }
 
+void ApplyRangerFocusedFighterContract(SpellInfo* spellInfo)
+{
+    if (!spellInfo || spellInfo->Id != 807206 ||
+        spellInfo->SpellFamilyName != uint32(CLASS_RANGER) + 6)
+        return;
+
+    SpellEffectInfo& cost = spellInfo->Effects[EFFECT_0];
+    if (cost.Effect != SPELL_EFFECT_APPLY_AURA ||
+        cost.ApplyAuraName != SPELL_AURA_ADD_PCT_MODIFIER || cost.MiscValue != SPELLMOD_COST ||
+        cost.BasePoints != -11 || cost.DieSides != 1 ||
+        cost.TargetA.GetTarget() != TARGET_UNIT_CASTER)
+    {
+        LOG_ERROR("module.ascension_compat", "Skipped unexpected Focused Fighter record {}", spellInfo->Id);
+        return;
+    }
+
+    // "Reduces the Focus cost of Flank, Blackjack, and Wild Strike by 10%."
+    // The shipped mask matches none of the three spells, so rekey to their
+    // union: Wild Strike (word1 0x100, word2 0x100), Blackjack (word2
+    // 0x10000), Flank (word1 0x20000). The talent also ships without the
+    // passive flag, so mark it for the learn/login passes.
+    spellInfo->Attributes |= SPELL_ATTR0_PASSIVE;
+    cost.SpellClassMask = flag96(0, 0x20100, 0x10100);
+}
+
 void ApplyRangerForestDwellerContract(SpellInfo* spellInfo)
 {
     if (!spellInfo || spellInfo->Id != SPELL_RANGER_FOREST_DWELLER ||
@@ -1241,6 +1266,7 @@ void ApplyAscensionClassMechanics(SpellInfo* spellInfo)
     ApplyRangerOffensiveSpellContracts(spellInfo);
     ApplyRangerForestDwellerContract(spellInfo);
     ApplyRangerFalconGuideContract(spellInfo);
+    ApplyRangerFocusedFighterContract(spellInfo);
 
     if (spellInfo->Id == 504144) // Bannerman
     {
