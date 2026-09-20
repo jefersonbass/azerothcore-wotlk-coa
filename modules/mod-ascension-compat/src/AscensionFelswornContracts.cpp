@@ -20,12 +20,18 @@ void ApplyContracts(SpellInfo* info)
     // Blood of Mannoroth's sole resource helper must grant all six charges, including from zero.
     if (id == MannorothFelfury)
         info->Effects[EFFECT_0].MiscValue = 6;
-    // Man'ari Teachings: the crit-damage aura ships without a school key, so the
-    // engine's school-mask check never matches; key it to every school.
+    // Man'ari Teachings (705150): two gaps — the learned talent is never
+    // applied as a standing aura (no PASSIVE flag), and the crit-damage aura
+    // ships without a school key so the engine's school-mask check never
+    // matches. Effect 0 is otherwise fully authored (+99 = +100 percent) and
+    // consumed natively by SpellDamageBonusDone's critical branch.
     if (id == 705150)
+    {
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
         for (auto& effect : info->Effects)
             if (effect.ApplyAuraName == SPELL_AURA_MOD_CRIT_DAMAGE_BONUS)
                 effect.MiscValue = SPELL_SCHOOL_MASK_ALL;
+    }
     auto dummy = [info](uint8 slot) {
         info->Effects[slot].ApplyAuraName = SPELL_AURA_DUMMY;
         info->Effects[slot].TriggerSpell = 0;

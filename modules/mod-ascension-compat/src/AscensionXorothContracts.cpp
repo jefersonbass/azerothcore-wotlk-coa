@@ -101,6 +101,16 @@ void ApplyContracts(SpellInfo* info)
     }
     if (id == SPELL_WARPATH_PROTECTION && info->Effects[EFFECT_0].ApplyAuraName == SPELL_AURA_MOD_MINIMUM_SPEED)
         info->DurationEntry = sSpellDurationStore.LookupEntry(27); // Three seconds after Unleash Pestilence.
+    if (id == 706759)
+        // Soul Furnace shield: the helper carries no duration entry in the DBC;
+        // the tooltip grants the absorb for 10 s.
+        info->DurationEntry = sSpellDurationStore.LookupEntry(1);
+    if (id == 706758)
+        // Soul Furnace: without SPELL_ATTR0_PASSIVE the learned talent is never
+        // applied as a standing aura, so its duration modifier never comes
+        // online. Effect 0 (aura 107, SPELLMOD_DURATION flat +9999 ms) rides
+        // the Sacrificial Circle mask (flags[0] 0x200000).
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
     if (id == SPELL_FLESH_HOOK_PULL)
     {
         // The parent has already passed its range and hit checks before scheduling this helper.

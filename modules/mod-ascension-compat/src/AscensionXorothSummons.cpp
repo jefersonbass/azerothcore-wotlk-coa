@@ -28,6 +28,8 @@ void Summon(Player* player, uint32 entry, Position const& position, uint32 durat
 } // namespace AscensionXoroth
 namespace
 {
+constexpr uint32 SPELL_SOUL_FURNACE = 706758;
+constexpr uint32 SPELL_SOUL_FURNACE_SHIELD = 706759;
 using namespace AscensionXoroth;
 void Scale(Creature* unit, Player* player)
 {
@@ -200,11 +202,12 @@ class spell_ascension_xoroth_sacrificial_circle : public SpellScript
         // The tooltip adds 25% of each sacrificed imp's maximum health; 706753 heals the master and kills the imp.
         imp->CastCustomSpell(706753, SPELLVALUE_BASE_POINT0, int32(imp->CountPctFromMaxHealth(25)), player,
                              TRIGGERED_FULL_MASK);
-        // Soul Furnace: each destroyed imp also shields the master for 15% of the imp's total
-        // health; 706759's absorb slot carries the value and stacks up to 25.
-        if (player->HasAura(706758))
-            player->CastCustomSpell(706759, SPELLVALUE_BASE_POINT2, int32(imp->CountPctFromMaxHealth(15)), player,
-                                    TRIGGERED_FULL_MASK);
+        // Soul Furnace (706758): each destroyed imp also shields the master
+        // for 15% of the imp's total health; 706759's absorb slot carries the
+        // value and stacks up to 25.
+        if (player->HasAura(SPELL_SOUL_FURNACE))
+            player->CastCustomSpell(SPELL_SOUL_FURNACE_SHIELD, SPELLVALUE_BASE_POINT2,
+                int32(imp->CountPctFromMaxHealth(15)), player, TRIGGERED_FULL_MASK);
     }
     void Register() override
     {
