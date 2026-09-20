@@ -185,6 +185,17 @@ void ApplyContracts(SpellInfo* info)
         info->Attributes |= SPELL_ATTR0_PASSIVE;
         info->Effects[EFFECT_0].DieSides = 1;
     }
+    if (id == 704111 || id == 707833)
+    {
+        // Issue 953: Explosive Personality ships without SPELL_ATTR0_PASSIVE,
+        // so the learn/login passes never applied its stat aura, and its
+        // BasePoints are display-minus-1 with DieSides 0. Mark passive and
+        // shift DieSides to 1 so the values resolve as the tooltip's 50%
+        // (rank 1) and 100% (rank 2) Ranged attack power from Intellect
+        // (aura 212, native RAP-from-stat path).
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+        info->Effects[EFFECT_0].DieSides = 1;
+    }
     if (id == 807966 || id == 704475)
         info->Effects[0].SpellClassMask |= flag96(1073741824,1073741824,2684354560u);
     if (id == 805657)

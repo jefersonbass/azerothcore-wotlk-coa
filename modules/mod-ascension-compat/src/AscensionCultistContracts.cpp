@@ -112,6 +112,11 @@ void ApplyContracts(SpellInfo* info)
         aura(0, SPELL_AURA_MOD_DISPEL_RESIST, 25, 0, TARGET_UNIT_CASTER);
     if (id == 300290)
         aura(1, SPELL_AURA_MOD_MINIMUM_SPEED, 100, 0, TARGET_UNIT_CASTER);
+    if (id == 560322)
+        // Issue 960: the Obelisk zone's damage aura would boost everyone
+        // standing in it; the authored +100% is tentacles only, applied by
+        // the summon damage hook. The ally speed half stays native.
+        dummy(0);
     if (id == 524804)
         // Seething Void's native cooldown modifier would trim every spell the
         // owner casts; the Empire's Grasp-only 5 sec trim is scripted instead.

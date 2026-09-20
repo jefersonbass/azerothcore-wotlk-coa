@@ -341,6 +341,17 @@ public:
             info->Effects[EFFECT_0].SpellClassMask = flag96(0x80000, 0x20000, 0);
             return;
         }
+        if (info->Id == 704621)
+        {
+            // Issue 958: Easy Prey's +1 sec Hemostasis duration ships without
+            // the passive flag, and its mask is keyed to the wrong word, so
+            // the learn/login passes never applied it. Mark passive and rekey
+            // to Hemostasis's own family bit; the native duration-mod path
+            // then applies the authored +1 sec.
+            info->Attributes |= SPELL_ATTR0_PASSIVE;
+            info->Effects[EFFECT_0].SpellClassMask = flag96(0, 0, 0x8);
+            return;
+        }
         if (info->Id != SPELL_VAMPIRIC_POOLS_LEECH ||
             info->Effects[EFFECT_0].Effect != SPELL_EFFECT_HEALTH_LEECH)
             return;

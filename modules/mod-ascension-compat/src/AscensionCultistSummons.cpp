@@ -328,6 +328,10 @@ public:
         State(player).event = true;
         if (creature->GetEntry() == 397771)
             Copy(player, player, 680769, player->GetCreateHealth() / 20);
+        // Eldritch Obelisk doubles tentacle damage while the owner's zone
+        // covers the attacker; the native zone aura would boost everyone.
+        if (Tentacle(creature->GetEntry()) && creature->HasAura(560322))
+            damage *= 2;
         if (Tentacle(creature->GetEntry()) && player->HasAura(706187))
             for (Unit* ally : Allies(player, creature, 40))
                 if (ally->HasAura(BlackBlood, player->GetGUID()))
