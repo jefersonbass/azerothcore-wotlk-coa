@@ -15,6 +15,7 @@ using namespace AscensionBloodmage;
 constexpr uint32 VitalityCost = 10;
 constexpr uint32 RagingHunger = 681336;
 constexpr uint32 OrganOrbs = 807490;
+constexpr uint32 SPELL_BLOOD_CRAVING_PAYOUT = 805985;
 
 bool IsBloodmage(Player const* player)
 {
@@ -189,6 +190,42 @@ class spell_ascension_bloodmage_empowered : public SpellScript
         OnHit += SpellHitFn(spell_ascension_bloodmage_empowered::ModifyHit);
     }
 };
+
+// Blood Craving (800780) pays out through its periodic trigger (805985,
+// aura 23, every 2 s). The heal half (effect 0, SPELL_EFFECT_HEAL_PCT +4
+// = 5% of maximum health) matches the tooltip. The Rage half (effect 1,
+// SPELL_EFFECT_ENERGIZE_PCT, misc 1, +14 = 15%) would pay 15% of MAXIMUM
+// Rage per tick through the native handler, but the tooltip reads 15% of
+// MISSING Rage — so the effect is skipped and the payout is computed here.
+class spell_ascension_blood_craving_payout : public SpellScript
+{
+    PrepareSpellScript(spell_ascension_blood_craving_payout);
+
+    bool Load() override
+    {
+        return GetCaster() && GetCaster()->IsPlayer() &&
+            GetSpellInfo()->Id == SPELL_BLOOD_CRAVING_PAYOUT;
+    }
+
+    void MissingRage(SpellEffIndex index)
+    {
+        if (GetSpellInfo()->Effects[index].MiscValue != POWER_RAGE)
+            return;
+        PreventHitDefaultEffect(index);
+        Player* player = GetCaster()->ToPlayer();
+        uint32 const maxRage = player->GetMaxPower(POWER_RAGE);
+        uint32 const missing = maxRage - player->GetPower(POWER_RAGE);
+        uint32 const gain = CalculatePct(missing, GetSpellInfo()->Effects[index].CalcValue(player));
+        if (gain)
+            player->EnergizeBySpell(player, GetSpellInfo()->Id, gain, POWER_RAGE);
+    }
+
+    void Register() override
+    {
+        OnEffectHitTarget += SpellEffectFn(spell_ascension_blood_craving_payout::MissingRage,
+            EFFECT_1, SPELL_EFFECT_ENERGIZE_PCT);
+    }
+};
 }
 
 void AddSC_AscensionBloodmageVitality()
@@ -196,4 +233,5 @@ void AddSC_AscensionBloodmageVitality()
     new bloodmage_vitality_casts();
     new bloodmage_vitality_scaling();
     RegisterSpellScript(spell_ascension_bloodmage_empowered);
+    RegisterSpellScript(spell_ascension_blood_craving_payout);
 }
