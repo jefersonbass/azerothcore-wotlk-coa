@@ -112,6 +112,12 @@ void ApplyContracts(SpellInfo* info)
         aura(0, SPELL_AURA_MOD_DISPEL_RESIST, 25, 0, TARGET_UNIT_CASTER);
     if (id == 300290)
         aura(1, SPELL_AURA_MOD_MINIMUM_SPEED, 100, 0, TARGET_UNIT_CASTER);
+    if (id == 560526)
+        // Issue 1016: Visions ships without the passive flag, so the
+        // learn/login passes never applied its auras (216 = +3% raid spell
+        // haste, 79 misc 32 = +3% Shadow damage, both resolving through the
+        // native haste and damage-done paths).
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
     if (id == 560322)
         // Issue 960: the Obelisk zone's damage aura would boost everyone
         // standing in it; the authored +100% is tentacles only, applied by
