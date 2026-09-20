@@ -55,7 +55,34 @@ class ranger_secondary_hits : public AllSpellScript
 {
 public:
     ranger_secondary_hits() : AllSpellScript("ranger_secondary_hits",
-        {ALLSPELLHOOK_ON_BEFORE_EFFECTS, ALLSPELLHOOK_ON_HIT_RESULT}) { }
+        {ALLSPELLHOOK_ON_BEFORE_EFFECTS, ALLSPELLHOOK_ON_HIT_RESULT, ALLSPELLHOOK_ON_CAST}) { }
+
+    void OnSpellCast(Spell* spell, Unit* caster, SpellInfo const* info, bool) override
+    {
+        Player* player = caster->ToPlayer();
+        if (!player || player->getClass() != CLASS_RANGER || !info || info->SpellFamilyName != 27 ||
+            spell->IsTriggered())
+            return;
+        // Issue 860: Sly makes Woodland Adept (chain head 555728) and Elude
+        // (chain head 800701) trigger a 10% reduced cooldown per Advantage
+        // stack active when cast. The talent's native mod (op 12 =
+        // SPELLMOD_EFFECT2, maskA 0x80000000) matches neither ability's
+        // flags, so apply it here: read the caster's Advantage (804329)
+        // stacks and shave 10% of each ability's remaining cooldown per
+        // stack via ModifySpellCooldown.
+        uint32 head = sSpellMgr->GetFirstSpellInChain(info->Id);
+        if (head != 555728 && head != 800701)
+            return;
+        if (!player->HasAura(560339))
+            return;
+        Aura const* advantage = caster->GetAura(804329, caster->GetGUID());
+        uint8 stacks = advantage ? advantage->GetStackAmount() : 0;
+        if (!stacks)
+            return;
+        if (SpellInfo const* ability = sSpellMgr->GetSpellInfo(head))
+            if (int32 remaining = int32(player->GetSpellCooldownDelay(head)))
+                player->ModifySpellCooldown(head, -remaining * stacks * 10 / 100);
+    }
 
     void OnSpellBeforeEffects(Spell* spell, Unit* caster, SpellInfo const* info) override
     {

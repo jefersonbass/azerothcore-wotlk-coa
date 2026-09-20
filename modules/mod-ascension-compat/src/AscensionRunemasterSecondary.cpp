@@ -452,6 +452,22 @@ public:
             info->Effects[EFFECT_0].DieSides = 1;
             info->Effects[EFFECT_1].DieSides = 1;
         }
+        if (info->Id == 806993)
+        {
+            // Issue 862: Devastating Flames ships without SPELL_ATTR0_PASSIVE,
+            // so the learn/login passes never applied its damage mod, and its
+            // BasePoints are display-minus-1 with DieSides 0. Mark passive
+            // and shift DieSides to 1 so the value resolves as the tooltip's
+            // 20% (op 22 = SPELLMOD_DOT... actually op 22 with misc 22: the
+            // authored op is 22/SPELLMOD_DOT but the mask is empty, so
+            // retarget it as op 0/SPELLMOD_DAMAGE on Weapon Engraving: Fire's
+            // explosion 653210, family-38 flags 0x20000/0x10). The native
+            // damage-mod path applies it.
+            info->Attributes |= SPELL_ATTR0_PASSIVE;
+            info->Effects[EFFECT_0].DieSides = 1;
+            info->Effects[EFFECT_0].MiscValue = SPELLMOD_DAMAGE;
+            info->Effects[EFFECT_0].SpellClassMask = flag96(0x20000, 0x10, 0);
+        }
     }
 };
 }

@@ -200,6 +200,18 @@ public:
             info->Attributes |= SPELL_ATTR0_PASSIVE;
             info->Effects[EFFECT_0].DieSides = 1;
         }
+        if (info->Id == 705657)
+        {
+            // Issue 864: Studious ships without SPELL_ATTR0_PASSIVE, so the
+            // learn/login passes never applied its cast-time mod, and its
+            // BasePoints are display-minus-1 with DieSides 0. Mark passive
+            // and shift DieSides to 1 so the value resolves as the tooltip's
+            // 15% (op 10 = SPELLMOD_CASTING_TIME, maskA 0x800 matches Shock
+            // 503326's family-22 flag 0x800). The native casting-time mod
+            // path applies it.
+            info->Attributes |= SPELL_ATTR0_PASSIVE;
+            info->Effects[EFFECT_0].DieSides = 1;
+        }
 };
 
 class aura_ascension_barometric_pressure : public AuraScript
