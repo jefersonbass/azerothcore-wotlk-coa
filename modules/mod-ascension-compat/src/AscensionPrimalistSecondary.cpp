@@ -216,6 +216,16 @@ public:
             info->AuraInterruptFlags |= AURA_INTERRUPT_FLAG_TAKE_DAMAGE;
         if (info->Id == SPELL_GAZE_SLOW)
             info->ProcCharges = 1; // Native proc data spends this on the next melee/ranged swing, including misses.
+        if (info->Id == 524677)
+        {
+            // Issue 879: Wild At Heart ships without SPELL_ATTR0_PASSIVE, so
+            // the learn/login passes never applied its GCD mod. Mark passive.
+            // Effect 0 (op 21 = SPELLMOD_GLOBAL_COOLDOWN, bp -251, maskA
+            // 0x80001) matches Wildclaw (chain head 520560, family-37 flag
+            // 0x80001) and resolves as the tooltip's -0.25s GCD via the
+            // native global-cooldown mod path.
+            info->Attributes |= SPELL_ATTR0_PASSIVE;
+        }
         if (info->Id == SPELL_ANCIENT_SLOW || info->Id == SPELL_CRACKING_STACK || info->Id == SPELL_GAZE_SLOW)
         {
             info->AttributesCu &= ~SPELL_ATTR0_CU_FORCE_AURA_SAVING;
