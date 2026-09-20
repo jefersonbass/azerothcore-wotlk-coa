@@ -26,6 +26,8 @@ enum RunemasterSecondarySpells : uint32
     SPELL_RIFTBLADE_MANA = 500466,
     SPELL_WATER_AMOUNT = 802645,
     SPELL_PRIMORDIAL_BLAST = 800732,
+    SPELL_ELEMENTAL_MASTERY = 806711,
+    SPELL_RUNIC_BRAND = 712299,
     SPELL_SMOLDER = 801087,
     SPELL_WARPDAGGER = 500287,
     SPELL_SPELLFIRE_RUNES = 801511,
@@ -138,6 +140,22 @@ public:
         if (!player || player->getClass() != CLASS_SPIRIT_MAGE || !player->IsAlive() || spell->IsTriggered())
             return;
         uint32 root = sSpellMgr->GetFirstSpellInChain(info->Id);
+        // Elemental Mastery (806711): Runic Brand damage rolls 33% to
+        // transform the next Primordial Blast into a random unique elemental
+        // version of itself. The DBC's proc names no trigger spell, so the
+        // roll happens here on Brand damage and the transform on Blast cast.
+        if (root == SPELL_RUNIC_BRAND && player->HasAura(SPELL_ELEMENTAL_MASTERY) && roll_chance_i(33))
+            player->CastSpell(player, SPELL_ELEMENTAL_MASTERY, true);
+        if (root == SPELL_PRIMORDIAL_BLAST && player->HasAura(SPELL_ELEMENTAL_MASTERY))
+        {
+            static uint32 const bursts[] = {502828, 502829, 502830, 502831, 502832, 502833,
+                502834, 502835, 502836, 502837, 502838, 802202};
+            player->RemoveAurasDueToSpell(SPELL_ELEMENTAL_MASTERY, player->GetGUID());
+            if (Unit* victim = spell->m_targets.GetUnitTarget())
+                player->CastSpell(victim, bursts[urand(0, 11)], true);
+            spell->cancel();
+            return;
+        }
         if (root == SPELL_SMOLDER)
             player->RemoveAurasDueToSpell(SPELL_SPELLFIRE_READY, player->GetGUID());
         if (player->HasAura(SPELL_RIFTBLADE, player->GetGUID()))
