@@ -234,6 +234,16 @@ void ApplyAscensionRunemasterTalentContracts(SpellInfo* info)
         info->AuraInterruptFlags |= AURA_INTERRUPT_FLAG_TAKE_DAMAGE;
         return;
     }
+    if (info->Id == 705541 && info->SpellFamilyName == 38)
+    {
+        // Issue 991: Elemental Assassin ships without the passive flag, so
+        // the learn/login passes never applied its stat auras (220 =
+        // rating-from-Agility, 174 = spell-damage-from-Agility, both
+        // resolving the tooltip's +20% damage / +10% crit / +5% hit through
+        // the native stat paths).
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+        return;
+    }
     if (info->Id == 712310 && info->SpellFamilyName == 38)
     {
         // The native periodic heal and effect-98 immunity already exist. Complete
