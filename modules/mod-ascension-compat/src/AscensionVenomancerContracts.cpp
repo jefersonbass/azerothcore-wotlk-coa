@@ -406,6 +406,11 @@ void ApplyContracts(SpellInfo* info)
     if (id == 706037)
         // "Increases your critical strike chance with Shadow and Nature spells and abilities by 1%."
         aura(2, SPELL_AURA_MOD_SPELL_CRIT_CHANCE_SCHOOL, 1, SPELL_SCHOOL_MASK_SHADOW | SPELL_SCHOOL_MASK_NATURE);
+    if (id == 705962)
+        // Issue 954: Genesis ships without the passive flag, so the learn/login
+        // passes never applied its haste auras (192 melee/ranged + 216 spells,
+        // both resolving the tooltip's +4% through the native haste paths).
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
     info->_InitializeExplicitTargetMask();
 }
 } // namespace AscensionVenomancer
