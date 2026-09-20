@@ -28,6 +28,7 @@ enum RunemasterSecondarySpells : uint32
     SPELL_PRIMORDIAL_BLAST = 800732,
     SPELL_ELEMENTAL_MASTERY = 806711,
     SPELL_RUNIC_BRAND = 712299,
+    SPELL_POWER_OVERWHELMING = 707876,
     SPELL_SMOLDER = 801087,
     SPELL_WARPDAGGER = 500287,
     SPELL_SPELLFIRE_RUNES = 801511,
@@ -140,6 +141,12 @@ public:
         if (!player || player->getClass() != CLASS_SPIRIT_MAGE || !player->IsAlive() || spell->IsTriggered())
             return;
         uint32 root = sSpellMgr->GetFirstSpellInChain(info->Id);
+        // Power Overwhelming (707876): Runeblade and Primordial Blast roll
+        // 35% to reset Runic Brand's cooldown. The DBC's proc trigger is a
+        // dead custom effect, so the roll happens here on their damage.
+        if ((root == SPELL_RUNEBLADE || root == SPELL_PRIMORDIAL_BLAST) &&
+            player->HasAura(SPELL_POWER_OVERWHELMING) && roll_chance_i(35))
+            player->RemoveSpellCooldown(SPELL_RUNIC_BRAND, true);
         // Elemental Mastery (806711): Runic Brand damage rolls 33% to
         // transform the next Primordial Blast into a random unique elemental
         // version of itself. The DBC's proc names no trigger spell, so the
