@@ -99,6 +99,12 @@ void ApplyContracts(SpellInfo* info)
         info->Effects[EFFECT_0].BasePoints = 5;
         info->Effects[EFFECT_1].SpellClassMask = flag96(0, 67108864, 0);
     }
+    if (id == 704951)
+        // Issue 985: Render ships without the passive flag, so the learn/login
+        // passes never applied its rating aura (220, bit 17 = melee haste from
+        // Strength via MiscB 0, resolving the tooltip's 30% through the native
+        // rating-from-stat path).
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
     if (id == SPELL_WARPATH_PROTECTION && info->Effects[EFFECT_0].ApplyAuraName == SPELL_AURA_MOD_MINIMUM_SPEED)
         info->DurationEntry = sSpellDurationStore.LookupEntry(27); // Three seconds after Unleash Pestilence.
     if (id == 706759)
