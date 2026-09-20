@@ -21,7 +21,10 @@ enum RangerTalentSpells : uint32
     SPELL_ADVANTAGE = 804329,
     SPELL_EXTEND_DIRTY_BLADES = 524653,
     SPELL_SNATCH = 803115,
-    SPELL_SNATCH_DISARM = 803123
+    SPELL_SNATCH_DISARM = 803123,
+    SPELL_TACTICAL_ADVANTAGE = 706748,
+    SPELL_TACTICAL_ADVANTAGE_DEBUFF = 706749,
+    SPELL_BUSHWHACK = 557333
 };
 
 class spell_ascension_ranger_light_arrows : public SpellScript
@@ -85,6 +88,11 @@ void HandleAscensionRangerStonemason(Spell* spell, Player* player)
         return;
     if (Aura const* advantage = player->GetAura(SPELL_ADVANTAGE); advantage && advantage->GetStackAmount() == 5)
         player->CastSpell(player, SPELL_EXTEND_DIRTY_BLADES, true);
+
+    // 'Tactical' Advantage marks the victim of a Knockout or Bushwhack.
+    if (player->HasAura(SPELL_TACTICAL_ADVANTAGE) &&
+        (info->Id == SPELL_KNOCKOUT_INCAPACITATE || info->Id == SPELL_BUSHWHACK))
+        player->CastSpell(spell->m_targets.GetUnitTarget(), SPELL_TACTICAL_ADVANTAGE_DEBUFF, true);
 }
 
 void ApplyAscensionRangerTalentContracts(SpellInfo* info)
@@ -94,6 +102,14 @@ void ApplyAscensionRangerTalentContracts(SpellInfo* info)
     if (info->Id == SPELL_SNATCH_DISARM && info->SpellFamilyName == 27)
         if (SpellInfo const* parent = sSpellMgr->GetSpellInfo(SPELL_SNATCH))
             info->DurationEntry = parent->DurationEntry;
+    if (info->Id == SPELL_TACTICAL_ADVANTAGE_DEBUFF && info->SpellFamilyName == 27)
+    {
+        // The debuff ships with a bogus 300000 s duration and a cast target;
+        // the authored mark is an 8-second enemy debuff.
+        info->DurationEntry = sSpellDurationStore.LookupEntry(31); // Eight seconds.
+        info->Effects[EFFECT_0].TargetA = SpellImplicitTargetInfo(TARGET_UNIT_TARGET_ENEMY);
+        info->Effects[EFFECT_0].TargetB = SpellImplicitTargetInfo();
+    }
 }
 
 void AddSC_AscensionRangerTalents()
