@@ -166,6 +166,17 @@ void ApplyAscensionPrimalistEarthshapingContracts(SpellInfo* spellInfo)
         spellInfo->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_DUMMY;
         return;
     }
+    if (spellInfo->Id == 706165)
+    {
+        // Issue 1039: Fury of the Elements ships without the passive flag, so
+        // the learn/login passes never applied its aura, and its mask is
+        // empty, which would double every Primalist energize. Mark passive
+        // and key to Primal Rush's own family bit; the native flat-mod path
+        // then grants the authored +10 Rage.
+        spellInfo->Attributes |= SPELL_ATTR0_PASSIVE;
+        spellInfo->Effects[EFFECT_0].SpellClassMask = flag96(0x4000, 0, 0);
+        return;
+    }
     if (spellInfo->Id == 504220)
     {
         // Issue 969: Spiritual Warrior ships without the passive flag, so the
