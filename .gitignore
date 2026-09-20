@@ -129,7 +129,6 @@ __pycache__/
 !/modules/mod-coa-challenges/
 !/modules/mod-worldforged-pickups/
 !/modules/mod-teleport-actionbar/
-<<<<<<< HEAD
 
 # issue-sync: export local de issues (a ferramenta em si é commitada,
 # apenas os dados exportados ficam de fora)
@@ -140,6 +139,4 @@ tools/issue-sync/state.json
 # apenas downloads e indice ficam de fora)
 tools/ascension-ref/data/
 tools/ascension-ref/index/
-=======
 !/modules/mod-portablemail/
->>>>>>> upstream/main
