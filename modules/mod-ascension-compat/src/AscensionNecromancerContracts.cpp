@@ -259,6 +259,14 @@ void ApplyContracts(SpellInfo* info)
             info->Effects[slot].SpellClassMask = flag96(0, 64, 0);
         }
     }
+    if (id == 704718)
+    {
+        // Unrelenting trims Crypt Swarm's channel by 25%. The duration half is
+        // keyed to the wrong mask word and the channel-time half ships with an
+        // empty mask, so rekey both to Crypt Swarm's own family bit.
+        for (uint8 slot : {0, 1})
+            info->Effects[slot].SpellClassMask = flag96(2, 0, 0);
+    }
     if (id == 572777)
     {
         info->Effects[0].Effect = 0;
