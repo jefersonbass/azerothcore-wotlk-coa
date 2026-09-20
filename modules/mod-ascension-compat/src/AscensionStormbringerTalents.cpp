@@ -29,6 +29,7 @@ enum StormbringerTalentSpells : uint32
     SPELL_AEROMANCY = 705708,
     SPELL_ELEMENTAL_UPDRAFT = 807717,
     SPELL_UPDRAFT = 570161,
+    SPELL_STORM_ASCENDANCE = 681110,
     SPELL_TEMPEST_SOVEREIGN = 560020,
     SPELL_SHOCK_STATIC_GRANT = 500039,
     SPELL_TORRENTIAL_WRATH = 503352,
@@ -85,6 +86,20 @@ public:
             sSpellMgr->GetFirstSpellInChain(info->Id) == SPELL_UPDRAFT)
             if (Pet* pet = player->GetPet(); pet && pet->IsAlive() && pet->IsInWorld())
                 pet->CastSpell(player, SPELL_ELEMENTAL_UPDRAFT, true);
+        // Storm Ascendance (681110): damaging spells generate 10 extra Static,
+        // at most once per second, while the transform lasts.
+        if (player && player->getClass() == CLASS_STORMBRINGER && info->SpellFamilyName == 22 &&
+            !spell->IsTriggered() && player->HasAura(SPELL_STORM_ASCENDANCE) &&
+            info->DmgClass != SPELL_DAMAGE_CLASS_NONE && info->DmgClass != SPELL_DAMAGE_CLASS_MELEE)
+        {
+            uint32 now = getMSTime();
+            if (now - spell->GetScriptValue(SPELL_STORM_ASCENDANCE) >= 1000)
+            {
+                spell->SetScriptValue(SPELL_STORM_ASCENDANCE, now);
+                player->CastSpell(player, SPELL_GENERATE_STATIC_20, true);
+                player->CastSpell(player, SPELL_GENERATE_STATIC_20, true);
+            }
+        }
         // Tempest Sovereign (560020): Shock and Call Lightning gain 25 Static, and
         // Torrential Wrath consumes all Static, triggering Conduction per stack.
         if (!player || player->getClass() != CLASS_STORMBRINGER || info->SpellFamilyName != 22 ||
@@ -196,6 +211,19 @@ public:
         if (info->Id == SPELL_PERPETUAL_SHOCK)
             // The hit callback supplies the learned-spell gate and one 20-Static grant.
             info->Effects[EFFECT_1].Effect = 0;
+        if (info->Id == SPELL_STORM_ASCENDANCE)
+        {
+            // "Transform into a storm elemental for 15 sec, increasing your
+            // Magic damage dealt by 20% and reducing your Magic damage taken
+            // by 50%." The damage-dealt half is native; the dead flat-mod
+            // slot becomes the taken half, and the instant record becomes the
+            // authored 15-second transform.
+            info->DurationEntry = sSpellDurationStore.LookupEntry(8); // Fifteen seconds.
+            info->Effects[EFFECT_2].ApplyAuraName = SPELL_AURA_MOD_DAMAGE_PERCENT_TAKEN;
+            info->Effects[EFFECT_2].MiscValue = SPELL_SCHOOL_MASK_MAGIC;
+            info->Effects[EFFECT_2].BasePoints = -51;
+            info->Effects[EFFECT_2].DieSides = 1;
+        }
         if (info->Id == SPELL_CHARGED_CONDUIT)
             // Keep the charges until this ten-second buff ends.
             info->Effects[EFFECT_2].Effect = 0;
