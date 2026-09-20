@@ -37,6 +37,8 @@ enum PrimalistAbilitySpells : uint32
     SPELL_RUPTURER = 706208,
     SPELL_GEOMOLDING_BUFF = 560170,
     SPELL_EARTHSHAPING_BUFF = 680441,
+    SPELL_MOUNTAIN_GIANT = 680395,
+    SPELL_AFTERSHOCK = 301086,
     SPELL_TERRASURGE_RANK2 = 574161,
     SPELL_TERRASURGE_RANK3 = 574162,
     SPELL_TERRASURGE_RANK4 = 681119,
@@ -113,7 +115,27 @@ class primalist_talent_events : public UnitScript
 {
 public:
     primalist_talent_events() : UnitScript("primalist_talent_events", true,
-        {UNITHOOK_MODIFY_SPELL_DAMAGE_TAKEN, UNITHOOK_ON_DAMAGE, UNITHOOK_ON_AURA_REMOVE}) { }
+        {UNITHOOK_MODIFY_MELEE_DAMAGE, UNITHOOK_MODIFY_SPELL_DAMAGE_TAKEN, UNITHOOK_ON_DAMAGE,
+        UNITHOOK_ON_AURA_REMOVE}) { }
+
+    void ModifyMeleeDamage(Unit* target, Unit* attacker, uint32& damage) override
+    {
+        // Mountain Giant (680395): auto attacks roll twenty percent to grant
+        // Aftershock (301086, 15 sec): "Your next Geode Barrage or Earthquake
+        // within 15 sec is now instant cast and costs 75% less." The talent's
+        // authored proc (effect 0, aura 42 triggering 301086, ProcChance 20)
+        // carries no proc flags in the DBC, so the native chain never fires;
+        // the roll happens here on every swing. The Aftershock buff itself is
+        // fully authored: SPELLMOD_CASTING_TIME flat -101 (instant) against
+        // the Geode cast mask and SPELLMOD_COST flat -76 against the
+        // Earthquake mask (flags[2] 0x10000000, ranks 520412-520745).
+        Player* player = Primalist(attacker);
+        if (!player || !target || !player->IsAlive() || !damage ||
+            !player->HasAura(SPELL_MOUNTAIN_GIANT))
+            return;
+        if (roll_chance_i(20))
+            player->CastSpell(player, SPELL_AFTERSHOCK, true);
+    }
 
     void ModifySpellDamageTaken(Unit* target, Unit* attacker, int32& damage, SpellInfo const* spellInfo) override
     {
