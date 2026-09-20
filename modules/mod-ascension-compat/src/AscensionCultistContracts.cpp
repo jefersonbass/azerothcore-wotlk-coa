@@ -198,6 +198,19 @@ void ApplyContracts(SpellInfo* info)
         info->Effects[0].ApplyAuraName = SPELL_AURA_PERIODIC_DUMMY;
         info->Effects[0].TriggerSpell = 0;
     }
+    if (id == 582836)
+    {
+        // Issue 874: Abyssal Edge ships without SPELL_ATTR0_PASSIVE, so the
+        // learn/login passes never applied its mods. Mark passive. Effect 1
+        // (op 14 = SPELLMOD_COST, bp -26, maskA/B 0x100000) matches Blade of
+        // the Empire (chain head 500720, family-31 flag 0x100000) and
+        // resolves as the tooltip's -25% mana cost via the native cost-mod
+        // path. Effect 0 (op 7 = SPELLMOD_CRIT_CHANCE, bp 1, empty mask)
+        // targets nothing; retarget it to the same Blade mask so the +2%
+        // crit applies via the native crit-chance mod path.
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+        info->Effects[EFFECT_0].SpellClassMask = flag96(0, 0x100000, 0);
+    }
     if (id == 706915)
     {
         // Issue 830: Cunning Nature ships without SPELL_ATTR0_PASSIVE, so
