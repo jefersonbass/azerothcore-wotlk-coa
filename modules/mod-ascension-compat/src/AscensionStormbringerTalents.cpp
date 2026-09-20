@@ -211,6 +211,22 @@ public:
         if (info->Id == SPELL_PERPETUAL_SHOCK)
             // The hit callback supplies the learned-spell gate and one 20-Static grant.
             info->Effects[EFFECT_1].Effect = 0;
+        if (info->Id == 560568)
+            // Issue 992: Electrifying Aura ships without the passive flag, so
+            // the learn/login passes never applied its raid aura (65 =
+            // APPLY_AREA_AURA_RAID, resolving the tooltip's +3% party/raid
+            // crit through the native crit-pct path).
+            info->Attributes |= SPELL_ATTR0_PASSIVE;
+        if (info->Id == 705655)
+        {
+            // Issue 1027: Stormy Days ships without the passive flag, so the
+            // learn/login passes never applied its tick-rate aura, and its
+            // mask is keyed to the wrong word, missing Conjure Storm's own
+            // family bits. Mark passive and rekey; the native
+            // activation-time mod path then quickens the authored 25%.
+            info->Attributes |= SPELL_ATTR0_PASSIVE;
+            info->Effects[EFFECT_0].SpellClassMask = flag96(0, 0, 0x30);
+        }
         if (info->Id == SPELL_STORM_ASCENDANCE)
         {
             // "Transform into a storm elemental for 15 sec, increasing your
