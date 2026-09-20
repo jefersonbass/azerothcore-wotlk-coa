@@ -31,6 +31,20 @@ enum PrimalistAbilitySpells : uint32
     SPELL_SAVAGE_FRENZY_GREATER = 807286,
     SPELL_CRASHING_OUT = 574313,
     SPELL_SEISMIC_CRASH = 503258,
+    SPELL_SEISMIC_SPIKE = 560171,
+    SPELL_LITHIC_LANCE = 681251,
+    SPELL_TERRASURGE = 574160,
+    SPELL_RUPTURER = 706208,
+    SPELL_GEOMOLDING_BUFF = 560170,
+    SPELL_EARTHSHAPING_BUFF = 680441,
+    SPELL_TERRASURGE_RANK2 = 574161,
+    SPELL_TERRASURGE_RANK3 = 574162,
+    SPELL_TERRASURGE_RANK4 = 681119,
+    SPELL_TERRASURGE_RANK5 = 681223,
+    SPELL_TERRASURGE_RANK6 = 681224,
+    SPELL_TERRASURGE_RANK7 = 681225,
+    SPELL_TERRASURGE_RANK8 = 681226,
+    SPELL_TERRASURGE_RANK9 = 681227,
     SPELL_ONE_WITH_THE_EARTH = 704402,
     SPELL_STONESHARD = 680448,
     SPELL_ROCKSLIDE = 560154,
@@ -210,10 +224,19 @@ public:
         // pet at 50% effectiveness. The DBC aura is an inert Dummy, so the mirror
         // cast happens here. The Boons' pet-visible values come from their auras;
         // the 50% potency is honored by the separate pet Boon auras where present.
-        if (!player->HasAura(SPELL_FURY_OF_THE_WILD) || !IsBoonCast(info))
-            return;
-        if (Pet* pet = player->GetPet(); pet && pet->IsAlive())
-            player->CastSpell(pet, info->Id, true);
+        if (player->HasAura(SPELL_FURY_OF_THE_WILD) && IsBoonCast(info))
+            if (Pet* pet = player->GetPet(); pet && pet->IsAlive())
+                player->CastSpell(pet, info->Id, true);
+        // Rupturer (706208): casting Lithic Lance trims four seconds off every
+        // Terrasurge rank's cooldown. The talent's authored effects are an
+        // empty proc trigger (effect 0, aura 42, no proc flags) and two empty
+        // slots, so the reduction is applied here on every Lithic Lance cast.
+        if (player->HasAura(SPELL_RUPTURER) &&
+            sSpellMgr->GetFirstSpellInChain(info->Id) == sSpellMgr->GetFirstSpellInChain(SPELL_LITHIC_LANCE))
+            for (uint32 rank : {SPELL_TERRASURGE, SPELL_TERRASURGE_RANK2, SPELL_TERRASURGE_RANK3,
+                SPELL_TERRASURGE_RANK4, SPELL_TERRASURGE_RANK5, SPELL_TERRASURGE_RANK6,
+                SPELL_TERRASURGE_RANK7, SPELL_TERRASURGE_RANK8, SPELL_TERRASURGE_RANK9})
+                player->ModifySpellCooldown(rank, -4000);
     }
 
     void OnSpellHitResult(Spell* spell, Unit* target, uint8 miss, uint32 damage, uint32, bool critical) override
@@ -228,6 +251,25 @@ public:
         if (damage && player->HasAura(SPELL_PROTECTOR_OF_THE_GROVE) && !spell->IsTriggered())
             for (uint32 ability : {SPELL_BEARSKIN, SPELL_PRIMAL_CONVERGENCE, SPELL_BOULDER_DASH})
                 player->ModifySpellCooldown(ability, -1000);
+        // Rupturer (706208): Seismic Spike or Seismic Crash damage generates a
+        // Geomolding stack; a critical strike adds one more Geomolding stack
+        // plus an Earthshaping stack. The authored proc trigger (effect 0,
+        // aura 42 triggering 560170) carries no proc flags in the DBC, so the
+        // native chain never fires; stacks are granted here on every
+        // successful hit. The Geomolding buff itself (560170, 30 sec, max 10)
+        // and Earthshaping (680441, 20 sec, max 15) are fully authored.
+        bool const seismicHit =
+            sSpellMgr->GetFirstSpellInChain(info->Id) == sSpellMgr->GetFirstSpellInChain(SPELL_SEISMIC_SPIKE) ||
+            sSpellMgr->GetFirstSpellInChain(info->Id) == sSpellMgr->GetFirstSpellInChain(SPELL_SEISMIC_CRASH);
+        if (damage && seismicHit && player->HasAura(SPELL_RUPTURER) && !spell->IsTriggered())
+        {
+            player->CastSpell(player, SPELL_GEOMOLDING_BUFF, true);
+            if (critical)
+            {
+                player->CastSpell(player, SPELL_GEOMOLDING_BUFF, true);
+                player->CastSpell(player, SPELL_EARTHSHAPING_BUFF, true);
+            }
+        }
         // Earthbreaker (560147): Geode Barrage and Geode hits generate a quarter
         // of their damage again as threat; the melee haste part is native.
         // Fury of the Earthmother (680412) rolls the same hits at fifteen
