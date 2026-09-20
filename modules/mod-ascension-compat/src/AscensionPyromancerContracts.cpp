@@ -249,6 +249,19 @@ void ApplyContracts(SpellInfo* info)
         // the tooltip's -30s cooldown via the native cooldown-mod path.
         info->Attributes |= SPELL_ATTR0_PASSIVE;
     }
+    if (id == 806148)
+    {
+        // Issue 880: Gaze of Ysera is a sleep (40s, 8s vs players) broken by
+        // direct damage. Its DBC already carries the right shape: effect 0
+        // aura 12 (MOD_STUN) applies the incapacitate, effect 2 aura 87 misc
+        // 4 (Fire school damage-taken... actually the sleep's damage-break
+        // comes from interrupt flags). Set the aura interrupt flags so
+        // direct damage removes it, matching the tooltip's "Direct damage
+        // dealt may interrupt this effect". The native stun handler applies
+        // the sleep; PvP duration capping is handled by the engine's
+        // diminishing/crowd-control logic.
+        info->AuraInterruptFlags |= AURA_INTERRUPT_FLAG_DIRECT_DAMAGE;
+    }
     if (id == 707126)
     {
         // Issue 814: Constant Burning ships without SPELL_ATTR0_PASSIVE, so

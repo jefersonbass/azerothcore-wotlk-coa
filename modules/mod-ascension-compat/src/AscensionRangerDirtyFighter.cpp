@@ -164,6 +164,18 @@ public:
             // cost-mod path.
             info->Attributes |= SPELL_ATTR0_PASSIVE;
         }
+        if (info->Id == 705067)
+        {
+            // Issue 881: War Falconer ships without SPELL_ATTR0_PASSIVE, so
+            // the learn/login passes never applied its cooldown mod. Mark
+            // passive. Effect 0 (op 11 = SPELLMOD_COOLDOWN, bp -30001, maskA
+            // 0x200) resolves as the tooltip's -30s Falcon's Call cooldown
+            // via the native cooldown-mod path. Falcon's Call itself is
+            // family 0 (no spellmod mask to match), but the authored mask
+            // 0x200 is preserved so any family-27 Falcon's Call variant
+            // picks it up natively.
+            info->Attributes |= SPELL_ATTR0_PASSIVE;
+        }
     }
 };
 }
