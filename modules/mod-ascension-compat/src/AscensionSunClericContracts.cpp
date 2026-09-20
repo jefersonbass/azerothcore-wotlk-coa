@@ -109,6 +109,24 @@ void ApplyContracts(SpellInfo* info)
     }
     if (id == SolarPower)
         dummy(1);
+    if (id == 800039)
+        // Issue 993: Sun Warrior's Guidance ships without the passive flag,
+        // so the learn/login passes never applied its crit aura, and its mask
+        // only keys Gavel of Light (word0 0x40000000), missing Dawnbreak's
+        // own family bit (word1 0x40000000). Mark passive and union both in;
+        // the native crit-chance mod path then grants the authored +5%.
+        info->Attributes |= SPELL_ATTR0_PASSIVE,
+        info->Effects[0].SpellClassMask = flag96(0x40000210, 0x40000020, 0);
+    if (id == 681468)
+        // Issue 1008: Paying The Tithe ships without the passive flag, so the
+        // learn/login passes never applied its auras, and its charges half
+        // ships with an empty mask that would grant +4 blocks to every
+        // charge-based spell. Mark passive and key the charges half to
+        // Seraphic Bulwark's own family bits; the Dawnbreak crit half is
+        // already native, and the native charge/crit paths apply both.
+        info->Attributes |= SPELL_ATTR0_PASSIVE,
+        info->Effects[0].SpellClassMask = flag96(0x500, 0, 0);
+
     if (id == 800764)
     {
         info->Effects[1].Effect = SPELL_EFFECT_DUMMY;
