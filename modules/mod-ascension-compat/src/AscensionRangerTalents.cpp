@@ -6,7 +6,7 @@
 #include "SpellAuras.h"
 #include "SpellMgr.h"
 #include "SpellScript.h"
-#include "SpellScriptLoader.h"
+#include "ScriptMgr.h"
 #include <algorithm>
 #include <limits>
 
