@@ -26,6 +26,9 @@ enum StormbringerTalentSpells : uint32
     SPELL_CHARGED_CONDUIT = 803790,
     SPELL_GALE = 804036,
     SPELL_ENVELOPING_WINDS = 707546,
+    SPELL_AEROMANCY = 705708,
+    SPELL_ELEMENTAL_UPDRAFT = 807717,
+    SPELL_UPDRAFT = 570161,
     SPELL_TEMPEST_SOVEREIGN = 560020,
     SPELL_SHOCK_STATIC_GRANT = 500039,
     SPELL_TORRENTIAL_WRATH = 503352,
@@ -74,6 +77,14 @@ public:
             if (Pet* pet = player->GetPet(); pet && pet->IsAlive() && pet->IsInWorld())
                 if (Unit* victim = pet->GetVictim())
                     pet->CastSpell(victim, info->Id, true);
+        // Aeromancy (705708): casting Updraft makes the Air Elemental cast its
+        // own Updraft beneath the caster; the +25% damage half is native
+        // through the aura's family mask.
+        if (player && player->getClass() == CLASS_STORMBRINGER && info->SpellFamilyName == 22 &&
+            !spell->IsTriggered() && player->HasAura(SPELL_AEROMANCY) &&
+            sSpellMgr->GetFirstSpellInChain(info->Id) == SPELL_UPDRAFT)
+            if (Pet* pet = player->GetPet(); pet && pet->IsAlive() && pet->IsInWorld())
+                pet->CastSpell(player, SPELL_ELEMENTAL_UPDRAFT, true);
         // Tempest Sovereign (560020): Shock and Call Lightning gain 25 Static, and
         // Torrential Wrath consumes all Static, triggering Conduction per stack.
         if (!player || player->getClass() != CLASS_STORMBRINGER || info->SpellFamilyName != 22 ||
