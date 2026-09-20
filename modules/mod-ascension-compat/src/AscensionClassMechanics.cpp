@@ -1537,6 +1537,12 @@ void HandleAscensionClassMechanicsCast(Spell* spell)
         return;
 
     SpellInfo const* info = spell->GetSpellInfo();
+    if (player->getClass() == CLASS_TINKER && player->HasAura(807588) &&
+        info->SpellFamilyName == uint32(CLASS_TINKER) + 6 &&
+        sSpellMgr->GetFirstSpellInChain(info->Id) == 520175 && roll_chance_i(40))
+        // Temporal Convergence: Wand of Time has a 40% chance to reset its
+        // own cooldown; the DBC's proc names no trigger spell.
+        player->RemoveSpellCooldown(info->Id, true);
     if (player->getClass() == CLASS_CULTIST && player->HasAura(524804) &&
         IsCultistEmpiresGrasp(info->Id))
         // Seething Void trims 5 sec from the Empire's Grasp cooldown that was
