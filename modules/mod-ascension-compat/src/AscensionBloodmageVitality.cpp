@@ -261,7 +261,7 @@ class aura_ascension_forbidden_pen : public AuraScript
             GetSpellInfo()->Id == SPELL_FORBIDDEN_POWER_MIRROR;
     }
 
-    void SetPenAmount(AuraEffect const* /*aurEff*/, AuraApplication const* /*aurApp*/)
+    void SetPenAmount(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
     {
         if (Player* player = GetCaster()->ToPlayer())
             const_cast<AuraEffect*>(GetAura()->GetEffect(EFFECT_0))->SetAmount(
@@ -270,7 +270,7 @@ class aura_ascension_forbidden_pen : public AuraScript
 
     void Register() override
     {
-        OnEffectApply += AuraEffectApplyFn(aura_ascension_forbidden_pen::SetPenAmount,
+        AfterEffectApply += AuraEffectApplyFn(aura_ascension_forbidden_pen::SetPenAmount,
             EFFECT_0, SPELL_AURA_MOD_TARGET_RESISTANCE, AURA_EFFECT_HANDLE_REAL);
     }
 };
