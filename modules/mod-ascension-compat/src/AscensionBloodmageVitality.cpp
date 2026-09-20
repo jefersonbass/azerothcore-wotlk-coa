@@ -282,5 +282,5 @@ void AddSC_AscensionBloodmageVitality()
     new bloodmage_vitality_scaling();
     RegisterSpellScript(spell_ascension_bloodmage_empowered);
     RegisterSpellScript(spell_ascension_blood_craving_payout);
-    RegisterAuraScript(aura_ascension_forbidden_pen);
+    new aura_ascension_forbidden_pen();
 }
