@@ -580,6 +580,12 @@ void ApplyContracts(SpellInfo* info)
         info->Effects[EFFECT_2].ApplyAuraName = SPELL_AURA_MOD_ROOT;
         info->AuraInterruptFlags |= AURA_INTERRUPT_FLAG_TAKE_DAMAGE;
     }
+    if (id == 712396)
+        // Issue 1011: Dark Mojo ships without the passive flag, so the
+        // learn/login passes never applied its resist auras (178, misc 2 =
+        // curse and misc 1 = magic, resolving the tooltip's +20% magic and
+        // curse resist through the native debuff-resist path).
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
     if (IsBeam(info))
         info->ManaPerSecond = 0;
     if (id == Frenzy)
