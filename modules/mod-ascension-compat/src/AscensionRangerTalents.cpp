@@ -133,8 +133,9 @@ public:
         uint32 root = sSpellMgr->GetFirstSpellInChain(info->Id);
         if (root != 501715 && root != 500075)
             return;
-        player->CastCustomSpell(target, 803116, SpellValueMod(SPELLVALUE_BASE_POINT0),
-            int32(CalculatePct(damage, 15) + CalculatePct(damage, 35) / 4), nullptr, true);
+        int32 direct = int32(CalculatePct(damage, 15));
+        int32 tick = int32(CalculatePct(damage, 35) / 4);
+        player->CastCustomSpell(target, 803116, &direct, &tick, nullptr, true);
     }
 };
 
