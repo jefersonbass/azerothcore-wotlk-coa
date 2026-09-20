@@ -16,6 +16,7 @@ constexpr uint32 VitalityCost = 10;
 constexpr uint32 RagingHunger = 681336;
 constexpr uint32 OrganOrbs = 807490;
 constexpr uint32 SPELL_BLOOD_CRAVING_PAYOUT = 805985;
+constexpr uint32 SPELL_FORBIDDEN_POWER_MIRROR = 500447;
 
 bool IsBloodmage(Player const* player)
 {
@@ -226,6 +227,36 @@ class spell_ascension_blood_craving_payout : public SpellScript
             EFFECT_1, SPELL_EFFECT_ENERGIZE_PCT);
     }
 };
+
+// Forbidden Power (500445) mirror half: the passive's periodic (aura 23,
+// every 3 s) re-triggers 500447, whose effect 0 (aura 123,
+// MOD_TARGET_RESISTANCE, school mask 124 = every magic school) is the
+// spell-penetration half. Its amount is a -1 placeholder in the DBC, so on
+// each apply it is set to the caster's armor-penetration rating — the
+// periodic re-trigger keeps the value current as gear changes.
+class aura_ascension_forbidden_pen : public AuraScript
+{
+    PrepareAuraScript(aura_ascension_forbidden_pen);
+
+    bool Load() override
+    {
+        return GetCaster() && GetCaster()->IsPlayer() &&
+            GetSpellInfo()->Id == SPELL_FORBIDDEN_POWER_MIRROR;
+    }
+
+    void SetPenAmount(AuraEffect const* /*aurEff*/, AuraApplication const* /*aurApp*/)
+    {
+        if (Player* player = GetCaster()->ToPlayer())
+            const_cast<AuraEffect*>(GetAura()->GetEffect(EFFECT_0))->SetAmount(
+                int32(player->GetRatingBonusValue(CR_ARMOR_PENETRATION)));
+    }
+
+    void Register() override
+    {
+        AfterEffectApply += AuraEffectApplyFn(aura_ascension_forbidden_pen::SetPenAmount,
+            EFFECT_0, SPELL_AURA_MOD_TARGET_RESISTANCE, AURA_EFFECT_HANDLE_REAL);
+    }
+};
 }
 
 void AddSC_AscensionBloodmageVitality()
@@ -234,4 +265,5 @@ void AddSC_AscensionBloodmageVitality()
     new bloodmage_vitality_scaling();
     RegisterSpellScript(spell_ascension_bloodmage_empowered);
     RegisterSpellScript(spell_ascension_blood_craving_payout);
+    RegisterAuraScript(aura_ascension_forbidden_pen);
 }
