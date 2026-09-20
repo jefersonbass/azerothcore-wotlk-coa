@@ -403,6 +403,12 @@ void ApplyContracts(SpellInfo* info)
     }
     if (id == 503989 || (id >= 503990 && id <= 503994))
         info->StackAmount = 0;
+    if (id == 706955 || id == 707872)
+        // Issue 1010: Enchanted Chitin ships without the passive flag, so the
+        // learn/login passes never applied its armor aura (142, misc 1 =
+        // armor with MiscB 8 = mail-only via the native subclass-mask path,
+        // resolving the tooltip's +25%/+50% mail armor).
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
     if (id == 706037)
         // "Increases your critical strike chance with Shadow and Nature spells and abilities by 1%."
         aura(2, SPELL_AURA_MOD_SPELL_CRIT_CHANCE_SCHOOL, 1, SPELL_SCHOOL_MASK_SHADOW | SPELL_SCHOOL_MASK_NATURE);
