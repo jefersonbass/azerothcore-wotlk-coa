@@ -181,6 +181,10 @@ void ApplyContracts(SpellInfo* info)
         // Last Call's duration bonus ships keyed to the wrong mask word, so
         // it never reaches Valkyr's Calling; rekey to its family bit.
         info->Effects[0].SpellClassMask = flag96(0, 0, 0x200000);
+    if (id == 680620)
+        // By The Light's +50% crit ships keyed to the wrong mask word, so it
+        // never reaches Valkyr's Calling; rekey to its family bit.
+        info->Effects[0].SpellClassMask = flag96(0, 0x10, 0);
     if (id == 704932)
         // Heat Death extends the eclipse burst's hit debuff to 15 sec; the
         // shipped duration bonus is keyed to the wrong mask word, so rekey
