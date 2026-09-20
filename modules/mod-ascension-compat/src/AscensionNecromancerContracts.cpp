@@ -287,6 +287,18 @@ void ApplyContracts(SpellInfo* info)
         for (uint8 slot : {0, 1})
             info->Effects[slot].SpellClassMask = flag96(2, 0, 0);
     }
+    if (id == 704528)
+    {
+        // Issue 1004: Swarmer ships without the passive flag, so the
+        // learn/login passes never applied its aura, and its mask is keyed
+        // to the wrong word, missing Crypt Swarm's own family bit. Mark
+        // passive and rekey; the native flat-mod path then adds the authored
+        // +2 Runic Power per Crypt Swarm tick. (The issue's class label says
+        // Ranger, but the spell is family 29 = Necromancer, like Crypt Swarm
+        // itself.)
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+        info->Effects[EFFECT_0].SpellClassMask = flag96(2, 0, 0);
+    }
     if (id == 572777)
     {
         info->Effects[0].Effect = 0;
