@@ -6091,6 +6091,8 @@ public:
             ApplyAscensionVenomancerCatalystContract(spellInfo);
             ApplyAscensionReaperDeathwindContracts(spellInfo);
             ApplyAscensionReaperScytheRushContracts(spellInfo);
+            ApplyAscensionReaperDarkSoldierContracts(spellInfo);
+            ApplyAscensionReaperSoulforgedContracts(spellInfo);
         }
     }
 };

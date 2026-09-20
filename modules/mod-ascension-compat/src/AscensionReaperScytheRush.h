@@ -6,5 +6,7 @@
 class SpellInfo;
 
 void ApplyAscensionReaperScytheRushContracts(SpellInfo* spellInfo);
+void ApplyAscensionReaperDarkSoldierContracts(SpellInfo* spellInfo);
+void ApplyAscensionReaperSoulforgedContracts(SpellInfo* spellInfo);
 
 #endif

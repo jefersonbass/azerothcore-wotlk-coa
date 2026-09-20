@@ -26,6 +26,8 @@ enum ReaperSecondarySpells : uint32
     SPELL_SPECTRE_HIT = 803742,
     SPELL_SPECTRE_ROOT = 803942,
     SPELL_MURDER = 500376,
+    SPELL_SOULFORGED_WEAPONRY = 561127,
+    SPELL_SOULFORGED_WEAPONRY_RANK_2 = 561340,
     SPELL_CRIMSON_THIRST = 807415,
     SPELL_CRIMSON_STACK = 807416,
     SPELL_CRIMSON_AMOUNT = 807417,
@@ -181,6 +183,16 @@ public:
         Player* player = caster ? caster->ToPlayer() : nullptr;
         if (!player || player->getClass() != CLASS_REAPER || spell->IsTriggered())
             return;
+        // Soulforged Weaponry: consume the free-Murder grant after its cost
+        // was calculated.
+        if (sSpellMgr->GetFirstSpellInChain(info->Id) == SPELL_MURDER)
+            for (SpellModifier* mod : player->GetSpellModList(SPELLMOD_COST))
+                if (mod->targetSpellId == SPELL_MURDER)
+                {
+                    player->AddSpellMod(mod, false);
+                    delete mod;
+                    break;
+                }
         // Soulstrider (572340): "Increases the movement speed granted by
         // Veilwalk by 25%." The DBC's Add Flat Modifier slot has no family to
         // match the Veilwalk chain, so top the speed aura up on cast.
@@ -322,6 +334,40 @@ public:
 };
 }
 
+class soulforged_weaponry_melee : public UnitScript
+{
+public:
+    soulforged_weaponry_melee() : UnitScript("soulforged_weaponry_melee", true, {UNITHOOK_MODIFY_MELEE_DAMAGE}) { }
+
+    void ModifyMeleeDamage(Unit* target, Unit* attacker, uint32& damage) override
+    {
+        Player* player = attacker ? attacker->ToPlayer() : nullptr;
+        if (!player || player->getClass() != CLASS_REAPER || !damage || !target || target == player)
+            return;
+        // Soulforged Weaponry: while dual-wielding, auto attacks roll 8%/15%
+        // to make the next Murder free of cost. The DBC's proc names no
+        // trigger spell, so the roll happens here on melee damage.
+        if (!player->GetWeaponForAttack(OFF_ATTACK, true))
+            return;
+        uint32 chance = 0;
+        if (player->HasAura(SPELL_SOULFORGED_WEAPONRY))
+            chance = 8;
+        if (player->HasAura(SPELL_SOULFORGED_WEAPONRY_RANK_2))
+            chance = 15;
+        if (!chance || !roll_chance_i(chance))
+            return;
+        // The next Murder costs nothing: register a one-shot cost modifier
+        // keyed to Murder's own spell id. The cast hook below consumes it.
+        SpellModifier* free = new SpellModifier();
+        free->op = SPELLMOD_COST;
+        free->type = SPELLMOD_PCT;
+        free->value = -100;
+        free->targetSpellId = SPELL_MURDER;
+        player->AddSpellMod(free, true);
+    }
+
+};
+
 void AddSC_AscensionReaperSecondary()
 {
     new reaper_ghost_speed();
@@ -329,5 +375,6 @@ void AddSC_AscensionReaperSecondary()
     new reaper_secondary_metadata();
     new reaper_essence_harvest();
     new reaper_purgatory();
+    new soulforged_weaponry_melee();
     RegisterSpellScript(aura_ascension_crimson_thirst);
 }
