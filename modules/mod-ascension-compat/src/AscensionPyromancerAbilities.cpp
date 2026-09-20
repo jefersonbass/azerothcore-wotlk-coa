@@ -18,6 +18,7 @@ namespace
 using namespace AscensionPyromancer;
 constexpr uint32 SPELL_GRACE_OF_ALEXSTRASZA = 802167;
 constexpr uint32 SPELL_GRACE_IMMUNITY = 803411;
+constexpr uint32 SPELL_DARK_IRON_LEGACY = 680970;
 constexpr uint32 selected[] = {802168, 520927, 573284, 520823, 524707, 806783, 707478};
 bool Select(uint32 id, SpellInfo const* info)
 {
@@ -237,6 +238,15 @@ class pyromancer_spells : public AllSpellScript
                 Spread(player, target, {800791, 805500, 680962, 706874, 520826}, 1,
                        sSpellMgr->GetSpellInfo(573277)->Effects[0].CalcRadius(player));
             }
+            // Dark Iron Legacy (680970): Explode and Lava Shard deal 40% more
+            // damage to targets disoriented by Meteor. The shipped flat
+            // modifiers key nothing and would apply unconditionally, so the
+            // bonus is paid here where the damage lands.
+            if (Any(info, {502057, 502058, 502059, 502060, 502061, 502062, 502063, 570750, 800792,
+                           503231, 503232, 503233, 503234, 503235, 503236, 503237, 503238, 503239, 803950}) &&
+                player->HasAura(SPELL_DARK_IRON_LEGACY) &&
+                target->HasAuraWithMechanic(1ULL << MECHANIC_DISORIENTED))
+                Copy(player, target, id, CalculatePct(damage, 40));
             if (Any(info, {800790, 800792, 801915}) && player->HasAura(807146))
                 if (Aura* fumes = target->GetAura(807224, player->GetGUID()))
                 {
