@@ -185,6 +185,18 @@ void ApplyContracts(SpellInfo* info)
         info->Attributes |= SPELL_ATTR0_PASSIVE;
         info->Effects[EFFECT_0].DieSides = 1;
     }
+    if (id == 520811)
+        // Issue 1030: Bomb Builder ships without the passive flag, so the
+        // learn/login passes never applied its auras (79 misc 4 = +5% Fire
+        // damage on self plus a persistent zone for summons, both resolving
+        // through the native damage-done path).
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+    if (id == 705781 || id == 705782)
+        // Issue 995: Refined Gunpowder ships without the passive flag, so the
+        // learn/login passes never applied its auras (168 = +3%/+6% damage
+        // versus Mechanicals, 192/216 = +3%/+6% melee/ranged and spell haste,
+        // all resolving through the native versus-mod and haste paths).
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
     if (id == 704111 || id == 707833)
     {
         // Issue 953: Explosive Personality ships without SPELL_ATTR0_PASSIVE,
