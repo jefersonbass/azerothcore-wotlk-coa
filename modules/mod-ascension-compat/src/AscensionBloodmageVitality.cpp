@@ -270,7 +270,7 @@ class aura_ascension_forbidden_pen : public AuraScript
 
     void Register() override
     {
-        AfterEffectApply += AuraEffectApplyFn(aura_ascension_forbidden_pen::SetPenAmount,
+        OnEffectApply += AuraEffectApplyFn(aura_ascension_forbidden_pen::SetPenAmount,
             EFFECT_0, SPELL_AURA_MOD_TARGET_RESISTANCE, AURA_EFFECT_HANDLE_REAL);
     }
 };
