@@ -163,6 +163,18 @@ void ApplyContracts(SpellInfo* info)
         info->Attributes |= SPELL_ATTR0_PASSIVE,
         info->Effects[0].SpellClassMask = flag96(0x500, 0, 0);
 
+    if (id == 704945)
+    {
+        // Issue 1138: Unbreakable Focus ships with a mask (word 2 bit 20) that
+        // keys only cooldown-less passive modifiers (Holy Giant, Champion's
+        // Arrival, Vindicator, Empowered Holy Form), so its -20% cooldown mod
+        // (aura 108, op 11 = SPELLMOD_COOLDOWN, native path) never reaches the
+        // tooltip's targets. Re-key to the union of Gavel of Light
+        // ([0x40000000, 0x20, 0] and [0x40000000, 0, 0]) and Horusath Blast
+        // ([0, 0x40, 0]) family bits, which carry the 5s category and 25s
+        // cooldowns the tooltip promises to reduce.
+        info->Effects[EFFECT_0].SpellClassMask = flag96(0x40000000, 0x60, 0);
+    }
     if (id == 800764)
     {
         info->Effects[1].Effect = SPELL_EFFECT_DUMMY;
