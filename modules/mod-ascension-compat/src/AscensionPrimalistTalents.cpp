@@ -565,16 +565,16 @@ void ApplyAscensionPrimalistTalentsContract(SpellInfo* info)
     }
     if (info->Id == 560156)
     {
-        // Issue 680: Therazane's Blessing ships without SPELL_ATTR0_PASSIVE,
-        // so the learn/login passes never applied its periodic-crit aura, and
-        // its BasePoints are display-minus-1 with DieSides 0. Mark passive and
-        // shift DieSides to 1 so effect 0 resolves as the tooltip's 15%
-        // (aura 286, ABILITY_PERIODIC_CRIT: the amount is the added periodic
-        // crit chance rolled in AuraEffect::PeriodicTick). The authored maskA
-        // 0x40 only keys Seismic Tremor (family-37 flags[0] 0x40); Seismic
-        // Crash (503258, flags[1] 0x400000) and Earthquake (520412, flags[2]
-        // 0x10000000) are named in the tooltip too, so widen the mask to cover
-        // all three (flag96 part 0/1/2 maps to maskA/B/C).
+        // Issue 680: Therazane's Blessing's real defect is its mask: the
+        // authored maskA 0x40 only keys Seismic Tremor (family-37 flags[0]
+        // 0x40), while Seismic Crash (503258, flags[1] 0x400000) and
+        // Earthquake (520412, flags[2] 0x10000000) are named in the tooltip
+        // too, so widen the mask to cover all three (flag96 part 0/1/2 maps
+        // to maskA/B/C). The periodic-crit aura itself (286,
+        // ABILITY_PERIODIC_CRIT, 15%) is authored correctly, and the DBC
+        // already carries SPELL_ATTR0_PASSIVE and DieSides 1, so the re-mark
+        // below is a defensive no-op kept in case the record is ever
+        // regenerated without them.
         info->Attributes |= SPELL_ATTR0_PASSIVE;
         info->Effects[EFFECT_0].DieSides = 1;
         info->Effects[EFFECT_0].SpellClassMask |= flag96(0, 0x400000, 0x10000000);
