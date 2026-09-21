@@ -84,15 +84,13 @@ void ApplyAscensionClassMechanics19To25(SpellInfo* spellInfo)
     }
     if (spellInfo->Id == SPELL_NECROMANCER_ICE_MASTERY)
     {
-        // Ice Mastery: without SPELL_ATTR0_PASSIVE the learned talent is
-        // never applied as a standing aura. Effect 2 is the authored half
-        // (aura 174, MOD_SPELL_DAMAGE_OF_STAT_PERCENT: +30% of Intellect as
-        // spell power, school mask 126, miscB 3 = STAT_INTELLECT), and its
-        // BasePoints are display-minus-1 with DieSides 0. Shift DieSides to
-        // 1 on all three effects: effect 2 then resolves as the tooltip's
-        // 30%, while the -1 placeholders on effects 0 (aura 220) and 1
-        // (aura 333) resolve to a harmless 0 instead of a negative
-        // crit-rating and hit-chance penalty.
+        // Issue 657: Ice Mastery's effect 2 is the authored half (aura 174,
+        // MOD_SPELL_DAMAGE_OF_STAT_PERCENT: +30% of Intellect as spell power,
+        // school mask 126, miscB 3 = STAT_INTELLECT). The DBC already carries
+        // SPELL_ATTR0_PASSIVE and DieSides 1, so the re-mark below is a
+        // defensive no-op kept in case the record is ever regenerated without
+        // them; the -1 placeholders on effects 0 (aura 220) and 1 (aura 333)
+        // resolve to a harmless 0.
         spellInfo->Attributes |= SPELL_ATTR0_PASSIVE;
         spellInfo->Effects[EFFECT_0].DieSides = 1;
         spellInfo->Effects[EFFECT_1].DieSides = 1;
