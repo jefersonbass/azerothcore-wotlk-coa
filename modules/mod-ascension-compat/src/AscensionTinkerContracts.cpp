@@ -210,28 +210,27 @@ void ApplyContracts(SpellInfo* info)
     }
     if (id == 707398)
     {
-        // Issue 689: Cutting Edge Technology ships with an empty mask on its
-        // tick-rate mod, which the engine reads as "affects every spell of the
-        // family", and its BasePoints are display-minus-1 with DieSides 0.
-        // Shift DieSides to 1 on both effects so effect 0 resolves as the
-        // tooltip's +20% Nanobot Reconstruction healing done (op 22 =
-        // SPELLMOD_DOT, maskA 0x100000 already keys Nanobot 502552-502554)
-        // and effect 1 as -20% tick time (op 19 = SPELLMOD_ACTIVATION_TIME),
-        // and retarget effect 1's empty mask to the same flag so the tick-rate
-        // mod stops leaking onto every Tinker spell.
+        // Issue 689: Cutting Edge Technology's real defect is effect 1's empty
+        // mask, which the engine reads as "affects every spell of the family".
+        // Retarget it to Nanobot's family-34 flag 0x100000 (502552-502554) so
+        // the -20% tick time (op 19 = SPELLMOD_ACTIVATION_TIME) stops leaking
+        // onto every Tinker spell; effect 0's +20% Nanobot healing done (op 22
+        // = SPELLMOD_DOT) already keys the same flag. The DBC already carries
+        // DieSides 1 on both effects, so the re-mark below is a defensive
+        // no-op kept in case the record is ever regenerated without it.
         info->Effects[EFFECT_0].DieSides = 1;
         info->Effects[EFFECT_1].DieSides = 1;
         info->Effects[EFFECT_1].SpellClassMask = flag96(0x100000, 0, 0);
     }
     if (id == 707115)
     {
-        // Issue 668: Turbo Upgrade! ships with an empty mask on its
-        // all-effects mod, which the engine reads as "affects every spell of
-        // the family", and its effect 0 BasePoints are display-minus-1 with
-        // DieSides 0. Shift DieSides to 1 so the value resolves as the
-        // tooltip's +100% (op 8 = SPELLMOD_ALL_EFFECTS) and retarget the mask
-        // to the Mechsuit (801384, family-34 flags 0x40000000 in maskA and
-        // 0x10 in maskC) so only the Mechsuit's auras are scaled.
+        // Issue 668: Turbo Upgrade!'s real defect is its empty mask, which the
+        // engine reads as "affects every spell of the family". Retarget it to
+        // the Mechsuit (801384, family-34 flags 0x40000000 in maskA and 0x10
+        // in maskC) so the +100% (op 8 = SPELLMOD_ALL_EFFECTS) scales only
+        // the Mechsuit's auras. The DBC already carries DieSides 1, so the
+        // re-mark below is a defensive no-op kept in case the record is ever
+        // regenerated without it.
         info->Effects[EFFECT_0].DieSides = 1;
         info->Effects[EFFECT_0].SpellClassMask = flag96(0x40000000, 0, 0x10);
     }
