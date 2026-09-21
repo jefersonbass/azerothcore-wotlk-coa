@@ -256,6 +256,17 @@ public:
             info->AscensionInheritsResolvedAmount = true;
             info->Effects[EFFECT_0].BonusMultiplier = 0.0f;
         }
+        if (info->Id == 705639)
+        {
+            // Issue 707: Voltaic Bursts' effect is the authored half (+50%
+            // periodic damage, aura 108 op 3 = SPELLMOD_EFFECT1, bp 49 with
+            // DieSides 1 resolving as 50), and the authored maskC 0x10000000
+            // already keys Shock (707058, family-22 flags[2] 0x10000000). The
+            // DBC already carries SPELL_ATTR0_PASSIVE, so the re-mark below is
+            // a defensive no-op kept in case the record is ever regenerated
+            // without it.
+            info->Attributes |= SPELL_ATTR0_PASSIVE;
+        }
         if (info->Id == SPELL_PERPETUAL_SHOCK)
             // The hit callback supplies the learned-spell gate and one 20-Static grant.
             info->Effects[EFFECT_1].Effect = 0;
