@@ -429,6 +429,18 @@ public:
     {
         if (info->SpellFamilyName != 38)
             return;
+        if (info->Id == 806982)
+        {
+            // Issue 663 (Fists of Power): Earthen Fists is granted by the
+            // corrected 805796 proc below. Its amounts are authored correctly
+            // (effect 0 resolves as +3% melee haste, aura 138; effect 1 as
+            // +10% chance of success, aura 107 op 18 SPELLMOD_CHANCE_OF_
+            // SUCCESS), but effect 1's mask keys maskC 0x2000000, which only
+            // matches Speed Rune (572134/801103). Rekey it to the Weapon
+            // Engraving: Earth record's family flags (653219, maskA
+            // 0x40000000, maskB 0x4) so the engraving chance actually scales.
+            info->Effects[EFFECT_1].SpellClassMask = flag96(0x40000000, 0x4, 0);
+        }
         if (info->Id == SPELL_FISTS_HIT || info->Id == SPELL_ARCANE_SIGIL_DOT)
         {
             info->AttributesEx2 |= SPELL_ATTR2_CANT_CRIT;
