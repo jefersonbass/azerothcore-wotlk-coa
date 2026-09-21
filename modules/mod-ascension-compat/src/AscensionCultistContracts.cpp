@@ -178,14 +178,14 @@ void ApplyContracts(SpellInfo* info)
         info->DurationEntry = sSpellDurationStore.LookupEntry(21);
     if (id == 520810)
     {
-        // Issue 675: Corrupt Fate ships without SPELL_ATTR0_PASSIVE, so the
-        // learn/login passes never applied its cooldown mod, and its
-        // BasePoints are display-minus-1 with DieSides 0. Mark passive and
-        // shift DieSides to 1 so effect 0 resolves as -60 sec (aura 107, op 11
-        // = SPELLMOD_COOLDOWN). The DBC mask is empty, which the engine reads
-        // as "affects every spell", so the routing lives in
-        // SpellInfo::IsAffectedBySpellMod, which already binds this modifier to
-        // Dark Veil (520345) by name.
+        // Issue 675: Corrupt Fate's cooldown mod (-60 sec, aura 107, op 11 =
+        // SPELLMOD_COOLDOWN) is authored correctly, but its DBC mask is empty,
+        // which the engine reads as "affects every spell", so the routing
+        // lives in SpellInfo::IsAffectedBySpellMod, which already binds this
+        // modifier to Dark Veil (520345) by name. The DBC already carries
+        // SPELL_ATTR0_PASSIVE and DieSides 1, so the re-mark below is a
+        // defensive no-op kept in case the record is ever regenerated without
+        // them.
         info->Attributes |= SPELL_ATTR0_PASSIVE;
         info->Effects[EFFECT_0].DieSides = 1;
     }
