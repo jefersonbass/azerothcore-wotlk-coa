@@ -75,6 +75,9 @@ enum BloodmageSecondarySpells : uint32
     SPELL_INSATIABLE_STACK = 706663,
     SPELL_VAMPIRIC_FANG = 804726,
     SPELL_VAMPIRIC_FANG_SCALAR = 680753, // Thirst SLS: EFFECT_2 carries the damage percent per Thirst stack
+    SPELL_BLOOD_SHARDS = 804849,
+    SPELL_BLOOD_SHARDS_STACK = 505366, // Gore Barrage stack counter: 8-stack DUMMY aura
+    SPELL_BLOOD_SHARDS_DAMAGE = 506640, // per-stack Spellshadow strike (type 3 DUMMY)
 };
 
 // Every rank of the two abilities Enthraller empowers.
@@ -403,6 +406,39 @@ public:
             if (conditions & 4)
                 CopyDamage(player, target, SPELL_REAVE_BACK, damage);
         }
+        // Issue 673: Blood Shards generates 1 stack on Shadow damage dealt,
+        // plus 1 additional on crit, up to 8, for 10 min; Veinburst expends
+        // all stacks, each dealing 63 Spellshadow damage. The talent's own
+        // proc aura (42 into DUMMY 506640) cannot express generation, so the
+        // stacks live on the authored 8-stack counter 505366 and are added
+        // here on every successful hostile Shadow hit. Runs once per cast on
+        // the first damaging hit.
+        if (player->HasAura(SPELL_BLOOD_SHARDS) && !spell->GetScriptValue(SPELL_BLOOD_SHARDS) &&
+            spell->GetSpellInfo()->SchoolMask == SPELL_SCHOOL_MASK_SHADOW)
+        {
+            spell->SetScriptValue(SPELL_BLOOD_SHARDS, 1);
+            uint32 shards = critical ? 2 : 1;
+            if (Aura* counter = player->GetAura(SPELL_BLOOD_SHARDS_STACK))
+                counter->ModStackAmount(int32(shards));
+            else if (Aura* fresh = player->AddAura(SPELL_BLOOD_SHARDS_STACK, player))
+            {
+                if (shards > 1)
+                    fresh->ModStackAmount(int32(shards - 1));
+                fresh->SetDuration(10 * MINUTE * IN_MILLISECONDS);
+            }
+        }
+        // Veinburst expends every Blood Shard: one 63-damage strike per stack
+        // through the authored DUMMY 506640, then clears the counter. Runs
+        // once per cast on the first successful hostile hit.
+        if (RankOf(id, SPELL_VEINBURST) && !spell->GetScriptValue(SPELL_BLOOD_SHARDS_DAMAGE))
+        {
+            spell->SetScriptValue(SPELL_BLOOD_SHARDS_DAMAGE, 1);
+            if (Aura const* counter = player->GetAura(SPELL_BLOOD_SHARDS_STACK))
+                for (uint8 stack = 0; stack < counter->GetStackAmount(); ++stack)
+                    player->CastCustomSpell(SPELL_BLOOD_SHARDS_DAMAGE, SPELLVALUE_BASE_POINT0,
+                        63, target, true);
+            player->RemoveAurasDueToSpell(SPELL_BLOOD_SHARDS_STACK);
+        }
         if (target->HasAura(SPELL_ATHERANNS_ANGUISH, player->GetGUID()))
         {
             Aura* mark = target->GetAura(SPELL_ATHERANNS_ANGUISH, player->GetGUID());
@@ -533,6 +569,17 @@ public:
             info->AttributesEx4 |= SPELL_ATTR4_IGNORE_DAMAGE_TAKEN_MODIFIERS;
             info->AscensionInheritsResolvedAmount = true;
             info->Effects[EFFECT_0].BonusMultiplier = 0.0f;
+        }
+        if (info->Id == SPELL_BLOOD_SHARDS)
+        {
+            // Issue 673: the talent ships without SPELL_ATTR0_PASSIVE, so the
+            // learn/login passes never applied its aura. Mark passive; the
+            // stack generation and Veinburst expenditure live in the hit
+            // callback above, and the authored proc aura (42 into DUMMY
+            // 506640) is neutralized so it cannot double-fire.
+            info->Attributes |= SPELL_ATTR0_PASSIVE;
+            info->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_DUMMY;
+            info->Effects[EFFECT_0].TriggerSpell = 0;
         }
     }
 };
