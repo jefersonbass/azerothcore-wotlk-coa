@@ -31,6 +31,17 @@ void ApplyContracts(SpellInfo* info)
     // no duration, so any spell keeping the field leaves it stuck on the player it hits.
     if (info->ExcludeTargetAuraSpell == 560711)
         info->ExcludeTargetAuraSpell = 0;
+    if (id == 707832)
+    {
+        // Issue 710: Modulator's effect is the authored half (+20% Module
+        // effectiveness, aura 108 op 8 = SPELLMOD_ALL_EFFECTS, bp 19 with
+        // DieSides 1 resolving as 20), and the authored maskA 0x80000 already
+        // keys the Modules (803660+, family-34 flags[0] 0x80000). The DBC
+        // already carries SPELL_ATTR0_PASSIVE, so the re-mark below is a
+        // defensive no-op kept in case the record is ever regenerated without
+        // it.
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+    }
     if (id == 707495)
     {
         // The former duplicate pet Synergy payload is now supplied by 707278.
