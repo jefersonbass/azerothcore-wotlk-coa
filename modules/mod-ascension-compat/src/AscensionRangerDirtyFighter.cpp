@@ -178,26 +178,26 @@ public:
         }
         if (info->Id == 520574)
         {
-            // Issue 682: Banditry ships without SPELL_ATTR0_PASSIVE, so the
-            // learn/login passes never applied its auras, and its BasePoints
-            // are display-minus-1 with DieSides 0. Mark passive and shift
-            // DieSides to 1 so effect 0 resolves as the tooltip's +2% critical
-            // strike chance (aura 290, native MOD_CRIT_PCT) and effect 1 as
-            // +15% Focus regeneration (aura 110, misc 2 = POWER_FOCUS, native
-            // MOD_POWER_REGEN_PERCENT path).
+            // Issue 682: Banditry's two auras are the authored halves (+2%
+            // critical strike chance, aura 290, native MOD_CRIT_PCT; +15%
+            // Focus regeneration, aura 110, misc 2 = POWER_FOCUS, native
+            // MOD_POWER_REGEN_PERCENT path). The DBC already carries
+            // SPELL_ATTR0_PASSIVE and DieSides 1, so the re-mark below is a
+            // defensive no-op kept in case the record is ever regenerated
+            // without them.
             info->Attributes |= SPELL_ATTR0_PASSIVE;
             info->Effects[EFFECT_0].DieSides = 1;
             info->Effects[EFFECT_1].DieSides = 1;
         }
         if (info->Id == 560531)
         {
-            // Issue 661: Guile of the Cutthroat ships without
-            // SPELL_ATTR0_PASSIVE, so the learn/login passes never applied its
-            // raid aura, and its BasePoints are display-minus-1 with DieSides
-            // 0. Mark passive and shift DieSides to 1 so effects 0-1 resolve
-            // as the tooltip's +5% party/raid melee and ranged attack power
-            // (area auras 166/167, native attack-power-pct paths) and effect 2
-            // as +3% damage done (aura 79, misc 127 = all schools).
+            // Issue 661: Guile of the Cutthroat's three auras are the authored
+            // halves (+5% party/raid melee and ranged attack power, area auras
+            // 166/167, native attack-power-pct paths; +3% damage done, aura 79,
+            // misc 127 = all schools). The DBC already carries
+            // SPELL_ATTR0_PASSIVE and DieSides 1, so the re-mark below is a
+            // defensive no-op kept in case the record is ever regenerated
+            // without them.
             info->Attributes |= SPELL_ATTR0_PASSIVE;
             info->Effects[EFFECT_0].DieSides = 1;
             info->Effects[EFFECT_1].DieSides = 1;
