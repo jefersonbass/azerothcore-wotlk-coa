@@ -276,6 +276,15 @@ class spell_ascension_blood_craving_payout : public SpellScript
         uint32 const gain = CalculatePct(missing, GetSpellInfo()->Effects[index].CalcValue(player));
         if (gain)
             player->EnergizeBySpell(player, GetSpellInfo()->Id, gain, POWER_RAGE);
+    }
+
+    void Register() override
+    {
+        OnEffectHitTarget += SpellEffectFn(spell_ascension_blood_craving_payout::MissingRage,
+            EFFECT_1, SPELL_EFFECT_ENERGIZE_PCT);
+    }
+};
+
 // Eternal Presence (560001): "Increases the attack power of party and raid members by $s1%. Does not stack
 // with similar effects. / In addition, you now gain attack power equal to $s3% of the damage taken for
 // $560010d. Can only occur once every 10 sec." Effects 0 and 1 (SPELL_EFFECT_APPLY_AREA_AURA_RAID, auras 166

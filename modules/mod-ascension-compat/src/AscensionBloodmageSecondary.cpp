@@ -870,7 +870,6 @@ class aura_ascension_waves_of_blood : public AuraScript
 // The window swaps the button through the fork's own temporary-replacement machinery, the same way
 // AscensionRangerFalconstrike swaps Quick Shot for Falconstrike, so "reactivate this ability" reaches
 // 803733 from the client's point of view.
-constexpr uint32 SPELL_HEMAL_EXCISION = 803681;
 constexpr uint32 SPELL_EXCISION = 803733;
 constexpr uint32 SPELL_HEMAL_EXCISION_WINDOW = 803734;
 
