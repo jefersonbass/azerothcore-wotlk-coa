@@ -507,15 +507,16 @@ public:
         }
         if (info->Id == 706671)
         {
-            // Issue 684: Elemental Acuity ships without SPELL_ATTR0_PASSIVE, so
-            // the learn/login passes never applied its auras, and its
-            // BasePoints are display-minus-1 with DieSides 0. Mark passive and
-            // shift DieSides to 1 so effect 0 resolves as +5% Fire/Frost/Nature
-            // damage done (aura 79, misc 28 = that school mask). Effect 1 is an
-            // AP-coefficient scaling: its authored op 32 is beyond MAX_SPELLMOD,
-            // so the engine drops it. Rebind it as the percentage
-            // AP-coefficient script on Runeblade (family-38 flags[2] 0x40000),
-            // resolving as the tooltip's +25% attack power scaling.
+            // Issue 684: Elemental Acuity's effect 0 is the authored half (+5%
+            // Fire/Frost/Nature damage done, aura 79, misc 28 = that school
+            // mask). Effect 1 is the real defect: an AP-coefficient scaling
+            // whose authored op 32 is beyond MAX_SPELLMOD, so the engine drops
+            // it. Rebind it as the percentage AP-coefficient script on
+            // Runeblade (family-38 flags[2] 0x40000), resolving as the
+            // tooltip's +25% attack power scaling. The DBC already carries
+            // SPELL_ATTR0_PASSIVE and DieSides 1, so the re-marks below are
+            // defensive no-ops kept in case the record is ever regenerated
+            // without them.
             info->Attributes |= SPELL_ATTR0_PASSIVE;
             info->Effects[EFFECT_0].DieSides = 1;
             SpellEffectInfo& apCoefficient = info->Effects[EFFECT_1];
