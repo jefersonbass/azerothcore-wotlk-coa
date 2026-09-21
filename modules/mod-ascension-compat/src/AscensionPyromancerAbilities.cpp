@@ -37,6 +37,8 @@ bool Select(uint32 id, SpellInfo const* info)
         return false;
     }
 }
+// Spell script value holding the charges Aspect's Blessing had when the cast started.
+constexpr uint32 ChargesKey = 1802168;
 void Snapshot(Player* player, Spell* spell)
 {
     if (spell->IsTriggered())
@@ -48,6 +50,8 @@ void Snapshot(Player* player, Spell* spell)
                 if (!aura->GetScriptValue(802168))
                     aura->SetScriptValue(802168, ++State(player).sequence);
                 spell->SetScriptValue(id, aura->GetScriptValue(802168));
+                if (id == 802168 && !spell->GetScriptValue(ChargesKey))
+                    spell->SetScriptValue(ChargesKey, aura->GetCharges());
             }
 }
 void Finish(Player* player, Spell* spell)
@@ -56,7 +60,18 @@ void Finish(Player* player, Spell* spell)
         if (uint64 generation = spell->GetScriptValue(id))
             if (Aura* aura = player->GetAura(id); aura && generation == aura->GetScriptValue(802168))
             {
-                if (id == 524707 && aura->GetCharges() > 1)
+                // Flames of Fate gives Aspect's Blessing extra charges through SPELLMOD_CHARGES. Once it has
+                // charges the core also drops one for the applied mod, so spend exactly one from the cast-start count.
+                if (id == 802168 && aura->IsUsingCharges())
+                {
+                    spell->m_appliedMods.erase(aura);
+                    uint32 const start = uint32(spell->GetScriptValue(ChargesKey));
+                    if (start > 1)
+                        aura->SetCharges(start - 1);
+                    else
+                        aura->Remove();
+                }
+                else if ((id == 524707 || id == 802168) && aura->GetCharges() > 1)
                     aura->SetCharges(aura->GetCharges() - 1);
                 else
                     aura->Remove();
@@ -67,8 +82,16 @@ class pyromancer_spells : public AllSpellScript
   public:
     pyromancer_spells()
         : AllSpellScript("pyromancer_spells", {ALLSPELLHOOK_ON_BEFORE_EFFECTS, ALLSPELLHOOK_ON_CAST,
-                                               ALLSPELLHOOK_ON_HIT_RESULT, ALLSPELLHOOK_ON_CRIT_CHANCE})
+                                               ALLSPELLHOOK_ON_HIT_RESULT, ALLSPELLHOOK_ON_CRIT_CHANCE,
+                                               ALLSPELLHOOK_ON_INTERRUPT_DURATION})
     {
+    }
+    void OnSpellInterruptDuration(Spell* spell, Unit*, int32& duration) override
+    {
+        // Constant Burning: its SPELLMOD_DURATION effect is never applied to Spellburn's lockout by the core.
+        Player* player = Owner(spell->GetCaster());
+        if (player && Named(spell->GetSpellInfo(), 800808) && player->HasAura(707126))
+            duration += Amount(707126, 1);
     }
     void OnSpellBeforeEffects(Spell* spell, Unit* caster, SpellInfo const* info) override
     {
@@ -157,10 +180,19 @@ class pyromancer_spells : public AllSpellScript
                 Cast(player, player, 803712);
         }
         if (Named(info, 802174))
+        {
+            // Expediting Power adds its amount to the reduction of Aspect's Blessing.
+            uint32 const extra = player->HasAura(704814) ? uint32(std::max(0, Amount(704814))) : 0;
             for (auto const& pair : player->GetSpellMap())
                 if (player->HasSpell(pair.first))
-                    player->ModifySpellCooldown(pair.first,
-                                                -int32(CalculatePct(player->GetSpellCooldownDelay(pair.first), 5)));
+                {
+                    uint32 percent = 5;
+                    if (extra && Named(sSpellMgr->GetSpellInfo(pair.first), 802168))
+                        percent += extra;
+                    uint32 const delay = player->GetSpellCooldownDelay(pair.first);
+                    player->ModifySpellCooldown(pair.first, -int32(CalculatePct(delay, percent)));
+                }
+        }
         if (spell->GetScriptValue(524707))
             Reduce(player, 803950, INT32_MAX);
         Finish(player, spell);
@@ -181,6 +213,8 @@ class pyromancer_spells : public AllSpellScript
         }
         if (Derived(info))
             return;
+        if (id == 804076)
+            Cast(player, target, 300985); // Meteor's disorient, the carrier of Dark Iron Legacy's damage taken bonus.
         bool old = State(player).event;
         State(player).event = true;
         if (damage)

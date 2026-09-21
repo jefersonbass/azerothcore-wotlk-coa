@@ -86,8 +86,13 @@ void Mana(Player* player, uint32 amount, uint32 spell)
 bool Chance(Player* player, uint32 id, uint32 cooldown)
 {
     SpellInfo const* info = sSpellMgr->GetSpellInfo(id);
-    if (!info || !player->HasAura(id) || State(player).timers.HasTimeUntilEvent(id) ||
-        !roll_chance_f(std::min(100.0f, float(info->ProcChance))))
+    if (!info || !player->HasAura(id) || State(player).timers.HasTimeUntilEvent(id))
+        return false;
+    // Talents such as Heat Wave, Roasted Alive and Blessing of the Inferno raise this record's chance through
+    // SPELLMOD_CHANCE_OF_SUCCESS, the way the native proc roll (Aura::CalcProcChance) reads it.
+    float chance = float(info->ProcChance);
+    player->ApplySpellMod(id, SPELLMOD_CHANCE_OF_SUCCESS, chance);
+    if (!roll_chance_f(std::clamp(chance, 0.0f, 100.0f)))
         return false;
     if (cooldown)
         State(player).timers.ScheduleEvent(id, Milliseconds(cooldown));
@@ -127,7 +132,9 @@ void Flames(Player* player, uint32 count)
     uint32 stacks = old ? old->GetStackAmount() : 0;
     if (Aura* aura = player->AddAura(FlamecastingAura, player))
     {
-        aura->SetStackAmount(std::min<uint32>(player->HasAura(704809) ? 10 : 5, stacks + count));
+        // Invocation of Flames, Brilliance and Flames of Focus raise the cap through SPELLMOD_MAX_AURA_STACKS,
+        // which SetStackAmount does not consult, so the native limit is read here.
+        aura->SetStackAmount(std::min<uint32>(aura->GetSpellInfo()->CalcMaxAuraStacks(player), stacks + count));
         if (remaining >= 0)
             aura->SetDuration(remaining);
     }

@@ -42,9 +42,13 @@ METRICS = {
     'spellbook_buy_succeeded', 'spellbook_buy_failed',
     'spellbook_buys_granted', 'spellbook_unannounced_buys', 'spellbook_misannounced_buys',
     'spellbook_notify_rows', 'spellbook_notified_spells', 'spellbook_unnotified_buys',
-    'trainer_list_packets', 'trainer_window_rows', 'trainer_window_state',
+    'trainer_list_packets', 'trainer_window_rows', 'trainer_window_state', 'trainer_window_ability',
+    'spellbook_superseded_packets', 'spellbook_superseded_for',
+    'spellbook_cues_in_last_buy', 'spellbook_last_buy_cued',
+    'spellbook_silent_buys', 'spellbook_multi_announced_buys',
     'cast_speed_multiplier', 'spell_crit_chance', 'spell_power_cost', 'spell_damage_done', 'melee_damage_done',
     'who_count', 'who_class', 'player_name', 'name_lookup', 'loot_count', 'loot_entry', 'loot_received',
+    'loot_gold', 'loot_bloodforged', 'nearby_gameobject_count', 'nearby_creature_count', 'carried_money',
     'quest_rewarded', 'spell_damage_taken', 'melee_damage_taken', 'spell_healing_taken',
     'spell_hit_bonus_taken', 'rooted', 'spell_cast_count', 'spell_go_count', 'cast_failure',
     'stealth_detection', 'can_detect',
@@ -84,7 +88,8 @@ PLAYER_STAT_METRICS = {
 }
 METRIC_FIELDS = {'actor', 'metric', 'spell', 'power', 'caster', 'effect', 'item', 'entry',
                  'relative_to', 'ratio_to', 'target', 'quest', 'id', 'stat', 'school', 'hand', 'rating', 'op',
-                 'base', 'key', 'index', 'pet', 'critical', 'target_pet', 'periodic', 'name'}
+                 'base', 'key', 'index', 'pet', 'critical', 'target_pet', 'periodic', 'name',
+                 'min_distance', 'owner_display'}
 ACTIONS = {
     'stop_attack': ({'actor'}, {'actor'}),
     'set_moving': ({'actor', 'enabled'}, {'actor', 'enabled'}),
@@ -112,6 +117,14 @@ ACTIONS = {
     'open_item': ({'actor', 'item'}, {'actor', 'item'}),
     'collect_loot': ({'actor'}, {'actor'}),
     'close_loot': ({'actor'}, {'actor'}),
+    'set_money': ({'actor', 'value'}, {'actor', 'value'}),
+    'set_phase': ({'actor'}, {'actor', 'value'}),
+    'use_nearby_gameobject': ({'actor', 'entry'}, {'actor', 'entry'}),
+    'attack_nearby': ({'actor', 'entry'}, {'actor', 'entry', 'kill'}),
+    'loot_nearby': ({'actor', 'entry'}, {'actor', 'entry'}),
+    'loot_creature': ({'actor', 'target'}, {'actor', 'target'}),
+    'loot_slot': ({'actor'}, {'actor', 'slot'}),
+    'loot_money': ({'actor'}, {'actor'}),
     'prepare_quest': ({'actor', 'quest'}, {'actor', 'quest', 'complete'}),
     'reward_quest': ({'actor', 'quest'}, {'actor', 'quest', 'choice'}),
     'restore_quest_spells': ({'actor'}, {'actor'}),
@@ -327,7 +340,7 @@ def validate(scenario):
                     'spell_uses_armor', 'pet_aura_amount', 'pet_aura_amplitude_ms', 'spell_heal_count', 'spell_heal_total',
                     'spell_effective_heal_total', 'spell_energize_count', 'spell_energize_total',
                     'spell_proc_count', 'temporary_spell_replacement', 'cast_failure',
-                    'trainer_window_state'}:
+                    'trainer_window_state', 'trainer_window_ability', 'spellbook_superseded_for'}:
                 require('spell' in step, f'{where}: metric needs spell')
             for key in ('pet', 'critical'):
                 if key in step:
@@ -409,10 +422,14 @@ def validate(scenario):
                           'spellbook_rows', 'spellbook_offers_spell', 'spellbook_covers_spell',
                           'spellbook_learned_alerts', 'spellbook_buy_succeeded', 'spellbook_buy_failed',
                           'spellbook_buys_granted', 'spellbook_unannounced_buys',
-                          'spellbook_misannounced_buys',
+                          'spellbook_misannounced_buys', 'spellbook_silent_buys',
+                          'spellbook_multi_announced_buys',
                           'spellbook_notify_rows', 'spellbook_notified_spells',
                           'spellbook_unnotified_buys',
                           'trainer_list_packets', 'trainer_window_rows', 'trainer_window_state',
+                          'trainer_window_ability', 'spellbook_superseded_packets',
+                          'spellbook_superseded_for',
+                          'spellbook_cues_in_last_buy', 'spellbook_last_buy_cued',
                           'cast_speed_multiplier', 'spell_crit_chance', 'spell_power_cost',
                           'spell_damage_done', 'melee_damage_done',
                           'who_count', 'who_class',

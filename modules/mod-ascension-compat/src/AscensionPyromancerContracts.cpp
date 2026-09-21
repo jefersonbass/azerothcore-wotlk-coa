@@ -8,6 +8,7 @@
 #include "SpellAuras.h"
 #include "SpellMgr.h"
 #include <algorithm>
+#include <cmath>
 namespace AscensionPyromancer
 {
 void ApplyContracts(SpellInfo* info)
@@ -95,6 +96,8 @@ void ApplyContracts(SpellInfo* info)
     }
     if (id == 807402)
         info->Effects[1].Effect = 0;
+    if (id == 680842)
+        info->ExcludeTargetAuraSpell = 681265; // Circle of Fire: Debuff; the DBC only names it as caster exclusion.
     if (id == 807768)
         info->Effects[0].Effect = SPELL_EFFECT_DUMMY;
     if (id == 802120 || id == 680369)
@@ -107,6 +110,8 @@ void ApplyContracts(SpellInfo* info)
         // Transform uses a creature template, not a display ID.
         info->Effects[1].MiscValue = 21362;
     }
+    if (id == 704853) // Touched by Fire rank 2: flat like rank 1, since a PCT modifier skips these zero coefficients.
+        info->Effects[0].ApplyAuraName = SPELL_AURA_ADD_FLAT_MODIFIER;
     if (id == 706650)
         dummy(0), info->Effects[0].BasePoints = 29;
     if (id == 706238)
@@ -128,8 +133,10 @@ void ApplyContracts(SpellInfo* info)
         info->Effects[1].SpellClassMask = flag96(0, 0, 2048);
     if (id == 520823)
     {
+        // The free-cast clause takes the freed effect 2 slot; effect 3 stays the DBC damage modifier
+        // (0% until Blackflight Resurgence's EFFECT3 modifier raises it).
         info->Effects[1].Effect = 0;
-        mod(2, SPELL_AURA_ADD_PCT_MODIFIER, -100, SPELLMOD_COST, flag96(134217728, 0, 8192));
+        mod(1, SPELL_AURA_ADD_PCT_MODIFIER, -100, SPELLMOD_COST, flag96(134217728, 0, 8192));
     }
     if (id == 680387)
         dummy(1); // Retaliation scales from the owner's Spirit/SP once.
@@ -207,12 +214,43 @@ class pyromancer_scaling : public UnitScript
             return;
         for (auto const& row : PyromancerCoefficients)
             if (row.spell == info->Id && row.effect == index)
-                value += row.sp * std::max(0, player->SpellBaseDamageBonusDone(SPELL_SCHOOL_MASK_FIRE)) +
+            {
+                float sp = row.sp;
+                if (Named(info, 803950))
+                {
+                    // Lava Shard's coefficient lives in this base value, so the stock bonus code never sees
+                    // Searing Flames' BONUS_MULTIPLIER modifier; run it here on the coefficient (in percent).
+                    float percent = sp * 100;
+                    player->ApplySpellMod(info->Id, SPELLMOD_BONUS_MULTIPLIER, percent);
+                    sp = percent / 100;
+                }
+                value += sp * std::max(0, player->SpellBaseDamageBonusDone(SPELL_SCHOOL_MASK_FIRE)) +
                          row.spirit * player->GetStat(STAT_SPIRIT) +
                          row.healing * std::max(0, player->SpellBaseHealingBonusDone(SPELL_SCHOOL_MASK_FIRE));
+            }
         if ((info->Id == 680370 || info->Id == 680371) && !index)
             value *= 1 + State(player).ignis * Amount(680382) / 100.0f;
         value = std::clamp(value, float(INT32_MIN / 2), float(INT32_MAX / 2));
+    }
+    // Cataclysmic Power: Flare Bolt deals more for each of the caster's Blaze, Ignite, Scorched and Infernus on the
+    // target. The DBC carries this as an aura 271 in each DoT's second effect, but the module reuses those slots.
+    static float Cataclysmic(Player* player, Unit* target)
+    {
+        uint32 rank = 0;
+        for (uint32 id : {807912, 807882, 804617})
+            if (!rank && player->HasAura(id))
+                rank = id;
+        if (!rank)
+            return 1;
+        uint32 count = 0;
+        for (auto const& pair : target->GetAppliedAuras())
+        {
+            Aura const* aura = pair.second->GetBase();
+            if (aura->GetCasterGUID() == player->GetGUID() &&
+                Any(aura->GetSpellInfo(), {805500, 800791, 680962, 706874}))
+                ++count;
+        }
+        return std::pow(1 + Amount(rank, 0, player) / 100.0f, count);
     }
     float Factor(Unit* target, Unit* caster, SpellInfo const* info)
     {
@@ -226,6 +264,8 @@ class pyromancer_scaling : public UnitScript
             factor *= 1 + Amount(706238) / 100.0f;
         if (Named(info, 800792) && player->HasAura(520884))
             factor *= 1 + Burning(player, target) * .15f;
+        if (Named(info, 800790))
+            factor *= Cataclysmic(player, target);
         return factor;
     }
     void ModifySpellDamageTaken(Unit* target, Unit* caster, int32& damage, SpellInfo const* info) override
