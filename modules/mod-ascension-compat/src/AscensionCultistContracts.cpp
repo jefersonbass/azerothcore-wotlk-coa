@@ -255,6 +255,30 @@ void ApplyContracts(SpellInfo* info)
         info->Attributes |= SPELL_ATTR0_PASSIVE;
         info->Effects[EFFECT_0].DieSides = 1;
     }
+    if (id == Voidguard)
+    {
+        // Issue 1537: Voidguard ships without SPELL_ATTR0_PASSIVE, so the
+        // learn/login passes never applied its rating-from-stat auras. Mark
+        // passive. Effect 0 (op 3 = DUMMY, aura 220 misc 20 miscB 3) is the
+        // tooltip's "parry rating by 25% of Intellect": retarget it as an
+        // APPLY_AURA 220 with the parry-rating bit (misc 8) so the native
+        // HandleModRatingFromStat path applies it. Effects 1-2 are already
+        // native 220s (misc 8 = parry, misc 224 = hit melee+ranged+spell).
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+        aura(0, SPELL_AURA_MOD_RATING_FROM_STAT, 24, 8, TARGET_UNIT_CASTER);
+        info->Effects[EFFECT_0].MiscValueB = 3;
+    }
+    if (id == DarkCelerity)
+    {
+        // Issue 1544: Dark Celerity ships without SPELL_ATTR0_PASSIVE, so the
+        // learn/login passes never applied its healing-mod auras. Mark
+        // passive. Effect 0 (op 3 = DUMMY, aura 290) is display-only; the
+        // tooltip's +10% healing of Gaze of C'Thun and Eldritch Mending is
+        // scripted in cultist_scaling::Factor below. Effects 1-2 (aura 108
+        // misc 24/12, masks 0x1/0x4 + 0x1000) resolve natively.
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+        dummy(0);
+    }
     if (id == 804277)
         info->Effects[2].Effect = 0;
     if (id == 804275)
@@ -359,6 +383,13 @@ public:
         if (!player || !info || info->SpellFamilyName != 31 || Derived(info))
             return 1;
         float factor = player->HasAura(Herald) ? 1 + Amount(Herald, 2) / 100.0f : 1;
+        // Issue 1544: Dark Celerity's +10% healing of Gaze of C'Thun and
+        // Eldritch Mending. Gaze's damage half is scripted through the
+        // CultistCoefficients healing row (500711); Eldritch Mending is the
+        // 254842 chain. Both resolve here because the shipped 108 masks
+        // (0x1/0x4 + 0x1000) match neither target's family flags.
+        if (healing && (Named(info, 500711) || Named(info, 254842)) && player->HasAura(DarkCelerity))
+            factor *= 1 + Amount(DarkCelerity) / 100.0f;
         if (healing && Any(info, {808050, 808051, 808052}) && player->HasAura(705106))
             factor *= 1 + Amount(705106) / 100.0f;
         if (!healing && Any(info, {808043, 808044, 808045}) && player->HasAura(705107))
