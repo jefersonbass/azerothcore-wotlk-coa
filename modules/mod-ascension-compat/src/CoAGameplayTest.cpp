@@ -238,6 +238,9 @@ struct Actor
     uint32 buysGranted = 0;
     uint32 buysUnannounced = 0;
     uint32 buysMisannounced = 0;
+    uint32 trainerWindows = 0;                    // trainer windows this session has been sent
+    uint32 trainerWindowRows = 0;                 // rows in the last of them
+    std::map<uint32, uint8> trainerWindowState;   // spell -> the state byte that window gave the row
     uint32 whoResponses = 0;
     uint32 lootReceived = 0;
     std::array<uint32, 2> meleeAttacksByHand{};
@@ -248,6 +251,9 @@ struct Actor
     std::vector<SpellHealEvent> spellHeals;
     std::vector<SpellEnergizeEvent> spellEnergizes;
     Tree castFailures;
+    std::map<uint32, uint8> castFailureReason; // spell -> the reason its last attempt was refused
+    uint32 bankShows = 0;      // native bank windows this session has been sent
+    uint32 systemMessages = 0; // chat lines this session has been told
     std::map<uint64, std::map<uint16, uint32>> unitValues;
     uint32 lastQuestWindow = 0; // the last quest window this session sent, by opcode
     std::unique_ptr<WorldSession> session;
@@ -460,8 +466,10 @@ public:
                 auto& actor = _actors[id];
                 actor.definition = entry.second;
                 actor.account = "CT" + _runId + std::to_string(index);
-                // Character names contain letters only and are unique inside the fresh test database.
-                actor.name = "Harness" + std::string(1, char('a' + index++));
+                actor.name = entry.second.get<std::string>("name", "Harness" + std::string(1, char('a' + index++)));
+                Require(normalizePlayerName(actor.name), "Invalid fixture character name");
+                for (auto const& [otherId, other] : _actors)
+                    Require(otherId == id || other.name != actor.name, "Duplicate fixture character name");
                 Require(AccountMgr::GetId(actor.account) == 0, "Test account already exists");
                 Require(sAccountMgr->CreateAccount(actor.account, _runId) == AOR_OK, "Account creation failed");
             }
@@ -596,7 +604,16 @@ private:
                     failure.put("spell", spell);
                     failure.put("reason", uint32(reason));
                     actor.castFailures.push_back({"", failure});
+                    actor.castFailureReason[spell] = reason;
                 }
+
+                // The two halves of a refusal a module explains itself: the chat line it sends and
+                // the window it withholds. A click answered with neither is what a silent refusal
+                // looks like, so both are counted.
+                if (packet.GetOpcode() == SMSG_MESSAGECHAT)
+                    ++actor.systemMessages;
+                if (packet.GetOpcode() == SMSG_SHOW_BANK)
+                    ++actor.bankShows;
                 ObserveUnitValues(actor, packet);
                 if (packet.GetOpcode() == SMSG_ATTACKERSTATEUPDATE)
                 {
@@ -683,6 +700,40 @@ private:
                         ++actor.buyFailed[bought];
                 }
 
+                // A trainer window is the whole of what the client draws and gates Train on, so the
+                // last one this session was sent is recorded: how many rows it carried and the state
+                // byte each spell's row got. A row a later window no longer holds is therefore absent,
+                // which is how a test tells "the book stopped selling this" from "still on screen".
+                if (packet.GetOpcode() == SMSG_TRAINER_LIST)
+                {
+                    WorldPacket window(packet);
+                    ObjectGuid trainer;
+                    int32 type = 0;
+                    int32 rows = 0;
+                    window >> trainer >> type >> rows;
+                    ++actor.trainerWindows;
+                    actor.trainerWindowRows = rows > 0 ? uint32(rows) : 0;
+                    actor.trainerWindowState.clear();
+                    for (int32 i = 0; i < rows; ++i)
+                    {
+                        int32 rowSpell = 0;
+                        uint8 state = 0;
+                        int32 price = 0;
+                        uint32 pointCost0 = 0;
+                        uint32 pointCost1 = 0;
+                        uint8 requiredLevel = 0;
+                        uint32 skillLine = 0;
+                        uint32 skillRank = 0;
+                        uint32 ability1 = 0;
+                        uint32 ability2 = 0;
+                        uint32 ability3 = 0;
+                        window >> rowSpell >> state >> price >> pointCost0 >> pointCost1 >> requiredLevel
+                               >> skillLine >> skillRank >> ability1 >> ability2 >> ability3;
+                        if (rowSpell > 0)
+                            actor.trainerWindowState[uint32(rowSpell)] = state;
+                    }
+                }
+
                 if (packet.GetOpcode() != SMSG_WHO)
                     return;
                 WorldPacket response(packet);
@@ -707,7 +758,7 @@ private:
             uint32 playerClass = actor.definition.get<uint32>("class");
             Require(race > 0 && race <= 255 && playerClass > 0 && playerClass <= 255,
                 "Race/class must fit the character creation packet");
-            create << actor.name << uint8(race) << uint8(playerClass);
+            create << actor.definition.get<std::string>("name", actor.name) << uint8(race) << uint8(playerClass);
             for (uint8 i = 0; i < 7; ++i)
                 create << uint8(0); // gender, skin, face, hair style/color, facial hair, outfit
             actor.session->HandleCharCreateOpcode(create);
@@ -897,6 +948,14 @@ private:
         Unit* unit = GetUnit(step.get<std::string>("actor"));
         std::string metric = step.get<std::string>("metric");
         uint32 spell = step.get<uint32>("spell", 0);
+        if (metric == "player_name")
+            return unit->GetName() == step.get<std::string>("name") ? 1.0 : 0.0;
+        if (metric == "name_lookup")
+        {
+            std::string name = step.get<std::string>("name");
+            return normalizePlayerName(name) && ObjectAccessor::FindPlayerByName(name) == unit &&
+                sCharacterCache->GetCharacterGuidByName(name) == unit->GetGUID() ? 1.0 : 0.0;
+        }
         if (metric == "health")
             return unit->GetHealth();
         if (metric == "health_pct")
@@ -1093,7 +1152,7 @@ private:
         if (metric == "knows_spell" || metric == "cooldown_ms" || metric == "spell_charges" ||
             metric == "global_cooldown_ms" || metric == "has_talent" ||
             metric == "spellbook_offers_spell" || metric == "spellbook_covers_spell" ||
-            metric == "temporary_spell_replacement")
+            metric == "trainer_window_state" || metric == "temporary_spell_replacement")
             Require(sSpellMgr->GetSpellInfo(spell) != nullptr, "Unknown spell in metric");
         if (metric == "knows_spell")
             return player->HasSpell(spell);
@@ -1134,6 +1193,17 @@ private:
             auto const& alerts = _actors.at(step.get<std::string>("actor")).learnedAlerts;
             auto const found = alerts.find(spell);
             return found == alerts.end() ? 0.0 : double(found->second);
+        }
+        if (metric == "trainer_list_packets")
+            return double(_actors.at(step.get<std::string>("actor")).trainerWindows);
+        if (metric == "trainer_window_rows")
+            return double(_actors.at(step.get<std::string>("actor")).trainerWindowRows);
+        if (metric == "trainer_window_state")
+        {
+            auto const& window = _actors.at(step.get<std::string>("actor")).trainerWindowState;
+            auto const found = window.find(spell);
+            // Absent is its own answer: the row the book used to sell is gone rather than refused.
+            return found == window.end() ? -1.0 : double(found->second);
         }
         if (metric == "quest_rewarded")
         {
@@ -1476,12 +1546,38 @@ private:
                     && player->InSamePhase(creature) && (!spell || creature->GetAura(spell, caster));
             });
         }
-        if (metric == "pet_entry" || metric == "pet_aura_stacks" || metric == "pet_aura_amount" || metric == "pet_aura_amplitude_ms" ||
-            metric == "pet_max_health" || metric == "pet_attack_power" || metric == "pet_run_speed_rate")
+        if (metric == "bank_shows")
+            return double(_actors.at(step.get<std::string>("actor")).bankShows);
+        if (metric == "system_messages")
+            return double(_actors.at(step.get<std::string>("actor")).systemMessages);
+        if (metric == "cast_failure")
         {
-            Guardian* pet = player->GetGuardianPet();
+            auto const& reasons = _actors.at(step.get<std::string>("actor")).castFailureReason;
+            auto const found = reasons.find(spell);
+            return found == reasons.end() ? 0.0 : double(found->second);
+        }
+        if (metric == "pet_entry" || metric == "pet_aura_stacks" || metric == "pet_aura_amount" || metric == "pet_aura_amplitude_ms" ||
+            metric == "pet_max_health" || metric == "pet_attack_power" || metric == "pet_run_speed_rate" ||
+            metric == "pet_is_banker" || metric == "pet_display" || metric == "pet_scale")
+        {
+            // A banker companion is a minipet, which is not a guardian pet: the guardian slot
+            // alone would report nothing for a summon that worked. Resolve what the character has
+            // out, guardian first, then the companion slot the summon path keeps.
+            Creature* pet = player->GetGuardianPet();
+            if (!pet)
+                pet = player->GetCompanionPet();
+            if (!pet && player->GetCritterGUID())
+                pet = ObjectAccessor::GetCreatureOrPetOrVehicle(*player, player->GetCritterGUID());
             if (metric == "pet_entry")
                 return pet ? pet->GetEntry() : 0;
+            // What a summoned banker is judged on: the flag the core's own bank handler asks the
+            // unit for, plus the display and the scale the client draws it at.
+            if (metric == "pet_is_banker")
+                return pet && pet->HasNpcFlag(UNIT_NPC_FLAG_BANKER);
+            if (metric == "pet_display")
+                return pet ? pet->GetDisplayId() : 0;
+            if (metric == "pet_scale")
+                return pet ? double(pet->GetObjectScale()) : 0.0;
             if (!pet && (metric == "pet_aura_stacks" || metric == "pet_aura_amount" || metric == "pet_aura_amplitude_ms"))
                 return 0;
             Require(pet != nullptr, "Metric needs a current pet");
@@ -1823,6 +1919,57 @@ private:
             record.put("item", entry);
             record.put("received", after - before);
         }
+        else if (action == "area_trigger")
+        {
+            // The client's own packet on walking into a trigger. It is the only way a character
+            // becomes rested here - the inn triggers are what set PLAYER_FLAGS_RESTING - and the
+            // ruleset selection spells refuse to apply outside a rested area.
+            WorldPacket packet(CMSG_AREATRIGGER, 4);
+            packet << step.get<uint32>("id");
+            player->GetSession()->HandleAreaTriggerOpcode(packet);
+        }
+        else if (action == "banker_activate")
+        {
+            // The client's own click on a banker: CMSG_BANKER_ACTIVATE carrying the unit's GUID.
+            // Aimed at the summoned companion by default, so the whole path a player's right click
+            // takes is exercised - the flag the client offers it on, the core's interaction check
+            // and the native bank window that answers.
+            ObjectGuid guid;
+            if (auto target = step.get_optional<std::string>("target"))
+                guid = GetUnit(*target)->GetGUID();
+            else if (auto owner = step.get_optional<std::string>("owner"))
+            {
+                // Somebody else's summoned creature: the click a character makes on a companion
+                // that is not theirs, which is the script that owns that companion to answer.
+                Creature* owned = GetOwnedCreature(GetPlayer(*owner), step.get<uint32>("entry"));
+                Require(owned != nullptr, "That actor has no creature of that entry out");
+                guid = owned->GetGUID();
+            }
+            else
+            {
+                Creature* companion = player->GetGuardianPet();
+                if (!companion)
+                    companion = player->GetCompanionPet();
+                if (!companion && player->GetCritterGUID())
+                    companion = ObjectAccessor::GetCreatureOrPetOrVehicle(*player, player->GetCritterGUID());
+                Require(companion != nullptr, "Banker activate needs a target or a summoned companion");
+                guid = companion->GetGUID();
+            }
+            // A click reaches the core's own checks only from in reach, so the actor walks up to
+            // whatever it is about to click - the one thing a player does before clicking it. A
+            // companion can be left behind by a scenario teleport, and that is a fixture artifact
+            // rather than the behaviour under test.
+            if (Creature* clicked = ObjectAccessor::GetCreatureOrPetOrVehicle(*player, guid))
+                if (!clicked->IsWithinDistInMap(player, INTERACTION_DISTANCE))
+                    // Placed, not teleported: a same-map teleport only lands when the client
+                    // acknowledges it, and this click is sent in the same tick.
+                    player->UpdatePosition(clicked->GetPositionX(), clicked->GetPositionY(),
+                                           clicked->GetPositionZ(), player->GetOrientation(), true);
+
+            WorldPacket packet(CMSG_BANKER_ACTIVATE, 8);
+            packet << guid;
+            player->GetSession()->HandleBankerActivateOpcode(packet);
+        }
         else if (action == "gossip_hello")
         {
             ObjectGuid guid = step.get_optional<std::string>("target") ?
@@ -1898,6 +2045,14 @@ private:
                 aura->SetStackAmount(uint8(stacks));
             }
         }
+        else if (action == "money")
+        {
+            // Fixture setup: a priced trainer row cannot be bought on the realm's starting purse.
+            int32 const copper = step.get<int32>("copper");
+            Require(copper > 0, "Money fixture needs a positive copper amount");
+            player->ModifyMoney(copper);
+            Require(player->GetMoney() >= uint32(copper), "Money fixture failed");
+        }
         else if (action == "learn")
         {
             player->learnSpell(spell);
@@ -1942,6 +2097,10 @@ private:
         }
         else if (action == "cast" || action == "cast_charm" || action == "use_item")
         {
+            // A refusal recorded earlier in this session belongs to an earlier attempt at the same
+            // spell. Forget it here, so `cast_failure` answers for the cast just submitted instead
+            // of reporting a refusal the character has since been allowed past.
+            _actors.at(step.get<std::string>("actor")).castFailureReason.erase(spell);
             SpellCastTargets targets;
             Unit* caster = action == "cast_charm" ? player->GetCharm() : player;
             Require(caster != nullptr, "Player has no charmed unit");
