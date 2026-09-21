@@ -48,16 +48,15 @@ void ApplyContracts(SpellInfo* info)
     }
     if (id == 807509)
     {
-        // Issue 681: Lighting the Fuse ships without SPELL_ATTR0_PASSIVE, so
-        // the learn/login passes never applied its auras, and its BasePoints
-        // are display-minus-1 with DieSides 0. Mark passive and shift DieSides
-        // to 1 so effect 0 resolves as the tooltip's periodic-crit enablement
-        // (aura 286, ABILITY_PERIODIC_CRIT, amount is the added periodic crit
-        // chance; the DBC stores -1, so it resolves to a harmless 0) and
-        // effect 1 as +15% of Intellect as spell crit rating (aura 220,
-        // miscB 3 = STAT_INTELLECT). The authored masks already key the
-        // Pyromancer DoTs (0x200: Blaze 805500/534600) and the crit-rating
-        // schools (0x1000100: Cleansing Flame 570052, Emberheart 680366).
+        // Issue 681: Lighting the Fuse's two effects are the authored halves
+        // (periodic-crit enablement, aura 286, ABILITY_PERIODIC_CRIT; +15% of
+        // Intellect as spell crit rating, aura 220, miscB 3 = STAT_INTELLECT),
+        // and the authored masks already key the Pyromancer DoTs (0x200: Blaze
+        // 805500/534600) and the crit-rating schools (0x1000100: Cleansing
+        // Flame 570052, Emberheart 680366). The DBC already carries
+        // SPELL_ATTR0_PASSIVE and DieSides 1, so the re-mark below is a
+        // defensive no-op kept in case the record is ever regenerated without
+        // them.
         info->Attributes |= SPELL_ATTR0_PASSIVE;
         info->Effects[EFFECT_0].DieSides = 1;
         info->Effects[EFFECT_1].DieSides = 1;
