@@ -33,8 +33,8 @@ METRICS = {
     'health', 'health_pct', 'max_health', 'power', 'max_power', 'alive', 'combat', 'casting', 'level',
     'aura', 'aura_stacks', 'aura_charges', 'aura_duration_ms', 'aura_amount', 'aura_positive',
     'knows_spell', 'has_talent', 'talent_points', 'cooldown_ms', 'global_cooldown_ms', 'spell_charges',
-    'item_count', 'carried_item_count', 'bank_bag_slots',
-    'taxi_node', 'pet_entry', 'pet_aura_stacks', 'owned_creature_count',
+    'item_count', 'carried_item_count', 'bank_bag_slots', 'bank_shows', 'system_messages',
+    'taxi_node', 'pet_entry', 'pet_aura_stacks', 'pet_is_banker', 'pet_display', 'pet_scale', 'owned_creature_count',
     'charm_entry', 'charm_aura_stacks', 'controls_self', 'private_instance',
     'dynamic_object', 'dynamic_object_duration_ms', 'gossip_options',
     'owned_gameobject_count', 'gameobject_remaining_ms', 'at_homebind',
@@ -42,10 +42,11 @@ METRICS = {
     'spellbook_buy_succeeded', 'spellbook_buy_failed',
     'spellbook_buys_granted', 'spellbook_unannounced_buys', 'spellbook_misannounced_buys',
     'spellbook_notify_rows', 'spellbook_notified_spells', 'spellbook_unnotified_buys',
+    'trainer_list_packets', 'trainer_window_rows', 'trainer_window_state',
     'cast_speed_multiplier', 'spell_crit_chance', 'spell_power_cost', 'spell_damage_done', 'melee_damage_done',
-    'who_count', 'who_class', 'loot_count', 'loot_entry', 'loot_received',
+    'who_count', 'who_class', 'player_name', 'name_lookup', 'loot_count', 'loot_entry', 'loot_received',
     'quest_rewarded', 'spell_damage_taken', 'melee_damage_taken', 'spell_healing_taken',
-    'spell_hit_bonus_taken', 'rooted', 'spell_cast_count', 'spell_go_count',
+    'spell_hit_bonus_taken', 'rooted', 'spell_cast_count', 'spell_go_count', 'cast_failure',
     'stealth_detection', 'can_detect',
     'quest_status', 'quest_takeable', 'quest_objective_count', 'dialog_status',
     'ball_offer_count', 'ball_offers_quest',
@@ -83,7 +84,7 @@ PLAYER_STAT_METRICS = {
 }
 METRIC_FIELDS = {'actor', 'metric', 'spell', 'power', 'caster', 'effect', 'item', 'entry',
                  'relative_to', 'ratio_to', 'target', 'quest', 'id', 'stat', 'school', 'hand', 'rating', 'op',
-                 'base', 'key', 'index', 'pet', 'critical', 'target_pet', 'periodic'}
+                 'base', 'key', 'index', 'pet', 'critical', 'target_pet', 'periodic', 'name'}
 ACTIONS = {
     'stop_attack': ({'actor'}, {'actor'}),
     'set_moving': ({'actor', 'enabled'}, {'actor', 'enabled'}),
@@ -95,6 +96,7 @@ ACTIONS = {
     'assert': ({'actor', 'metric'}, METRIC_FIELDS | {'equals', 'min', 'max', 'within_ms'}),
     'learn': ({'actor', 'spell'}, {'actor', 'spell'}),
     'unlearn': ({'actor', 'spell'}, {'actor', 'spell', 'all_specs'}),
+    'money': ({'actor', 'copper'}, {'actor', 'copper'}),
     'set_aura': ({'actor', 'spell', 'stacks'}, {'actor', 'spell', 'stacks', 'pet'}),
     'cast': ({'actor', 'spell'}, {'actor', 'spell', 'target', 'destination'}),
     'attack': ({'actor', 'target'}, {'actor', 'target', 'pet'}),
@@ -102,6 +104,8 @@ ACTIONS = {
     'group': ({'actor', 'target'}, {'actor', 'target'}),
     'cast_charm': ({'actor', 'spell'}, {'actor', 'spell', 'target'}),
     'gossip_hello': ({'actor'}, {'actor', 'target'}),
+    'banker_activate': ({'actor'}, {'actor', 'target', 'owner', 'entry'}),
+    'area_trigger': ({'actor', 'id'}, {'actor', 'id'}),
     'trainer_buy': ({'actor', 'spell'}, {'actor', 'spell', 'target'}),
     'gossip_select': ({'actor', 'option'}, {'actor', 'option'}),
     'who': ({'actor'}, {'actor', 'target', 'race_mask', 'class_mask'}),
@@ -178,12 +182,15 @@ def validate(scenario):
         keys(player, {'id', 'race', 'class'},
              {'id', 'race', 'class', 'level', 'bot', 'spell_hit_rating', 'spell_crit_rating',
               'melee_crit_rating', 'ranged_hit_rating', 'melee_hit_rating', 'expertise_rating',
-              'allow_regeneration'}, 'player')
+              'allow_regeneration', 'name'}, 'player')
         identity = player['id']
         require(isinstance(identity, str) and ACTOR_ID.fullmatch(identity), 'Invalid player id')
         require(identity not in actor_ids, 'Duplicate actor id')
         actor_ids.add(identity)
         player_ids.add(identity)
+        if 'name' in player:
+            require(isinstance(player['name'], str) and 1 <= len(player['name']) <= 25
+                    and len(player['name'].encode('utf-8')) <= 47, 'Invalid fixture character name')
         for key in ('race', 'class'):
             number(player[key], key, 1, 255, True)
         number(player.get('level', 80), 'level', 1, 255, True)
@@ -277,6 +284,8 @@ def validate(scenario):
         for key in ('ms', 'within_ms'):
             if key in step:
                 number(step[key], f'{where}.{key}', 0, scenario.get('timeout_ms', 90000), True)
+        if action == 'money':
+            number(step['copper'], f'{where}.copper', 1, 2**31 - 1, True)
         if action == 'set_level':
             number(step['value'], f'{where}.value', 1, 80, True)
         if action == 'level_scaling_packet':
@@ -294,6 +303,11 @@ def validate(scenario):
                         and type(step['periodic']) is bool,
                         f'{where}: periodic requires a damage/healing calculation and a boolean')
             require(metric in METRICS, f'{where}: unknown metric')
+            if metric in {'player_name', 'name_lookup'}:
+                require(step['actor'] in player_ids and isinstance(step.get('name'), str)
+                        and bool(step['name']), f'{where}: name metric needs a player and name')
+            elif 'name' in step:
+                require(False, f'{where}: name only applies to name metrics')
             if metric in {'view_level', 'sent_level', 'sent_max_health'}:
                 require(step['actor'] in player_ids and 'target' in step,
                         f'{where}: view metric needs a player and target')
@@ -312,7 +326,8 @@ def validate(scenario):
                     'spell_immune', 'spell_effect_immune', 'spell_damage_count', 'spell_damage_total',
                     'spell_uses_armor', 'pet_aura_amount', 'pet_aura_amplitude_ms', 'spell_heal_count', 'spell_heal_total',
                     'spell_effective_heal_total', 'spell_energize_count', 'spell_energize_total',
-                    'spell_proc_count', 'temporary_spell_replacement'}:
+                    'spell_proc_count', 'temporary_spell_replacement', 'cast_failure',
+                    'trainer_window_state'}:
                 require('spell' in step, f'{where}: metric needs spell')
             for key in ('pet', 'critical'):
                 if key in step:
@@ -367,7 +382,7 @@ def validate(scenario):
                 require('entry' in step, f'{where}: metric needs creature entry')
                 require('caster' not in step or 'spell' in step, f'{where}: aura caster filter needs spell')
             if metric in {'spellbook_offers_spell', 'spellbook_learned_alerts',
-                          'spellbook_buy_succeeded', 'spellbook_buy_failed'}:
+                          'spellbook_buy_succeeded', 'spellbook_buy_failed', 'cast_failure'}:
                 require('spell' in step, f'{where}: metric needs spell')
             if metric in {'owned_gameobject_count', 'gameobject_remaining_ms'}:
                 require('entry' in step, f'{where}: metric needs gameobject entry')
@@ -385,7 +400,9 @@ def validate(scenario):
                 require('id' in step, f'{where}: metric needs text id')
             if metric in {'knows_spell', 'has_talent', 'talent_points', 'cooldown_ms', 'spell_charges', 'item_count',
                           'carried_item_count', 'bank_bag_slots', 'taxi_node', 'cast_pushback_ms',
-                          'pet_entry', 'pet_aura_stacks', 'owned_creature_count', 'charm_entry',
+                          'bank_shows', 'system_messages', 'cast_failure',
+                          'pet_entry', 'pet_aura_stacks', 'pet_is_banker', 'pet_display', 'pet_scale',
+                          'owned_creature_count', 'charm_entry',
                           'charm_aura_stacks', 'controls_self', 'private_instance',
                           'dynamic_object', 'dynamic_object_duration_ms', 'gossip_options',
                           'owned_gameobject_count', 'gameobject_remaining_ms', 'at_homebind',
@@ -395,6 +412,7 @@ def validate(scenario):
                           'spellbook_misannounced_buys',
                           'spellbook_notify_rows', 'spellbook_notified_spells',
                           'spellbook_unnotified_buys',
+                          'trainer_list_packets', 'trainer_window_rows', 'trainer_window_state',
                           'cast_speed_multiplier', 'spell_crit_chance', 'spell_power_cost',
                           'spell_damage_done', 'melee_damage_done',
                           'who_count', 'who_class',
