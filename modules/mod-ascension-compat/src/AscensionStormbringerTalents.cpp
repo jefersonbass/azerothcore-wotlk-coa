@@ -43,7 +43,9 @@ enum StormbringerTalentSpells : uint32
     SPELL_VOLTAIC_MASTERY = 706661,
     SPELL_CONDUCTIVE = 567559,
     SPELL_DELUGE = 806400,
-    SPELL_DELUGE_BONUS = 806399
+    SPELL_DELUGE_BONUS = 806399,
+    SPELL_TITANSTORM = 801869,
+    SPELL_TITANSTORM_COOLDOWN = 801854
 };
 
 // The passive's tooltip gives a base chance (92096 carries 5%) and says it grows with
@@ -226,6 +228,23 @@ public:
             // activation-time mod path then quickens the authored 25%.
             info->Attributes |= SPELL_ATTR0_PASSIVE;
             info->Effects[EFFECT_0].SpellClassMask = flag96(0, 0, 0x30);
+        }
+        if (info->Id == SPELL_TITANSTORM)
+        {
+            // Issue 686: Titanstorm ships without SPELL_ATTR0_PASSIVE, so the
+            // learn/login passes never applied its proc aura. Effect 0 is the
+            // guaranteed (ProcChance 100, proc flags 0x50000) proc into the
+            // cooldown reducer 801854 on Call Lightning and Electrocute.
+            info->Attributes |= SPELL_ATTR0_PASSIVE;
+        }
+        if (info->Id == SPELL_TITANSTORM_COOLDOWN)
+        {
+            // The reducer's two ASCENSION_MODIFY_COOLDOWN effects carry
+            // display-minus-1 BasePoints with DieSides 0, which would reduce
+            // Arm of Thorim (801847) and Lightning Cage (560030) by 1501 ms
+            // instead of the tooltip's 1.5 sec. Shift DieSides to 1.
+            info->Effects[EFFECT_0].DieSides = 1;
+            info->Effects[EFFECT_1].DieSides = 1;
         }
         if (info->Id == SPELL_STORM_ASCENDANCE)
         {
