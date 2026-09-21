@@ -28,6 +28,7 @@ constexpr std::uint32_t PARADOX_CANNON_PERIOD_MS = 3000;
 constexpr std::uint32_t SPELL_BLOODMAGE_BLOOD_CLOT = 680657;
 constexpr std::uint32_t SPELL_BLOODMAGE_FORBIDDEN_POWER = 500445;
 constexpr std::uint32_t SPELL_CULTIST_RESIDUAL_ENERGY = 681389;
+constexpr std::uint32_t SPELL_NECROMANCER_ICE_MASTERY = 560045;
 
 bool IsTemplarReckoning(std::uint32_t spellId)
 {
@@ -80,6 +81,22 @@ void ApplyAscensionClassMechanics19To25(SpellInfo* spellInfo)
         // DURATION flat +7999 ms) against Shadow of the Void's mask
         // (flags[0] 0x100, spell 300277), doubling its 8 s duration.
         spellInfo->Attributes |= SPELL_ATTR0_PASSIVE;
+    }
+    if (spellInfo->Id == SPELL_NECROMANCER_ICE_MASTERY)
+    {
+        // Ice Mastery: without SPELL_ATTR0_PASSIVE the learned talent is
+        // never applied as a standing aura. Effect 2 is the authored half
+        // (aura 174, MOD_SPELL_DAMAGE_OF_STAT_PERCENT: +30% of Intellect as
+        // spell power, school mask 126, miscB 3 = STAT_INTELLECT), and its
+        // BasePoints are display-minus-1 with DieSides 0. Shift DieSides to
+        // 1 on all three effects: effect 2 then resolves as the tooltip's
+        // 30%, while the -1 placeholders on effects 0 (aura 220) and 1
+        // (aura 333) resolve to a harmless 0 instead of a negative
+        // crit-rating and hit-chance penalty.
+        spellInfo->Attributes |= SPELL_ATTR0_PASSIVE;
+        spellInfo->Effects[EFFECT_0].DieSides = 1;
+        spellInfo->Effects[EFFECT_1].DieSides = 1;
+        spellInfo->Effects[EFFECT_2].DieSides = 1;
     }
 
     if (spellInfo->Id == SPELL_CHRONOMANCER_INFINITE_SHIELD)
