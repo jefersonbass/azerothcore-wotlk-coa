@@ -41,6 +41,16 @@ void ApplyContracts(SpellInfo* info)
         // Knight of Pestilence's percent modifier must read as the crit-damage op so the
         // engine adds it to crit bonuses; the DBC family mask already keys the Pestilences.
         info->Effects[EFFECT_0].MiscValue = SPELLMOD_CRIT_DAMAGE_BONUS;
+    if (id == 707614)
+    {
+        // Issue 678: Jagged Edge ships without SPELL_ATTR0_PASSIVE, so the
+        // learn/login passes never applied its rage aura, and its BasePoints
+        // are display-minus-1 with DieSides 0. Mark passive and shift DieSides
+        // to 1 so effect 0 resolves as the tooltip's +20% Rage from damage
+        // dealt (aura 213, native MOD_RAGE_FROM_DAMAGE_DEALT path).
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+        info->Effects[EFFECT_0].DieSides = 1;
+    }
     if (id == 705020)
     {
         // War Pig's damage bonus ships as an untyped school-immunity slot; map it to
