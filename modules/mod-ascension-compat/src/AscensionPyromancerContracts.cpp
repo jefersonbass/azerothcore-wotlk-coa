@@ -277,6 +277,18 @@ void ApplyContracts(SpellInfo* info)
         // diminishing/crowd-control logic.
         info->AuraInterruptFlags |= AURA_INTERRUPT_FLAG_DIRECT_DAMAGE;
     }
+    if (id == 704820)
+    {
+        // Issue 702: Ysera's Blessing's two effects are the authored halves
+        // (-0.5 sec cast time, aura 107 op 10 = SPELLMOD_CASTING_TIME, bp -501
+        // with DieSides 1 resolving as -500 ms; -10% break chance, aura 107
+        // op 18 = SPELLMOD_CHANCE_OF_SUCCESS, bp -11 resolving as -10). The
+        // authored maskB 0x40000000 already keys Gaze of Ysera (503229,
+        // family-30 flags[1] 0x40000000), and the DBC already carries
+        // SPELL_ATTR0_PASSIVE, so no code change is needed beyond this
+        // documenting re-mark, kept as a defensive no-op.
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+    }
     if (id == 707126)
     {
         // Issue 814: Constant Burning ships without SPELL_ATTR0_PASSIVE, so
