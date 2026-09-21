@@ -330,6 +330,17 @@ public:
             info->AttributesCu &= ~SPELL_ATTR0_CU_FORCE_AURA_SAVING;
             info->AttributesCu |= SPELL_ATTR0_CU_AURA_CANNOT_BE_SAVED;
         }
+        if (info->Id == 707909)
+        {
+            // Issue 662: To The Shadowlands ships without SPELL_ATTR0_PASSIVE,
+            // so the learn/login passes never applied its duration mod, and
+            // its BasePoints are display-minus-1 with DieSides 0. Mark passive
+            // and shift DieSides to 1 so effect 0 resolves as +1 sec (aura
+            // 107, op 1 = SPELLMOD_DURATION, maskA 0x4000000 keys Soulslam
+            // 504014's family-36 flag).
+            info->Attributes |= SPELL_ATTR0_PASSIVE;
+            info->Effects[EFFECT_0].DieSides = 1;
+        }
     }
 };
 }
