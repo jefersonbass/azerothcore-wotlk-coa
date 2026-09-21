@@ -46,6 +46,22 @@ void ApplyContracts(SpellInfo* info)
         info->Effects[EFFECT_0].DieSides = 1;
         info->Effects[EFFECT_1].DieSides = 1;
     }
+    if (id == 807509)
+    {
+        // Issue 681: Lighting the Fuse ships without SPELL_ATTR0_PASSIVE, so
+        // the learn/login passes never applied its auras, and its BasePoints
+        // are display-minus-1 with DieSides 0. Mark passive and shift DieSides
+        // to 1 so effect 0 resolves as the tooltip's periodic-crit enablement
+        // (aura 286, ABILITY_PERIODIC_CRIT, amount is the added periodic crit
+        // chance; the DBC stores -1, so it resolves to a harmless 0) and
+        // effect 1 as +15% of Intellect as spell crit rating (aura 220,
+        // miscB 3 = STAT_INTELLECT). The authored masks already key the
+        // Pyromancer DoTs (0x200: Blaze 805500/534600) and the crit-rating
+        // schools (0x1000100: Cleansing Flame 570052, Emberheart 680366).
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+        info->Effects[EFFECT_0].DieSides = 1;
+        info->Effects[EFFECT_1].DieSides = 1;
+    }
     // Incinerator (807510): the client DBC ships a wrong aura (Mod Spell Damage
     // Taken School -70). The tooltip grants 30 spell penetration, scaling with
     // level via the passive's native level scaling on BasePoints.
