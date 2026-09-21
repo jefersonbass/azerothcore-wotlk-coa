@@ -572,11 +572,14 @@ public:
         }
         if (info->Id == SPELL_BLOOD_SHARDS)
         {
-            // Issue 673: the talent ships without SPELL_ATTR0_PASSIVE, so the
-            // learn/login passes never applied its aura. Mark passive; the
-            // stack generation and Veinburst expenditure live in the hit
-            // callback above, and the authored proc aura (42 into DUMMY
-            // 506640) is neutralized so it cannot double-fire.
+            // Issue 673: the talent's real defect is its proc aura (42 into
+            // DUMMY 506640), which cannot express stack generation, so nothing
+            // accumulated and Veinburst had nothing to spend. The stack
+            // generation and Veinburst expenditure live in the hit callback
+            // above, and the dead proc aura is neutralized so it cannot
+            // double-fire. The DBC already carries SPELL_ATTR0_PASSIVE, so
+            // the re-mark below is a defensive no-op kept in case the record
+            // is ever regenerated without it.
             info->Attributes |= SPELL_ATTR0_PASSIVE;
             info->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_DUMMY;
             info->Effects[EFFECT_0].TriggerSpell = 0;
