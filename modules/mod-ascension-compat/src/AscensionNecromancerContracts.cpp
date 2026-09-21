@@ -174,14 +174,14 @@ void ApplyContracts(SpellInfo* info)
     }
     if (id == 500342)
     {
-        // Issue 679: Mutation ships without SPELL_ATTR0_PASSIVE, so the
-        // learn/login passes never applied its mods, and its BasePoints are
-        // display-minus-1 with DieSides 0. Mark passive and shift DieSides to
-        // 1 so effect 0 resolves as -50% tick time (aura 108, op 19 =
+        // Issue 679: Mutation is one of the two talents in this batch whose
+        // DBC genuinely lacks SPELL_ATTR0_PASSIVE, so the learn/login passes
+        // never applied its mods. Mark passive and shift DieSides to 1 so
+        // effect 0 resolves as -50% tick time (aura 108, op 19 =
         // SPELLMOD_ACTIVATION_TIME, consumed by AuraEffect amplitude; mask
-        // 0x800c000 keys the diseases and mask empty 0x4800000 keys the Raise
-        // pet diseases) and effect 1 (aura 108, op 1 = SPELLMOD_DURATION,
-        // mask 0x4800000) resolves as the authored 0 (placeholder cleanup).
+        // 0x800c000 keys the diseases and mask 0x4800000 keys the Raise pet
+        // diseases) and effect 1 (aura 108, op 1 = SPELLMOD_DURATION, mask
+        // 0x4800000) resolves as the authored 0 (placeholder cleanup).
         info->Attributes |= SPELL_ATTR0_PASSIVE;
         info->Effects[EFFECT_0].DieSides = 1;
         info->Effects[EFFECT_1].DieSides = 1;
