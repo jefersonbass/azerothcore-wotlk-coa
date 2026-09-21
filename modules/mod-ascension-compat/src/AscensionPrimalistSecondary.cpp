@@ -24,7 +24,8 @@ enum PrimalistSecondarySpells : uint32
     SPELL_EMBRACED_BY_EARTH = 561037,
     SPELL_EMBRACE_DISORIENT = 706200,
     SPELL_GAZE = 805919,
-    SPELL_GAZE_SLOW = 572908
+    SPELL_GAZE_SLOW = 572908,
+    SPELL_FRENZIED_ROAR = 800133
 };
 
 class primalist_secondary_auras : public UnitScript
@@ -216,6 +217,17 @@ public:
             info->AuraInterruptFlags |= AURA_INTERRUPT_FLAG_TAKE_DAMAGE;
         if (info->Id == SPELL_GAZE_SLOW)
             info->ProcCharges = 1; // Native proc data spends this on the next melee/ranged swing, including misses.
+        if (info->Id == SPELL_FRENZIED_ROAR)
+        {
+            // Issue 701: Frenzied Roar's two effects are the authored halves
+            // (+20% attack speed, aura 138; Energize 20 Rage, misc 1 =
+            // POWER_RAGE, bp 199 with DieSides 1 resolving as 200 rage units =
+            // 20 Rage). The DBC already carries DieSides 1 on both, so the
+            // re-mark below is a defensive no-op kept in case the record is
+            // ever regenerated without it.
+            info->Effects[EFFECT_0].DieSides = 1;
+            info->Effects[EFFECT_1].DieSides = 1;
+        }
         if (info->Id == 524677)
         {
             // Issue 879: Wild At Heart ships without SPELL_ATTR0_PASSIVE, so
