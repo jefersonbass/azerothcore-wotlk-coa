@@ -291,7 +291,7 @@ public:
             SyncCursedFormRequirement(player);
         if (IsCursedForm(aura->GetId()))
             UpdateCursedFormWeapons(player, true);
-            // The Hunter and the Hunted (807487): activating a Cursed Form charges
+        // The Hunter and the Hunted (807487): activating a Cursed Form charges
             // the Bloodmage to their target inside 20 yards and roots enemies for
             // two seconds. Net (100614) supplies the clean two-second root.
             if (player->HasAura(SPELL_HUNTER_AND_HUNTED) &&
@@ -304,7 +304,6 @@ public:
                             target->GetPositionY(), target->GetPositionZ(), 42.0f);
                         player->CastSpell(target, SPELL_HUNTER_AND_HUNTED_NET, true);
                     }
-        }
 
         // "Armor contribution from items" is a hidden passive (804320) that nothing ever applied.
         if (aura->GetId() == SPELL_ETERNAL_CURSE)
@@ -884,6 +883,7 @@ public:
         fear.RadiusEntry = info->Effects[EFFECT_0].RadiusEntry;
     }
 };
+}
 
 void AddSC_AscensionBloodmageTalents()
 {
