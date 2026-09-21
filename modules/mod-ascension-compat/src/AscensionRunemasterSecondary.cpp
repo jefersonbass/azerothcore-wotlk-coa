@@ -493,6 +493,25 @@ public:
             info->Effects[EFFECT_0].MiscValue = SPELLMOD_DAMAGE;
             info->Effects[EFFECT_0].SpellClassMask = flag96(0x20000, 0x10, 0);
         }
+        if (info->Id == 706671)
+        {
+            // Issue 684: Elemental Acuity ships without SPELL_ATTR0_PASSIVE, so
+            // the learn/login passes never applied its auras, and its
+            // BasePoints are display-minus-1 with DieSides 0. Mark passive and
+            // shift DieSides to 1 so effect 0 resolves as +5% Fire/Frost/Nature
+            // damage done (aura 79, misc 28 = that school mask). Effect 1 is an
+            // AP-coefficient scaling: its authored op 32 is beyond MAX_SPELLMOD,
+            // so the engine drops it. Rebind it as the percentage
+            // AP-coefficient script on Runeblade (family-38 flags[2] 0x40000),
+            // resolving as the tooltip's +25% attack power scaling.
+            info->Attributes |= SPELL_ATTR0_PASSIVE;
+            info->Effects[EFFECT_0].DieSides = 1;
+            SpellEffectInfo& apCoefficient = info->Effects[EFFECT_1];
+            apCoefficient.ApplyAuraName = SPELL_AURA_OVERRIDE_CLASS_SCRIPTS;
+            apCoefficient.MiscValue = ASCENSION_DIRECT_AP_COEFFICIENT_PCT;
+            apCoefficient.DieSides = 1;
+            apCoefficient.SpellClassMask = flag96(0, 0, 0x40000);
+        }
     }
 };
 }
