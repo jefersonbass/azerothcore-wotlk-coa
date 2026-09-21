@@ -15,6 +15,18 @@ void ApplyContracts(SpellInfo* info)
     if (!info || info->SpellFamilyName != 33)
         return;
     uint32 id = info->Id;
+    if (id == 560857)
+    {
+        // Issue 708: Burn The Heretics' two effects are the authored halves
+        // (+10% damage and healing against low-health targets, aura 303 =
+        // MOD_DAMAGE_DONE_VERSUS_AURASTATE and aura 360 =
+        // ASCENSION_MOD_HEALING_DONE_VERSUS_AURASTATE, misc 13 = the low-health
+        // aurastate, bp 9 with DieSides 1 resolving as 10; both consumed by
+        // the native Unit damage/healing bonus paths). The DBC already carries
+        // SPELL_ATTR0_PASSIVE, so the re-mark below is a defensive no-op kept
+        // in case the record is ever regenerated without it.
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+    }
     if (id == Rejuvenating)
         for (auto& effect : info->Effects)
             if (effect.IsAura())
