@@ -306,7 +306,6 @@ public:
             chance = 0;
         // Blood Prince's Command (704641): Bloodbolt always crits targets carrying
         // Taldaram's Torment (any rank of the torment DoT).
-        Player* player = Bloodmage(spell);
         if (player && target && player->HasAura(SPELL_BLOOD_PRINCES_COMMAND) &&
             AscensionBloodmage::GetEmpowerment(spell->GetSpellInfo()->Id) == AscensionBloodmage::Bloodbolt)
             for (uint32 torment : {800772, 802568, 802569, 802570})

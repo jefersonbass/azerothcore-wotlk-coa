@@ -41,9 +41,49 @@ enum BloodmageTalentSpells : uint32
     SPELL_ENDURE_THE_CURSE = 681190,
     SPELL_ETERNAL_CURSE = 800157,
     SPELL_ETERNAL_CURSE_ARMOR = 804320,
-    SPELL_CURSED_BLOOD = 681792,
+    SPELL_CURSED_BLOOD_TALENT = 681792,
     SPELL_CURSED_BLOOD_DEBUFF = 803722,
-    SPELL_SANGUINE_SCION = 807292
+    SPELL_BLOOD_SHIELD = 504296,
+    SPELL_COAGULATION_DISPEL = 504102,
+    SPELL_DARK_MARK = 705731,
+    SPELL_DARK_MARK_AURA = 707375,
+    SPELL_TERRORIZER = 806210,
+    SPELL_ENDURING = 300585,
+    SPELL_ADRENALINE_BOOST = 680675,
+    SPELL_BLOOD_PLAGUE = 575335,
+    SPELL_APPETITE_FOR_BLOOD = 560479,
+    SPELL_DARK_SIGIL = 560535,
+    SPELL_BLOODLORDS_CURSE = 707449,
+    SPELL_BLOOD_MOON = 707623,
+    SPELL_BLOOD_MOON_HEAL = 572786,
+    SPELL_CURSED_BLOOD = 707435,
+    SPELL_CURSED_BLOOD_RUPTURE = 707708,
+    SPELL_BLOODSURGE = 553267,
+    SPELL_BLOODCHASER = 523721,
+    SPELL_BLOOD_BOND_REWARD = 505325,
+    SPELL_GORE_TOME = 807788,
+    SPELL_GORE_TOME_WINDOW = 808014,
+    SPELL_ONE_MANS_CURSE = 680661,
+    SPELL_ONE_MANS_CURSE_HEAL = 680662,
+    SPELL_BLOOD_CONSTRUCTOR = 561196,
+    SPELL_THIRST = 706613,
+    SPELL_THIRST_ANIMATED_BLOOD = 300796,
+    SPELL_CRIMSON_EXPEDITION = 523727,
+    SPELL_SANGUINE_SCION = 807292,
+    SPELL_BLOOD_RUNS_COLD = 560257
+};
+
+// SpellFamilyFlags word 1 bit 17, the eight Bloodbolt records (578304, 578305, 804685, 806928-806932)
+// and no other family-26 row.
+constexpr uint32 BloodboltClassMask1 = 0x00020000;
+
+// The private selectors the client ships on aura 112. SpellAuraDefines.h states that raw 20000-series
+// records are not implicitly enabled; they are named here only to recognize the shipped shapes.
+enum AscensionRawCombatSelector : int32
+{
+    RAW_MASKED_CRIT = 20000,
+    RAW_MASKED_CRIT_DAMAGE = 20001,
+    RAW_CREATURE_DAMAGE = 20014
 };
 
 // Every creature Animated Blood can leave behind: worms, parasites and the rank 3 amalgam.
@@ -756,7 +796,7 @@ public:
             info->Effects[EFFECT_1].DieSides = 1;
             return;
         }
-        if (info->Id == SPELL_CURSED_BLOOD)
+        if (info->Id == SPELL_CURSED_BLOOD_TALENT)
         {
             // Issue 806: Cursed Blood ships without SPELL_ATTR0_PASSIVE, so the
             // learn/login passes never applied its spellmod auras, and its

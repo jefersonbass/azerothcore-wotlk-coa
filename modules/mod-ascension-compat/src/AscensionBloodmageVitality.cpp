@@ -313,8 +313,8 @@ class aura_ascension_eternal_presence : public AuraScript
 
     void Register() override
     {
-        OnEffectHitTarget += SpellEffectFn(spell_ascension_blood_craving_payout::MissingRage,
-            EFFECT_1, SPELL_EFFECT_ENERGIZE_PCT);
+        DoCheckProc += AuraCheckProcFn(aura_ascension_eternal_presence::Check);
+        OnEffectProc += AuraEffectProcFn(aura_ascension_eternal_presence::Proc, EFFECT_2, AuraType(354));
     }
 };
 
