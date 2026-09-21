@@ -15,6 +15,18 @@ void ApplyContracts(SpellInfo* info)
     if (!info || info->SpellFamilyName != 33)
         return;
     uint32 id = info->Id;
+    if (id == 560857)
+    {
+        // Issue 708: Burn The Heretics' two effects are the authored halves
+        // (+10% damage and healing against low-health targets, aura 303 =
+        // MOD_DAMAGE_DONE_VERSUS_AURASTATE and aura 360 =
+        // ASCENSION_MOD_HEALING_DONE_VERSUS_AURASTATE, misc 13 = the low-health
+        // aurastate, bp 9 with DieSides 1 resolving as 10; both consumed by
+        // the native Unit damage/healing bonus paths). The DBC already carries
+        // SPELL_ATTR0_PASSIVE, so the re-mark below is a defensive no-op kept
+        // in case the record is ever regenerated without it.
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+    }
     if (id == Rejuvenating)
         for (auto& effect : info->Effects)
             if (effect.IsAura())
@@ -83,6 +95,32 @@ void ApplyContracts(SpellInfo* info)
         info->Effects[EFFECT_0].DieSides = 1;
         info->Effects[EFFECT_1].DieSides = 1;
     }
+    if (id == 807654)
+    {
+        // Issue 687: Solar Discernment's two effects are the authored halves
+        // (+12% of Intellect into ratings, aura 220, miscB 3 = STAT_INTELLECT;
+        // misc bitmasks 1792 = crit ratings and 8388608 = expertise, native
+        // MOD_RATING_FROM_STAT path). The DBC already carries
+        // SPELL_ATTR0_PASSIVE and DieSides 1, so the re-mark below is a
+        // defensive no-op kept in case the record is ever regenerated without
+        // them.
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+        info->Effects[EFFECT_0].DieSides = 1;
+        info->Effects[EFFECT_1].DieSides = 1;
+    }
+    if (id == 681337)
+    {
+        // Issue 666: Holy Giant's real defect is its mask: the authored 0x2
+        // only keys Vow of the Valkyr (807749, flags 0x3), while Vow of Light
+        // (807547) sits on flag 0x1, so widen the mask to 0x3 to double both
+        // Vows as the tooltip states (op 8 = SPELLMOD_ALL_EFFECTS, native
+        // path). The DBC already carries SPELL_ATTR0_PASSIVE and DieSides 1,
+        // so the re-mark below is a defensive no-op kept in case the record
+        // is ever regenerated without them.
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+        info->Effects[EFFECT_0].DieSides = 1;
+        info->Effects[EFFECT_0].SpellClassMask |= flag96(0x1, 0, 0);
+    }
     if (id == 704911)
     {
         info->Effects[0].TargetA = SpellImplicitTargetInfo(TARGET_UNIT_TARGET_ALLY);
@@ -136,6 +174,18 @@ void ApplyContracts(SpellInfo* info)
         info->Attributes |= SPELL_ATTR0_PASSIVE,
         info->Effects[0].SpellClassMask = flag96(0x500, 0, 0);
 
+    if (id == 704945)
+    {
+        // Issue 1138: Unbreakable Focus ships with a mask (word 2 bit 20) that
+        // keys only cooldown-less passive modifiers (Holy Giant, Champion's
+        // Arrival, Vindicator, Empowered Holy Form), so its -20% cooldown mod
+        // (aura 108, op 11 = SPELLMOD_COOLDOWN, native path) never reaches the
+        // tooltip's targets. Re-key to the union of Gavel of Light
+        // ([0x40000000, 0x20, 0] and [0x40000000, 0, 0]) and Horusath Blast
+        // ([0, 0x40, 0]) family bits, which carry the 5s category and 25s
+        // cooldowns the tooltip promises to reduce.
+        info->Effects[EFFECT_0].SpellClassMask = flag96(0x40000000, 0x60, 0);
+    }
     if (id == 800764)
     {
         info->Effects[1].Effect = SPELL_EFFECT_DUMMY;

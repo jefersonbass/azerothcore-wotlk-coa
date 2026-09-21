@@ -31,6 +31,17 @@ void ApplyContracts(SpellInfo* info)
     // no duration, so any spell keeping the field leaves it stuck on the player it hits.
     if (info->ExcludeTargetAuraSpell == 560711)
         info->ExcludeTargetAuraSpell = 0;
+    if (id == 707832)
+    {
+        // Issue 710: Modulator's effect is the authored half (+20% Module
+        // effectiveness, aura 108 op 8 = SPELLMOD_ALL_EFFECTS, bp 19 with
+        // DieSides 1 resolving as 20), and the authored maskA 0x80000 already
+        // keys the Modules (803660+, family-34 flags[0] 0x80000). The DBC
+        // already carries SPELL_ATTR0_PASSIVE, so the re-mark below is a
+        // defensive no-op kept in case the record is ever regenerated without
+        // it.
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+    }
     if (id == 707495)
     {
         // The former duplicate pet Synergy payload is now supplied by 707278.
@@ -207,6 +218,32 @@ void ApplyContracts(SpellInfo* info)
         // (aura 212, native RAP-from-stat path).
         info->Attributes |= SPELL_ATTR0_PASSIVE;
         info->Effects[EFFECT_0].DieSides = 1;
+    }
+    if (id == 707398)
+    {
+        // Issue 689: Cutting Edge Technology's real defect is effect 1's empty
+        // mask, which the engine reads as "affects every spell of the family".
+        // Retarget it to Nanobot's family-34 flag 0x100000 (502552-502554) so
+        // the -20% tick time (op 19 = SPELLMOD_ACTIVATION_TIME) stops leaking
+        // onto every Tinker spell; effect 0's +20% Nanobot healing done (op 22
+        // = SPELLMOD_DOT) already keys the same flag. The DBC already carries
+        // DieSides 1 on both effects, so the re-mark below is a defensive
+        // no-op kept in case the record is ever regenerated without it.
+        info->Effects[EFFECT_0].DieSides = 1;
+        info->Effects[EFFECT_1].DieSides = 1;
+        info->Effects[EFFECT_1].SpellClassMask = flag96(0x100000, 0, 0);
+    }
+    if (id == 707115)
+    {
+        // Issue 668: Turbo Upgrade!'s real defect is its empty mask, which the
+        // engine reads as "affects every spell of the family". Retarget it to
+        // the Mechsuit (801384, family-34 flags 0x40000000 in maskA and 0x10
+        // in maskC) so the +100% (op 8 = SPELLMOD_ALL_EFFECTS) scales only
+        // the Mechsuit's auras. The DBC already carries DieSides 1, so the
+        // re-mark below is a defensive no-op kept in case the record is ever
+        // regenerated without it.
+        info->Effects[EFFECT_0].DieSides = 1;
+        info->Effects[EFFECT_0].SpellClassMask = flag96(0x40000000, 0, 0x10);
     }
     if (id == 807966 || id == 704475)
         info->Effects[0].SpellClassMask |= flag96(1073741824,1073741824,2684354560u);

@@ -1,4 +1,8 @@
 /* Copyright (C) 2016+ AzerothCore, GNU AGPL v3. */
+#include "CellImpl.h"
+#include "DBCStores.h"
+#include "GridNotifiers.h"
+#include "GridNotifiersImpl.h"
 #include "Pet.h"
 #include "Player.h"
 #include "ScriptMgr.h"
@@ -43,8 +47,16 @@ enum StormbringerTalentSpells : uint32
     SPELL_VOLTAIC_MASTERY = 706661,
     SPELL_CONDUCTIVE = 567559,
     SPELL_DELUGE = 806400,
-    SPELL_DELUGE_BONUS = 806399
+    SPELL_DELUGE_BONUS = 806399,
+    SPELL_TITANSTORM = 801869,
+    SPELL_TITANSTORM_COOLDOWN = 801854,
+    SPELL_FLUX_ARC = 705643,
+    SPELL_FLUX_ARC_MARK = 705644,
+    SPELL_FORKED_LIGHTNING = 355289,
+    SPELL_ARM_OF_THORIM = 801847
 };
+
+float const FLUX_ARC_SPLASH_RADIUS = 10.0f;
 
 // The passive's tooltip gives a base chance (92096 carries 5%) and says it grows with
 // Static. No public record has the rate, so each Static adds a fifth of a percent.
@@ -187,6 +199,42 @@ public:
                     player->CastCustomSpell(SPELL_DELUGE_BONUS, SPELLVALUE_BASE_POINT0,
                         int32(damage * stacks * 5 / 100), target, true);
         }
+        // Issue 665: Flux Arc marks enemies hit by Forked Lightning and Arm of
+        // Thorim for 10 sec, and Call Lightning against marked enemies deals an
+        // additional 15% of its damage to them and nearby enemies. The talent's
+        // authored aura 354 has no engine handler (the dispatch table holds
+        // "//354 unknown Ascension aura"), so the mark is applied here and the
+        // bonus is dealt as a triggered strike through the authored marker
+        // helper 705644. Runs once per cast on the first successful hostile hit.
+        uint32 const root = sSpellMgr->GetFirstSpellInChain(info->Id);
+        if (player->HasAura(SPELL_FLUX_ARC) && !spell->IsTriggered() && damage &&
+            !spell->GetScriptValue(SPELL_FLUX_ARC))
+        {
+            if (root == SPELL_CALL_LIGHTNING && target->HasAura(SPELL_FLUX_ARC_MARK, player->GetGUID()))
+            {
+                spell->SetScriptValue(SPELL_FLUX_ARC, 1);
+                uint32 const bonus = damage * 15 / 100;
+                player->CastCustomSpell(SPELL_FLUX_ARC_MARK, SPELLVALUE_BASE_POINT0,
+                    int32(bonus), target, true);
+                std::list<Unit*> enemies;
+                Acore::AnyUnitInObjectRangeCheck check(target, FLUX_ARC_SPLASH_RADIUS);
+                Acore::UnitListSearcher<Acore::AnyUnitInObjectRangeCheck> search(target, enemies, check);
+                Cell::VisitObjects(target, search, FLUX_ARC_SPLASH_RADIUS);
+                for (Unit* enemy : enemies)
+                {
+                    if (enemy == target || !enemy->IsAlive() || !player->IsValidAttackTarget(enemy) ||
+                        !target->IsWithinLOSInMap(enemy))
+                        continue;
+                    player->CastCustomSpell(SPELL_FLUX_ARC_MARK, SPELLVALUE_BASE_POINT0,
+                        int32(bonus), enemy, true);
+                }
+            }
+            else if (root == SPELL_FORKED_LIGHTNING || root == SPELL_ARM_OF_THORIM)
+            {
+                spell->SetScriptValue(SPELL_FLUX_ARC, 1);
+                player->CastSpell(target, SPELL_FLUX_ARC_MARK, true);
+            }
+        }
     }
 };
 
@@ -208,9 +256,38 @@ public:
             info->AscensionInheritsResolvedAmount = true;
             info->Effects[EFFECT_0].BonusMultiplier = 0.0f;
         }
+        if (info->Id == 705639)
+        {
+            // Issue 707: Voltaic Bursts' effect is the authored half (+50%
+            // periodic damage, aura 108 op 3 = SPELLMOD_EFFECT1, bp 49 with
+            // DieSides 1 resolving as 50), and the authored maskC 0x10000000
+            // already keys Shock (707058, family-22 flags[2] 0x10000000). The
+            // DBC already carries SPELL_ATTR0_PASSIVE, so the re-mark below is
+            // a defensive no-op kept in case the record is ever regenerated
+            // without it.
+            info->Attributes |= SPELL_ATTR0_PASSIVE;
+        }
         if (info->Id == SPELL_PERPETUAL_SHOCK)
             // The hit callback supplies the learned-spell gate and one 20-Static grant.
             info->Effects[EFFECT_1].Effect = 0;
+        if (info->Id == SPELL_FLUX_ARC)
+        {
+            // Issue 665: the talent's authored aura 354 has no engine handler
+            // (the dispatch table holds "//354 unknown Ascension aura"), so
+            // applying it is a no-op. Neutralize it to DUMMY and clear its
+            // trigger; the hit callback above applies the 10 s mark and deals
+            // the 15% bonus through the authored marker helper 705644.
+            info->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_DUMMY;
+            info->Effects[EFFECT_0].TriggerSpell = 0;
+        }
+        if (info->Id == SPELL_FLUX_ARC_MARK)
+        {
+            // The marker is applied by the hit callback and read back by it;
+            // give it the tooltip's 10 s duration (index 1) as a DUMMY aura so
+            // both halves stay in one authored record.
+            info->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_DUMMY;
+            info->DurationEntry = sSpellDurationStore.LookupEntry(1);
+        }
         if (info->Id == 560568)
             // Issue 992: Electrifying Aura ships without the passive flag, so
             // the learn/login passes never applied its raid aura (65 =
@@ -226,6 +303,26 @@ public:
             // activation-time mod path then quickens the authored 25%.
             info->Attributes |= SPELL_ATTR0_PASSIVE;
             info->Effects[EFFECT_0].SpellClassMask = flag96(0, 0, 0x30);
+        }
+        if (info->Id == SPELL_TITANSTORM)
+        {
+            // Issue 686: Titanstorm's proc aura is the authored half: effect 0
+            // is the guaranteed (ProcChance 100, proc flags 0x50000) proc into
+            // the cooldown reducer 801854 on Call Lightning and Electrocute.
+            // The DBC already carries SPELL_ATTR0_PASSIVE, so the re-mark
+            // below is a defensive no-op kept in case the record is ever
+            // regenerated without it.
+            info->Attributes |= SPELL_ATTR0_PASSIVE;
+        }
+        if (info->Id == SPELL_TITANSTORM_COOLDOWN)
+        {
+            // The reducer's two ASCENSION_MODIFY_COOLDOWN effects are the
+            // authored halves (-1500 ms on Arm of Thorim 801847 and Lightning
+            // Cage 560030, bp -1501 with DieSides 1). The re-mark below is a
+            // defensive no-op kept in case the record is ever regenerated
+            // without it.
+            info->Effects[EFFECT_0].DieSides = 1;
+            info->Effects[EFFECT_1].DieSides = 1;
         }
         if (info->Id == SPELL_STORM_ASCENDANCE)
         {

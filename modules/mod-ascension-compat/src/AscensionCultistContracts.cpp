@@ -176,6 +176,19 @@ void ApplyContracts(SpellInfo* info)
                 effect.TargetA = SpellImplicitTargetInfo(TARGET_UNIT_CASTER);
     if (id == 807883 || id == 681476 || id == 567529)
         info->DurationEntry = sSpellDurationStore.LookupEntry(21);
+    if (id == 520810)
+    {
+        // Issue 675: Corrupt Fate's cooldown mod (-60 sec, aura 107, op 11 =
+        // SPELLMOD_COOLDOWN) is authored correctly, but its DBC mask is empty,
+        // which the engine reads as "affects every spell", so the routing
+        // lives in SpellInfo::IsAffectedBySpellMod, which already binds this
+        // modifier to Dark Veil (520345) by name. The DBC already carries
+        // SPELL_ATTR0_PASSIVE and DieSides 1, so the re-mark below is a
+        // defensive no-op kept in case the record is ever regenerated without
+        // them.
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+        info->Effects[EFFECT_0].DieSides = 1;
+    }
     if (id == 520345)
     {
         info->Effects[0].ApplyAuraName = SPELL_AURA_PERIODIC_DUMMY;

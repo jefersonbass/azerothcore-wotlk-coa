@@ -46,6 +46,21 @@ void ApplyContracts(SpellInfo* info)
         info->Effects[EFFECT_0].DieSides = 1;
         info->Effects[EFFECT_1].DieSides = 1;
     }
+    if (id == 807509)
+    {
+        // Issue 681: Lighting the Fuse's two effects are the authored halves
+        // (periodic-crit enablement, aura 286, ABILITY_PERIODIC_CRIT; +15% of
+        // Intellect as spell crit rating, aura 220, miscB 3 = STAT_INTELLECT),
+        // and the authored masks already key the Pyromancer DoTs (0x200: Blaze
+        // 805500/534600) and the crit-rating schools (0x1000100: Cleansing
+        // Flame 570052, Emberheart 680366). The DBC already carries
+        // SPELL_ATTR0_PASSIVE and DieSides 1, so the re-mark below is a
+        // defensive no-op kept in case the record is ever regenerated without
+        // them.
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+        info->Effects[EFFECT_0].DieSides = 1;
+        info->Effects[EFFECT_1].DieSides = 1;
+    }
     // Incinerator (807510): the client DBC ships a wrong aura (Mod Spell Damage
     // Taken School -70). The tooltip grants 30 spell penetration, scaling with
     // level via the passive's native level scaling on BasePoints.
@@ -261,6 +276,18 @@ void ApplyContracts(SpellInfo* info)
         // the sleep; PvP duration capping is handled by the engine's
         // diminishing/crowd-control logic.
         info->AuraInterruptFlags |= AURA_INTERRUPT_FLAG_DIRECT_DAMAGE;
+    }
+    if (id == 704820)
+    {
+        // Issue 702: Ysera's Blessing's two effects are the authored halves
+        // (-0.5 sec cast time, aura 107 op 10 = SPELLMOD_CASTING_TIME, bp -501
+        // with DieSides 1 resolving as -500 ms; -10% break chance, aura 107
+        // op 18 = SPELLMOD_CHANCE_OF_SUCCESS, bp -11 resolving as -10). The
+        // authored maskB 0x40000000 already keys Gaze of Ysera (503229,
+        // family-30 flags[1] 0x40000000), and the DBC already carries
+        // SPELL_ATTR0_PASSIVE, so no code change is needed beyond this
+        // documenting re-mark, kept as a defensive no-op.
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
     }
     if (id == 707126)
     {

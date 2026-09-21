@@ -342,6 +342,17 @@ public:
             info->AttributesCu &= ~SPELL_ATTR0_CU_FORCE_AURA_SAVING;
             info->AttributesCu |= SPELL_ATTR0_CU_AURA_CANNOT_BE_SAVED;
         }
+        if (info->Id == 707909)
+        {
+            // Issue 662: To The Shadowlands' duration mod is the authored half
+            // (+1 sec, aura 107, op 1 = SPELLMOD_DURATION, maskA 0x4000000
+            // keys Soulslam 504014's family-36 flag). The DBC already carries
+            // SPELL_ATTR0_PASSIVE and DieSides 1, so the re-mark below is a
+            // defensive no-op kept in case the record is ever regenerated
+            // without them.
+            info->Attributes |= SPELL_ATTR0_PASSIVE;
+            info->Effects[EFFECT_0].DieSides = 1;
+        }
     }
 };
 }

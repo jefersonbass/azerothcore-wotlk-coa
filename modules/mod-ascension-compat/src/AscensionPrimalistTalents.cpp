@@ -563,6 +563,22 @@ void ApplyAscensionPrimalistTalentsContract(SpellInfo* info)
         info->Effects[0].BasePoints = 20;
         info->Effects[0].DieSides = 0;
     }
+    if (info->Id == 560156)
+    {
+        // Issue 680: Therazane's Blessing's real defect is its mask: the
+        // authored maskA 0x40 only keys Seismic Tremor (family-37 flags[0]
+        // 0x40), while Seismic Crash (503258, flags[1] 0x400000) and
+        // Earthquake (520412, flags[2] 0x10000000) are named in the tooltip
+        // too, so widen the mask to cover all three (flag96 part 0/1/2 maps
+        // to maskA/B/C). The periodic-crit aura itself (286,
+        // ABILITY_PERIODIC_CRIT, 15%) is authored correctly, and the DBC
+        // already carries SPELL_ATTR0_PASSIVE and DieSides 1, so the re-mark
+        // below is a defensive no-op kept in case the record is ever
+        // regenerated without them.
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+        info->Effects[EFFECT_0].DieSides = 1;
+        info->Effects[EFFECT_0].SpellClassMask |= flag96(0, 0x400000, 0x10000000);
+    }
     if (info->Id == 681494)
     {
         // Whispers of the Earth: effect 0 is filler — an Agility drop (aura 137,

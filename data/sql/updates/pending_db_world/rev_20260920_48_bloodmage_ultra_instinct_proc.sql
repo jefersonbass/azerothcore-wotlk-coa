@@ -1,0 +1,36 @@
+-- Ultra Instinct (704654): "Direct ability critical strikes now increase your spell and ability critical
+-- strike chance and critical damage by 3% for 10 sec, stacking up to 10 times. Each additional critical
+-- strike increases this by an additional 3%, but reduces its duration by 1 sec."
+-- Spell.dbc authors both halves (record 121546): the talent is a passive (Attributes 0x1c0) whose single
+-- effect is aura 42 (proc trigger spell) with TriggerSpell 504166 and BasePoints -1 / DieSides 1; the
+-- payload 504166 is stack 10, duration index 38 (11000 ms) with effect 0 = aura 290
+-- (SPELL_AURA_MOD_CRIT_PCT) bp 2 / DieSides 1 -> +3% crit chance, effect 1 = aura 163
+-- (SPELL_AURA_MOD_CRIT_DAMAGE_BONUS for spells, misc 127 = SPELL_SCHOOL_MASK_ALL) bp 4 / DieSides 1 ->
+-- +5% crit damage (the tooltip's "3%" names the crit-chance half; the DBC's authored damage number wins,
+-- matching the exiles+DBC-over-tooltip convention), and effect 2 = Ascension effect 177
+-- (SPELL_EFFECT_ASCENSION_MODIFY_AURA_DURATION, misc 504166, bp -1001 / DieSides 1 -> -1000 ms), the
+-- authored "-1 sec per extra stack" rider.
+-- Only the proc gate is missing: Spell.dbc gives 704654 ProcFlags 0, SpellMgr::LoadSpellProcs generates
+-- no entry for such a record, and Aura::GetProcEffectMask returns 0 without one (SpellAuras.cpp), so the
+-- aura-42 effect never triggers. A spell_proc row supplies the missing gate; the DBC's own proc handling
+-- (AuraEffect::HandleProcTriggerSpellAuraProc casting TriggerSpell 504166 on the caster, then
+-- AuraEffect::CalculateAmount multiplying the payload's amounts by StackAmount, and
+-- Spell::EffectAscensionModifyAuraDuration applying the -1 sec rider) does the rest natively.
+-- Columns, read from Spell.dbc and the core's proc call sites:
+--   SpellFamilyName 0 / all SpellFamilyMask 0 - "direct ability critical strikes" names no ability list.
+--   ProcFlags 69972 - every DONE damage flag a Bloodmage can generate, mirroring the Pure Chaos 807569
+--     row: PROC_FLAG_DONE_MELEE_AUTO_ATTACK (4) | PROC_FLAG_DONE_SPELL_MELEE_DMG_CLASS (16) |
+--     PROC_FLAG_DONE_RANGED_AUTO_ATTACK (64) | PROC_FLAG_DONE_SPELL_RANGED_DMG_CLASS (256) |
+--     PROC_FLAG_DONE_SPELL_NONE_DMG_CLASS_NEG (4096) | PROC_FLAG_DONE_SPELL_MAGIC_DMG_CLASS_NEG (65536).
+--     The main-hand/off-hand flags are left out on purpose: they are set alongside
+--     PROC_FLAG_DONE_MELEE_AUTO_ATTACK and would double the events for one swing. Periodic damage is
+--     excluded by the tooltip's "direct ability" and by these flags themselves.
+--   SpellTypeMask 1 (PROC_SPELL_TYPE_DAMAGE) - Unit::ProcSkillsAndAuras computes DAMAGE only when the
+--     event carries a DamageInfo with damage or absorb.
+--   SpellPhaseMask 2 (PROC_SPELL_PHASE_HIT) - crits resolve at the HIT phase.
+--   HitMask 2 (PROC_HIT_CRITICAL) - "critical strikes" only; CanSpellTriggerProcOnEvent requires the
+--     event's hit mask to contain this bit (SpellMgr.cpp ~950).
+--   Chance 100 - the record's own ProcChance, i.e. every qualifying crit lands the stack.
+DELETE FROM `spell_proc` WHERE `SpellId` = 704654;
+INSERT INTO `spell_proc` (`SpellId`, `SchoolMask`, `SpellFamilyName`, `SpellFamilyMask0`, `SpellFamilyMask1`, `SpellFamilyMask2`, `ProcFlags`, `SpellTypeMask`, `SpellPhaseMask`, `HitMask`, `AttributesMask`, `DisableEffectsMask`, `ProcsPerMinute`, `Chance`, `Cooldown`, `Charges`) VALUES
+(704654, 0, 0, 0, 0, 0, 69972, 1, 2, 2, 0, 0, 0, 100, 0, 0);

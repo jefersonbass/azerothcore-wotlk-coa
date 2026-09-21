@@ -429,6 +429,18 @@ public:
     {
         if (info->SpellFamilyName != 38)
             return;
+        if (info->Id == 806982)
+        {
+            // Issue 663 (Fists of Power): Earthen Fists is granted by the
+            // corrected 805796 proc below. Its amounts are authored correctly
+            // (effect 0 resolves as +3% melee haste, aura 138; effect 1 as
+            // +10% chance of success, aura 107 op 18 SPELLMOD_CHANCE_OF_
+            // SUCCESS), but effect 1's mask keys maskC 0x2000000, which only
+            // matches Speed Rune (572134/801103). Rekey it to the Weapon
+            // Engraving: Earth record's family flags (653219, maskA
+            // 0x40000000, maskB 0x4) so the engraving chance actually scales.
+            info->Effects[EFFECT_1].SpellClassMask = flag96(0x40000000, 0x4, 0);
+        }
         if (info->Id == SPELL_FISTS_HIT || info->Id == SPELL_ARCANE_SIGIL_DOT)
         {
             info->AttributesEx2 |= SPELL_ATTR2_CANT_CRIT;
@@ -492,6 +504,26 @@ public:
             info->Effects[EFFECT_0].DieSides = 1;
             info->Effects[EFFECT_0].MiscValue = SPELLMOD_DAMAGE;
             info->Effects[EFFECT_0].SpellClassMask = flag96(0x20000, 0x10, 0);
+        }
+        if (info->Id == 706671)
+        {
+            // Issue 684: Elemental Acuity's effect 0 is the authored half (+5%
+            // Fire/Frost/Nature damage done, aura 79, misc 28 = that school
+            // mask). Effect 1 is the real defect: an AP-coefficient scaling
+            // whose authored op 32 is beyond MAX_SPELLMOD, so the engine drops
+            // it. Rebind it as the percentage AP-coefficient script on
+            // Runeblade (family-38 flags[2] 0x40000), resolving as the
+            // tooltip's +25% attack power scaling. The DBC already carries
+            // SPELL_ATTR0_PASSIVE and DieSides 1, so the re-marks below are
+            // defensive no-ops kept in case the record is ever regenerated
+            // without them.
+            info->Attributes |= SPELL_ATTR0_PASSIVE;
+            info->Effects[EFFECT_0].DieSides = 1;
+            SpellEffectInfo& apCoefficient = info->Effects[EFFECT_1];
+            apCoefficient.ApplyAuraName = SPELL_AURA_OVERRIDE_CLASS_SCRIPTS;
+            apCoefficient.MiscValue = ASCENSION_DIRECT_AP_COEFFICIENT_PCT;
+            apCoefficient.DieSides = 1;
+            apCoefficient.SpellClassMask = flag96(0, 0, 0x40000);
         }
     }
 };
