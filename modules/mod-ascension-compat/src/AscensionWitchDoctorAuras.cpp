@@ -442,6 +442,23 @@ class aura_ascension_witch_doctor_lifecycle : public AuraScript
     }
 };
 
+class witch_doctor_amphibimorph_duration : public AllSpellScript
+{
+  public:
+    witch_doctor_amphibimorph_duration()
+        : AllSpellScript("witch_doctor_amphibimorph_duration", {ALLSPELLHOOK_ON_CALC_MAX_DURATION})
+    {
+    }
+    void OnCalcMaxDuration(Aura const* aura, int32& duration) override
+    {
+        // Amphibimorph: "Transform enemies ... for 40 sec (8 sec vs players)." The shipped
+        // duration entry is the 40-second PvE half; clamp player victims to the authored 8s.
+        if (aura->GetId() == Amphibimorph)
+            if (Unit* target = aura->GetUnitOwner(); target && target->IsPlayer())
+                duration = std::min(duration, 8000);
+    }
+};
+
 class witch_doctor_update : public UnitScript
 {
   public:
@@ -483,5 +500,6 @@ class witch_doctor_update : public UnitScript
 void AddAscensionWitchDoctorAuraScripts()
 {
     RegisterSpellScript(aura_ascension_witch_doctor_lifecycle);
+    new witch_doctor_amphibimorph_duration();
     new witch_doctor_update();
 }
