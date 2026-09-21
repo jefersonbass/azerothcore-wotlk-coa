@@ -332,12 +332,12 @@ public:
         }
         if (info->Id == 707909)
         {
-            // Issue 662: To The Shadowlands ships without SPELL_ATTR0_PASSIVE,
-            // so the learn/login passes never applied its duration mod, and
-            // its BasePoints are display-minus-1 with DieSides 0. Mark passive
-            // and shift DieSides to 1 so effect 0 resolves as +1 sec (aura
-            // 107, op 1 = SPELLMOD_DURATION, maskA 0x4000000 keys Soulslam
-            // 504014's family-36 flag).
+            // Issue 662: To The Shadowlands' duration mod is the authored half
+            // (+1 sec, aura 107, op 1 = SPELLMOD_DURATION, maskA 0x4000000
+            // keys Soulslam 504014's family-36 flag). The DBC already carries
+            // SPELL_ATTR0_PASSIVE and DieSides 1, so the re-mark below is a
+            // defensive no-op kept in case the record is ever regenerated
+            // without them.
             info->Attributes |= SPELL_ATTR0_PASSIVE;
             info->Effects[EFFECT_0].DieSides = 1;
         }
