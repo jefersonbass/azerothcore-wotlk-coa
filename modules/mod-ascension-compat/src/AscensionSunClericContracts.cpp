@@ -85,27 +85,26 @@ void ApplyContracts(SpellInfo* info)
     }
     if (id == 807654)
     {
-        // Issue 687: Solar Discernment ships without SPELL_ATTR0_PASSIVE, so
-        // the learn/login passes never applied its rating auras, and its
-        // BasePoints are display-minus-1 with DieSides 0. Mark passive and
-        // shift DieSides to 1 so both effects resolve as the tooltip's 12% of
-        // Intellect (aura 220, miscB 3 = STAT_INTELLECT; misc bitmasks 1792 =
-        // crit ratings and 8388608 = expertise, native MOD_RATING_FROM_STAT
-        // path).
+        // Issue 687: Solar Discernment's two effects are the authored halves
+        // (+12% of Intellect into ratings, aura 220, miscB 3 = STAT_INTELLECT;
+        // misc bitmasks 1792 = crit ratings and 8388608 = expertise, native
+        // MOD_RATING_FROM_STAT path). The DBC already carries
+        // SPELL_ATTR0_PASSIVE and DieSides 1, so the re-mark below is a
+        // defensive no-op kept in case the record is ever regenerated without
+        // them.
         info->Attributes |= SPELL_ATTR0_PASSIVE;
         info->Effects[EFFECT_0].DieSides = 1;
         info->Effects[EFFECT_1].DieSides = 1;
     }
     if (id == 681337)
     {
-        // Issue 666: Holy Giant ships without SPELL_ATTR0_PASSIVE, so the
-        // learn/login passes never applied its modifier, and its BasePoints
-        // are display-minus-1 with DieSides 0. Mark passive and shift DieSides
-        // to 1 so effect 0 resolves as the tooltip's +100% (op 8 =
-        // SPELLMOD_ALL_EFFECTS) on the Vows. The authored mask 0x2 only keys
-        // Vow of the Valkyr (807749, flags 0x3); Vow of Light (807547) sits on
-        // flag 0x1, so widen the mask to 0x3 to double both Vows as the
-        // tooltip states.
+        // Issue 666: Holy Giant's real defect is its mask: the authored 0x2
+        // only keys Vow of the Valkyr (807749, flags 0x3), while Vow of Light
+        // (807547) sits on flag 0x1, so widen the mask to 0x3 to double both
+        // Vows as the tooltip states (op 8 = SPELLMOD_ALL_EFFECTS, native
+        // path). The DBC already carries SPELL_ATTR0_PASSIVE and DieSides 1,
+        // so the re-mark below is a defensive no-op kept in case the record
+        // is ever regenerated without them.
         info->Attributes |= SPELL_ATTR0_PASSIVE;
         info->Effects[EFFECT_0].DieSides = 1;
         info->Effects[EFFECT_0].SpellClassMask |= flag96(0x1, 0, 0);
