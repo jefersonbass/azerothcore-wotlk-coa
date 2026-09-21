@@ -299,6 +299,7 @@ void ApplyAscensionPrimalistEarthshapingContracts(SpellInfo* spellInfo)
         effect.SpellClassMask == flag96(0, 0, 0))
         effect.ApplyAuraName = SPELL_AURA_DUMMY;
 }
+}
 
 class vitality_surge_heals : public UnitScript
 {
