@@ -140,3 +140,5 @@ tools/issue-sync/state.json
 tools/ascension-ref/data/
 tools/ascension-ref/index/
 !/modules/mod-portablemail/
+!/modules/mod-craftsmans-codex/
+!/modules/mod-spellbook/

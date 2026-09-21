@@ -77,6 +77,12 @@ AscensionCompat.LevelScaling = 1
 # Quests already above the player remain higher. Shared quest templates are immutable.
 AscensionCompat.QuestLevelScaling = 1
 
+# Automatic progression: hand out the class abilities, rank upgrades and automatic
+# talents for the character's class and level as they level up. Set to 0 to stop that
+# and let the player ask instead - a Book of Ascension grants them, so a realm that
+# wants the books to be the way abilities are earned runs with this off. Reloadable.
+AscensionCompat.AutoProgression = 0
+
 # Extension range derived from the installed client's opcode dispatch table.
 # Keep these values decimal because ConfigMgr numeric values are parsed as decimal.
 AscensionCompat.FirstExtensionOpcode = 1311
@@ -86,6 +92,15 @@ AscensionCompat.LastExtensionOpcode = 2515
 # Startup-only: solo levels 10-59, three scenes, depths 1-15. Realm level cap is unchanged.
 # Enable only with the reviewed installation package; native gameplay acceptance is still required.
 Ascension.Manastorm.Enable = 0
+
+# What kind of realm the client is told it is on: live, seasonal, league, ptr
+# or development. Exactly one is sent.
+#
+# This is not cosmetic. The client builds its vanity catalogue only from rows
+# that match an active realm type, so with none set the Vanity Collection stays
+# empty no matter what the account owns.
+# Default: live
+AscensionCompat.RealmType = "live"
 
 #
 #    AscensionCompat.LevelScalingMaxLift

@@ -51,6 +51,32 @@ bool IsCursedForm(uint32 id)
     return std::find(std::begin(CursedForms), std::end(CursedForms), id) != std::end(CursedForms);
 }
 
+constexpr uint8 CursedFormWeaponSlots[] = {EQUIPMENT_SLOT_MAINHAND, EQUIPMENT_SLOT_OFFHAND, EQUIPMENT_SLOT_RANGED};
+
+bool HasCursedForm(Player const* player, Aura const* ignored = nullptr)
+{
+    for (uint32 form : CursedForms)
+        if (Aura const* aura = player->GetAura(form, player->GetGUID()); aura && aura != ignored)
+            return true;
+    return false;
+}
+
+void ClearVisibleWeapon(Player* player, uint8 slot)
+{
+    player->SetUInt32Value(PLAYER_VISIBLE_ITEM_1_ENTRYID + slot * 2, 0);
+    player->SetUInt32Value(PLAYER_VISIBLE_ITEM_1_ENCHANTMENT + slot * 2, 0);
+}
+
+// The worgen model of Cursed Form fights with claws, so the weapons are only hidden, not disarmed.
+void UpdateCursedFormWeapons(Player* player, bool hidden)
+{
+    for (uint8 slot : CursedFormWeaponSlots)
+        if (hidden)
+            ClearVisibleWeapon(player, slot);
+        else
+            player->SetVisibleItemSlot(slot, player->GetItemByPos(INVENTORY_SLOT_BAG_0, slot));
+}
+
 // Cursed Form abilities gate their cast on a CasterAuraSpell marker that nothing in Spell.dbc ever
 // grants, so they could never be cast. Two distinct marker spells are both named "Cursed Form" in
 // Spell.dbc and are split across the kit's abilities (e.g. Ravenous Strike/Lunge/Claw Sweep/Bloodfang
@@ -156,6 +182,7 @@ public:
         if (IsCursedForm(aura->GetId()))
         {
             SyncCursedFormRequirement(player);
+            UpdateCursedFormWeapons(player, true);
             // The Hunter and the Hunted (807487): activating a Cursed Form charges
             // the Bloodmage to their target inside 20 yards and roots enemies for
             // two seconds. Net (100614) supplies the clean two-second root.
@@ -182,7 +209,11 @@ public:
             return;
         Aura* aura = application->GetBase();
         if (IsCursedForm(aura->GetId()))
+        {
             SyncCursedFormRequirement(player);
+            if (!HasCursedForm(player, aura))
+                UpdateCursedFormWeapons(player, false);
+        }
         if (aura->GetId() == SPELL_ETERNAL_CURSE)
             player->RemoveAurasDueToSpell(SPELL_ETERNAL_CURSE_ARMOR);
         if (!player->IsAlive() || !player->IsInWorld() || mode == AURA_REMOVE_BY_DEATH)
@@ -283,6 +314,24 @@ public:
     }
 };
 
+// Equipping or swapping a weapon rewrites the visible item fields, which would show it again.
+class bloodmage_cursed_form_weapons : public PlayerScript
+{
+public:
+    bloodmage_cursed_form_weapons() : PlayerScript("bloodmage_cursed_form_weapons",
+        {PLAYERHOOK_ON_AFTER_SET_VISIBLE_ITEM_SLOT}) { }
+
+    void OnPlayerAfterSetVisibleItemSlot(Player* player, uint8 slot, Item* /*item*/) override
+    {
+        if (!player || player->getClass() != CLASS_SON_OF_ARUGAL)
+            return;
+        if (std::find(std::begin(CursedFormWeaponSlots), std::end(CursedFormWeaponSlots), slot) ==
+            std::end(CursedFormWeaponSlots) || !HasCursedForm(player))
+            return;
+        ClearVisibleWeapon(player, slot);
+    }
+};
+
 class bloodmage_talent_contracts : public GlobalScript
 {
 public:
@@ -376,6 +425,7 @@ void AddSC_AscensionBloodmageTalents()
     new bloodmage_talent_events();
     new bloodmage_talent_guard();
     new bloodmage_cursed_form_death();
+    new bloodmage_cursed_form_weapons();
     new bloodmage_talent_contracts();
     RegisterSpellScript(spell_ascension_animated_blood);
 }
