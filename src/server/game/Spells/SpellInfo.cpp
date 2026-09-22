@@ -1549,6 +1549,14 @@ bool SpellInfo::IsAffectedBySpellMod(SpellModifier const* mod) const
         (mod->mask & flag96(0, 16384, 0)))
         return true;
 
+    // Holy Conquest's cost reduction unions Paragon's family bit in because
+    // Paragon carries no other bit, and Sun Stride carries that same bit
+    // without being one of the spells the tooltip names. Exclude only that
+    // pair; every preceding eligibility check still stands.
+    if (Id == 680700 && SpellFamilyName == 33 && affectSpell->SpellFamilyName == 33 &&
+        mod->spellId == 504248 && mod->op == SPELLMOD_COST && mod->type == SPELLMOD_PCT)
+        return false;
+
     return IsAffected(affectSpell->SpellFamilyName, mod->mask);
 }
 
