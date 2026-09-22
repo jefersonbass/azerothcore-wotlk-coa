@@ -233,6 +233,7 @@ void AddSC_AscensionReaperSpellContracts();
 void AddSC_AscensionReaperTalentProcs();
 void AddSC_AscensionStormbringerRunemasterTalentProcs();
 void AddSC_AscensionKnightOfXorothTalentProcs();
+void AddSC_AscensionBarbarianTalentProcs();
 void AddSC_AscensionPersonalBank();
 void AddSC_AscensionWisdomball();
 void AddSC_AscensionBloodmageTalents();
@@ -469,6 +470,7 @@ void Addmod_ascension_compatScripts()
     AddSC_AscensionReaperTalentProcs();
     AddSC_AscensionStormbringerRunemasterTalentProcs();
     AddSC_AscensionKnightOfXorothTalentProcs();
+    AddSC_AscensionBarbarianTalentProcs();
     AddSC_AscensionPersonalBank();
     AddSC_AscensionWisdomball();
     AddSC_AscensionBloodmageTalents();
