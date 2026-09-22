@@ -10,6 +10,6 @@
 -- SpellTypeMask 1 = PROC_SPELL_TYPE_DAMAGE, SpellPhaseMask 2 = PROC_SPELL_PHASE_HIT.
 DELETE FROM `spell_proc` WHERE `SpellId` IN (705692, 805743, 300609);
 INSERT INTO `spell_proc` (`SpellId`, `SchoolMask`, `SpellFamilyName`, `SpellFamilyMask0`, `SpellFamilyMask1`, `SpellFamilyMask2`, `ProcFlags`, `SpellTypeMask`, `SpellPhaseMask`, `HitMask`, `AttributesMask`, `DisableEffectsMask`, `ProcsPerMinute`, `Chance`, `Cooldown`, `Charges`) VALUES
-(705692, 0, 0, 256, 0, 4128, 69904, 1, 2, 0, 0, 0, 0, 0, 0, 0),
-(805743, 0, 0, 131072, 131072, 0, 69904, 1, 2, 0, 0, 0, 0, 0, 0, 0),
-(300609, 0, 0, 256, 0, 4128, 69904, 1, 2, 0, 0, 0, 0, 0, 0, 0);
+(705692, 0, 22, 256, 0, 4128, 69904, 1, 2, 0, 0, 0, 0, 0, 0, 0),
+(805743, 0, 38, 131072, 131072, 0, 69904, 1, 2, 0, 0, 0, 0, 0, 0, 0),
+(300609, 0, 22, 256, 0, 4128, 69904, 1, 2, 0, 0, 0, 0, 0, 0, 0);

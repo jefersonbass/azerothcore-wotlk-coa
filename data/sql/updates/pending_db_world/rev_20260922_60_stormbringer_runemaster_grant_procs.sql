@@ -15,7 +15,7 @@
 -- "Casting Kiss of the Clouds empowers your Air Elemental" clause rides this row.
 DELETE FROM `spell_proc` WHERE `SpellId` IN (705634, 705700, 707053, 705715);
 INSERT INTO `spell_proc` (`SpellId`, `SchoolMask`, `SpellFamilyName`, `SpellFamilyMask0`, `SpellFamilyMask1`, `SpellFamilyMask2`, `ProcFlags`, `SpellTypeMask`, `SpellPhaseMask`, `HitMask`, `AttributesMask`, `DisableEffectsMask`, `ProcsPerMinute`, `Chance`, `Cooldown`, `Charges`) VALUES
-(705634, 0, 0, 0, 4, 0, 87312, 7, 1, 0, 0, 0, 0, 0, 0, 0),
-(705700, 0, 0, 8388608, 16, 32, 69904, 1, 1, 0, 0, 0, 0, 0, 0, 0),
-(707053, 0, 0, 0, 4096, 0, 69904, 1, 1, 0, 0, 0, 0, 0, 0, 0),
-(705715, 0, 0, 0, 0, 1048576, 87312, 7, 1, 0, 0, 0, 0, 0, 0, 0);
+(705634, 0, 38, 0, 4, 0, 87312, 7, 1, 0, 0, 0, 0, 0, 0, 0),
+(705700, 0, 22, 8388608, 16, 32, 69904, 1, 1, 0, 0, 0, 0, 0, 0, 0),
+(707053, 0, 22, 0, 4096, 0, 69904, 1, 1, 0, 0, 0, 0, 0, 0, 0),
+(705715, 0, 22, 0, 0, 1048576, 87312, 7, 1, 0, 0, 0, 0, 0, 0, 0);

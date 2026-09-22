@@ -15,8 +15,8 @@
 -- SpellTypeMask 1 = PROC_SPELL_TYPE_DAMAGE.
 DELETE FROM `spell_proc` WHERE `SpellId` IN (806409, 520755, 706523, 712308, 804061);
 INSERT INTO `spell_proc` (`SpellId`, `SchoolMask`, `SpellFamilyName`, `SpellFamilyMask0`, `SpellFamilyMask1`, `SpellFamilyMask2`, `ProcFlags`, `SpellTypeMask`, `SpellPhaseMask`, `HitMask`, `AttributesMask`, `DisableEffectsMask`, `ProcsPerMinute`, `Chance`, `Cooldown`, `Charges`) VALUES
-(806409, 0, 0, 0, 32769, 32, 69904, 1, 1, 0, 0, 0, 0, 0, 0, 0),
-(520755, 0, 0, 4194304, 1048576, 262208, 69904, 1, 1, 0, 0, 0, 0, 0, 0, 0),
-(706523, 0, 0, 0, 0, 393216, 69904, 1, 2, 0, 0, 0, 0, 0, 0, 0),
-(712308, 0, 0, 8388608, 0, 0, 69972, 1, 2, 2, 0, 0, 0, 0, 0, 0),
-(804061, 0, 0, 256, 0, 260, 69904, 1, 2, 0, 0, 0, 0, 0, 0, 0);
+(806409, 0, 22, 0, 32769, 32, 69904, 1, 1, 0, 0, 0, 0, 0, 0, 0),
+(520755, 0, 38, 4194304, 1048576, 262208, 69904, 1, 1, 0, 0, 0, 0, 0, 0, 0),
+(706523, 0, 38, 0, 0, 393216, 69904, 1, 2, 0, 0, 0, 0, 0, 0, 0),
+(712308, 0, 38, 8388608, 0, 0, 69972, 1, 2, 2, 0, 0, 0, 0, 0, 0),
+(804061, 0, 38, 256, 0, 260, 69904, 1, 2, 0, 0, 0, 0, 0, 0, 0);

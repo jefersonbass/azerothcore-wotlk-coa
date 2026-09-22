@@ -8,11 +8,14 @@
 -- the proc fires only for it: Conduction word0 32768 (Binder of Storms), Call Lightning word1 16
 -- (Evergale). Storm Bond's aura is applied to the Air Elemental by effect 190, so its proc rides the
 -- pet's damage.
--- Current Conversion (705670) and Ghast (705684) were dropped from this file: neither is present in
--- CharacterAdvancement.dbc nor in SkillLineAbility.dbc and no spell teaches them, so a proc row for
--- them would be dead code.
-DELETE FROM `spell_proc` WHERE `SpellId` IN (707542, 705717, 500580);
+-- Current Conversion (705670) belongs in this file after all: it is granted through SkillLineAbility
+-- (SkillLine 61, "Lightning"), so it is reachable. Ghast (705684) stays out - it is absent from both
+-- CharacterAdvancement.dbc and SkillLineAbility.dbc and no spell teaches it, so a row would be dead code.
+-- SpellFamilyName is set on every row that carries a mask: SpellInfo::IsAffected returns true as soon
+-- as the family name is 0, so a mask without its family is never consulted.
+DELETE FROM `spell_proc` WHERE `SpellId` IN (707542, 705717, 705670, 500580);
 INSERT INTO `spell_proc` (`SpellId`, `SchoolMask`, `SpellFamilyName`, `SpellFamilyMask0`, `SpellFamilyMask1`, `SpellFamilyMask2`, `ProcFlags`, `SpellTypeMask`, `SpellPhaseMask`, `HitMask`, `AttributesMask`, `DisableEffectsMask`, `ProcsPerMinute`, `Chance`, `Cooldown`, `Charges`) VALUES
-(707542, 0, 0, 32768, 0, 0, 69904, 1, 2, 0, 0, 0, 0, 0, 0, 0),
-(705717, 0, 0, 0, 16, 0, 69904, 1, 2, 0, 0, 0, 0, 0, 0, 0),
+(707542, 0, 22, 32768, 0, 0, 69904, 1, 2, 0, 0, 0, 0, 0, 0, 0),
+(705717, 0, 22, 0, 16, 0, 69904, 1, 2, 0, 0, 0, 0, 0, 0, 0),
+(705670, 0, 22, 0, 4096, 0, 69904, 1, 2, 0, 0, 0, 0, 0, 0, 0),
 (500580, 0, 0, 0, 0, 0, 69972, 1, 2, 0, 0, 0, 0, 0, 0, 0);

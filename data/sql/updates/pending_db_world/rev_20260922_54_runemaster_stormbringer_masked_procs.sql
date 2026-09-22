@@ -11,11 +11,15 @@
 -- and is the reviewed shape for a critical-strike clause. HitMask 2 = PROC_HIT_CRITICAL for Primordial
 -- Echoes' "critical strikes dealt with Primordial Blast", HitMask 0 = any hit elsewhere.
 -- SpellTypeMask 1 = PROC_SPELL_TYPE_DAMAGE, SpellPhaseMask 2 = PROC_SPELL_PHASE_HIT.
--- Frost Glyph (500309) was dropped from this file: it is absent from CharacterAdvancement.dbc and from
--- SkillLineAbility.dbc and no spell teaches it, so a proc row for it would be dead code.
-DELETE FROM `spell_proc` WHERE `SpellId` IN (300595, 804828, 520138, 705572);
+-- Frost Glyph (500309) belongs in this file after all: it is granted through SkillLineAbility
+-- (SkillLine 116, "Glyphic"), so it is reachable.
+-- SpellFamilyName is set on every row that carries a mask: SpellInfo::IsAffected returns true as soon
+-- as the family name is 0, so a mask without its family is never consulted. 22 is Stormbringer,
+-- 38 is Runemaster.
+DELETE FROM `spell_proc` WHERE `SpellId` IN (300595, 804828, 520138, 705572, 500309);
 INSERT INTO `spell_proc` (`SpellId`, `SchoolMask`, `SpellFamilyName`, `SpellFamilyMask0`, `SpellFamilyMask1`, `SpellFamilyMask2`, `ProcFlags`, `SpellTypeMask`, `SpellPhaseMask`, `HitMask`, `AttributesMask`, `DisableEffectsMask`, `ProcsPerMinute`, `Chance`, `Cooldown`, `Charges`) VALUES
-(300595, 0, 0, 0, 0, 48, 69904, 1, 2, 0, 0, 0, 0, 0, 0, 0),
-(804828, 0, 0, 33554432, 2097152, 32, 69904, 1, 2, 0, 0, 0, 0, 0, 0, 0),
-(520138, 0, 0, 4194304, 1048576, 131136, 69904, 1, 2, 0, 0, 0, 0, 0, 0, 0),
-(705572, 0, 0, 4194304, 1048576, 64, 69972, 1, 2, 2, 0, 0, 0, 0, 0, 0);
+(300595, 0, 22, 0, 0, 48, 69904, 1, 2, 0, 0, 0, 0, 0, 0, 0),
+(804828, 0, 22, 33554432, 2097152, 32, 69904, 1, 2, 0, 0, 0, 0, 0, 0, 0),
+(520138, 0, 38, 4194304, 1048576, 131136, 69904, 1, 2, 0, 0, 0, 0, 0, 0, 0),
+(705572, 0, 38, 4194304, 1048576, 64, 69972, 1, 2, 2, 0, 0, 0, 0, 0, 0),
+(500309, 0, 38, 4194304, 1048576, 131136, 69904, 1, 2, 0, 0, 0, 0, 0, 0, 0);

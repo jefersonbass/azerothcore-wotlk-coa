@@ -8,8 +8,9 @@
 -- (Burned Etching 500475, Blade Rift 520238, Stone Savant 520934, Violent Monsoon 704225). Chance stays
 -- 0 everywhere, deferring to each record's own ProcChance (all 100).
 --   #1877 Burned Etching (500476) - "While Weapon Engraving: Fire is active, your Elemental Burst now
---        deals 10% increased damage": script requires aura 653022 (the Weapon Engraving: Fire talent)
---        and restricts the source to the Elemental Burst records.
+--        deals 10% increased damage": script requires aura 653211 (Fire Engraving, the aura the merged
+--        sibling code already gates on at AscensionRunemasterSecondary.cpp) and restricts the source to
+--        the Elemental Burst records. 653022 is the spellbook entry and is never carried as an aura.
 --   #1948 Blade Rift (520237) - "While stealthed, using Warpdagger now increases your Magic Damage
 --        dealt by 10% for 8 sec": script requires the caster to be stealthed (HasStealthAura, so any
 --        stealth form qualifies) and restricts the source to the Warpdagger records. Phase 1 because
@@ -25,7 +26,7 @@ INSERT INTO `spell_proc` (`SpellId`, `SchoolMask`, `SpellFamilyName`, `SpellFami
 (500476, 0, 0, 0, 0, 0, 69904, 1, 2, 0, 0, 0, 0, 0, 0, 0),
 (520237, 0, 0, 0, 0, 0, 69904, 1, 1, 0, 0, 0, 0, 0, 0, 0),
 (520917, 0, 0, 0, 0, 0, 69972, 1, 2, 2, 0, 0, 0, 0, 0, 0),
-(804016, 0, 0, 0, 2, 16777296, 69904, 1, 2, 0, 0, 0, 0, 0, 0, 0);
+(804016, 0, 22, 0, 2, 16777296, 69904, 1, 2, 0, 0, 0, 0, 0, 0, 0);
 
 DELETE FROM `spell_script_names` WHERE `spell_id` IN (500476, 520237, 520917)
   AND `ScriptName` = 'spell_ascension_stormbringer_runemaster_talent_proc';

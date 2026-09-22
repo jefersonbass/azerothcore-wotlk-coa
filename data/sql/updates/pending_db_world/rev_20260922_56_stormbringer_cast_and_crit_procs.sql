@@ -14,7 +14,7 @@
 -- 69904 = those four spell classes only. SpellTypeMask 1 = PROC_SPELL_TYPE_DAMAGE.
 DELETE FROM `spell_proc` WHERE `SpellId` IN (572310, 706823, 806737, 705719);
 INSERT INTO `spell_proc` (`SpellId`, `SchoolMask`, `SpellFamilyName`, `SpellFamilyMask0`, `SpellFamilyMask1`, `SpellFamilyMask2`, `ProcFlags`, `SpellTypeMask`, `SpellPhaseMask`, `HitMask`, `AttributesMask`, `DisableEffectsMask`, `ProcsPerMinute`, `Chance`, `Cooldown`, `Charges`) VALUES
-(572310, 0, 0, 0, 1, 32, 69972, 1, 2, 2, 0, 0, 0, 0, 0, 0),
-(706823, 0, 0, 4194304, 1048576, 64, 69904, 1, 1, 0, 0, 0, 0, 0, 0, 0),
-(806737, 0, 0, 512, 0, 0, 69904, 1, 1, 0, 0, 0, 0, 0, 0, 0),
-(705719, 0, 0, 16384, 537001984, 136, 69904, 1, 1, 0, 0, 0, 0, 0, 0, 0);
+(572310, 0, 22, 0, 1, 32, 69972, 1, 2, 2, 0, 0, 0, 0, 0, 0),
+(706823, 0, 38, 4194304, 1048576, 64, 69904, 1, 1, 0, 0, 0, 0, 0, 0, 0),
+(806737, 0, 38, 512, 0, 0, 69904, 1, 1, 0, 0, 0, 0, 0, 0, 0),
+(705719, 0, 22, 16384, 537001984, 136, 69904, 1, 1, 0, 0, 0, 0, 0, 0, 0);
