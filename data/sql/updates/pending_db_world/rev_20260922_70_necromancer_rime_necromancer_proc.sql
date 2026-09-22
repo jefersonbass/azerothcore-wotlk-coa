@@ -1,0 +1,31 @@
+-- Rime Necromancer (500119): "Frost Damage dealt has a 60% chance to apply Deathchill, dealing 1 Frost
+-- Damage and stacking 10 times, for until cancelled. At 10 stacks of Deathchill, apply Icy Tomb to the
+-- enemy."
+--
+-- SpellMgr::LoadSpellProcs skips a record that carries no DBC proc flags ("Skip if no proc flags in
+-- DBC", src/server/game/Spells/SpellMgr.cpp), so no fallback entry is generated; Aura::GetProcEffectMask
+-- then returns 0 for any aura with no proc entry ("only auras with spell proc entry can trigger proc",
+-- src/server/game/Spells/Auras/SpellAuras.cpp). 500119 ships ProcFlags 0, so both aura 42 effects - on
+-- TriggerSpell 801727 and TriggerSpell 801729 - have never fired.
+-- The payloads are authored: 801727 and 801729 are the Deathchill appliers, and effect 2 is the stack
+-- marker at MiscValue 16. Only the gate is missing. Same defect and same shape as
+-- rev_20260920_48_bloodmage_ultra_instinct_proc.sql.
+--
+-- SchoolMask 16 (SPELL_SCHOOL_MASK_FROST) - CanSpellTriggerProcOnEvent tests the event's spell school
+--   against SchoolMask (SpellMgr.cpp ~929), which is what keeps the proc to "Frost Damage dealt" as the
+--   tooltip states.
+-- ProcFlags 69972 = PROC_FLAG_DONE_MELEE_AUTO_ATTACK (4) | PROC_FLAG_DONE_SPELL_MELEE_DMG_CLASS (16) |
+--   PROC_FLAG_DONE_RANGED_AUTO_ATTACK (64) | PROC_FLAG_DONE_SPELL_RANGED_DMG_CLASS (256) |
+--   PROC_FLAG_DONE_SPELL_NONE_DMG_CLASS_NEG (4096) | PROC_FLAG_DONE_SPELL_MAGIC_DMG_CLASS_NEG (65536).
+--   The clause names no ability, so the full direct set is used; main-hand/off-hand flags are left out on
+--   purpose because they are set alongside PROC_FLAG_DONE_MELEE_AUTO_ATTACK and would double the events
+--   for one swing. Periodic is excluded by "damage dealt" pointing at direct hits.
+-- SpellTypeMask 1 (PROC_SPELL_TYPE_DAMAGE) - Unit::ProcSkillsAndAuras computes DAMAGE only when the event
+--   carries a DamageInfo with damage or absorb. It is never 0 while ProcFlags carries spell bits.
+-- SpellPhaseMask 2 (PROC_SPELL_PHASE_HIT) - the clause is "damage dealt", not "casting".
+-- HitMask 0 (PROC_HIT_NONE) - any Frost hit, not only a critical one.
+-- Chance stays 0 so the record's own ProcChance (60) is used, per
+-- rev_20260919_20_coa_proc_chance_parity.sql.
+DELETE FROM `spell_proc` WHERE `SpellId` = 500119;
+INSERT INTO `spell_proc` (`SpellId`, `SchoolMask`, `SpellFamilyName`, `SpellFamilyMask0`, `SpellFamilyMask1`, `SpellFamilyMask2`, `ProcFlags`, `SpellTypeMask`, `SpellPhaseMask`, `HitMask`, `AttributesMask`, `DisableEffectsMask`, `ProcsPerMinute`, `Chance`, `Cooldown`, `Charges`) VALUES
+(500119, 16, 0, 0, 0, 0, 69972, 1, 2, 0, 0, 0, 0, 0, 0, 0);
