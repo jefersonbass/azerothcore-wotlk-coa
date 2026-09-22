@@ -336,6 +336,9 @@ class aura_ascension_reaper_blood_frenzy : public AuraScript
 constexpr uint32 SPELL_ANIMA_AMBUSHER = 705424;
 constexpr uint32 SPELL_ANIMA_AMBUSH = 705425;
 constexpr uint32 SPELL_SPECTRE_STRIDE_HIT = 803742;
+constexpr uint32 SPELL_LAMENTING = 705397;
+constexpr uint32 SPELL_GHOSTLY_WEAPON_HIT = 804474;
+constexpr uint32 SPELL_GHOSTLY_WEAPON_HEAL = 807420;
 
 class reaper_talent_casts : public AllSpellScript
 {
@@ -346,14 +349,27 @@ public:
     void OnSpellHitResult(Spell* spell, Unit* target, uint8 miss, uint32 damage, uint32, bool) override
     {
         Player* player = spell->GetCaster() ? spell->GetCaster()->ToPlayer() : nullptr;
-        if (!player || player->getClass() != CLASS_REAPER || !target || miss != SPELL_MISS_NONE ||
-            !damage || spell->GetSpellInfo()->Id != SPELL_SPECTRE_STRIDE_HIT ||
-            !player->HasAura(SPELL_ANIMA_AMBUSHER) || spell->GetScriptValue(SPELL_ANIMA_AMBUSHER))
+        if (!player || player->getClass() != CLASS_REAPER || !target || miss != SPELL_MISS_NONE || !damage)
             return;
 
-        spell->SetScriptValue(SPELL_ANIMA_AMBUSHER, 1);
-        player->CastCustomSpell(SPELL_ANIMA_AMBUSH, SPELLVALUE_BASE_POINT0,
-            int32(damage * 125 / 100), target, true);
+        uint32 const spellId = spell->GetSpellInfo()->Id;
+
+        if (spellId == SPELL_SPECTRE_STRIDE_HIT && player->HasAura(SPELL_ANIMA_AMBUSHER) &&
+            !spell->GetScriptValue(SPELL_ANIMA_AMBUSHER))
+        {
+            spell->SetScriptValue(SPELL_ANIMA_AMBUSHER, 1);
+            player->CastCustomSpell(SPELL_ANIMA_AMBUSH, SPELLVALUE_BASE_POINT0,
+                int32(damage * 125 / 100), target, true);
+            return;
+        }
+
+        if (spellId == SPELL_GHOSTLY_WEAPON_HIT && player->HasAura(SPELL_LAMENTING) &&
+            !spell->GetScriptValue(SPELL_LAMENTING))
+        {
+            spell->SetScriptValue(SPELL_LAMENTING, 1);
+            player->CastCustomSpell(SPELL_GHOSTLY_WEAPON_HEAL, SPELLVALUE_BASE_POINT0,
+                int32(damage * 50 / 100), player, true);
+        }
     }
 };
 
