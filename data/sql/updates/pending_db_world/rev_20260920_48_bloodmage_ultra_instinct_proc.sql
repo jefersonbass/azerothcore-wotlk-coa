@@ -31,6 +31,11 @@
 --   HitMask 2 (PROC_HIT_CRITICAL) - "critical strikes" only; CanSpellTriggerProcOnEvent requires the
 --     event's hit mask to contain this bit (SpellMgr.cpp ~950).
 --   Chance 100 - the record's own ProcChance, i.e. every qualifying crit lands the stack.
-DELETE FROM `spell_proc` WHERE `SpellId` = 704654;
-INSERT INTO `spell_proc` (`SpellId`, `SchoolMask`, `SpellFamilyName`, `SpellFamilyMask0`, `SpellFamilyMask1`, `SpellFamilyMask2`, `ProcFlags`, `SpellTypeMask`, `SpellPhaseMask`, `HitMask`, `AttributesMask`, `DisableEffectsMask`, `ProcsPerMinute`, `Chance`, `Cooldown`, `Charges`) VALUES
-(704654, 0, 0, 0, 0, 0, 69972, 1, 2, 2, 0, 0, 0, 100, 0, 0);
+--
+-- SUPERSEDED: the row this file used to insert is now owned by
+-- rev_20260920_50_bloodmage_crit_procs.sql, which covers the same spell with ProcFlags 69904
+-- (PROC_FLAG_DONE_SPELL_MAGIC_DMG_CLASS_NEG only) and Chance 0 (defer to the record's ProcChance).
+-- 69904 matches the tooltip's "direct ABILITY critical strikes" - 69972 also carries
+-- PROC_FLAG_DONE_MELEE_AUTO_ATTACK / RANGED_AUTO_ATTACK, which are swings rather than abilities.
+-- Both files used to insert a row for 704654, and because `_50` sorts later it deleted and replaced
+-- this one; the duplicate is removed so the outcome no longer depends on file order.
