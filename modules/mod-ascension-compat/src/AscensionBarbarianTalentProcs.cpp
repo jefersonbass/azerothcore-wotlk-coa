@@ -51,9 +51,28 @@ class spell_ascension_barbarian_talent_proc : public AuraScript
         DoCheckProc += AuraCheckProcFn(spell_ascension_barbarian_talent_proc::CheckProc);
     }
 };
+
+constexpr float TO_THE_END_HEALTH_PCT = 35.0f;
+
+class aura_barbarian_to_the_end : public AuraScript
+{
+    PrepareAuraScript(aura_barbarian_to_the_end);
+
+    bool CheckProc(ProcEventInfo&)
+    {
+        Unit* caster = GetTarget();
+        return caster && caster->GetHealthPct() <= TO_THE_END_HEALTH_PCT;
+    }
+
+    void Register() override
+    {
+        DoCheckProc += AuraCheckProcFn(aura_barbarian_to_the_end::CheckProc);
+    }
+};
 }
 
 void AddSC_AscensionBarbarianTalentProcs()
 {
     RegisterSpellScript(spell_ascension_barbarian_talent_proc);
+    RegisterSpellScript(aura_barbarian_to_the_end);
 }
