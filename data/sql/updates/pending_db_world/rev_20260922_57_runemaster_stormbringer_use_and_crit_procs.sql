@@ -13,10 +13,26 @@
 -- (8388608/0/0); Hurricane (256/0/0) OR (0/0/260).
 -- ProcFlags 69904 = the four direct damage spell classes only; 69972 adds melee and ranged auto attacks.
 -- SpellTypeMask 1 = PROC_SPELL_TYPE_DAMAGE.
+-- MASK CORRECTION (2026-09-22) - THIS SUPERSEDES THE MASK VALUES NAMED ABOVE: SpellFamilyMask
+-- matches by ANY shared bit (flag96 operator& plus
+-- operator bool in Util.h:513/557, consumed at SpellInfo.cpp:1439), so a mask set to an ability full
+-- flags also matched every ability sharing any of those bits - word2 bit 32 alone is shared by about
+-- thirteen Stormbringer abilities. The rows here now carry only the bits that are EXCLUSIVE to the
+-- ability the clause names, so the mask selects it alone. Where an ability has no exclusive bit at
+-- all (its whole flag set is shared), the mask cannot isolate it and the row must be filtered by the
+-- spell list in AscensionStormbringerRunemasterTalentProcs instead.
 DELETE FROM `spell_proc` WHERE `SpellId` IN (806409, 520755, 706523, 712308, 804061);
 INSERT INTO `spell_proc` (`SpellId`, `SchoolMask`, `SpellFamilyName`, `SpellFamilyMask0`, `SpellFamilyMask1`, `SpellFamilyMask2`, `ProcFlags`, `SpellTypeMask`, `SpellPhaseMask`, `HitMask`, `AttributesMask`, `DisableEffectsMask`, `ProcsPerMinute`, `Chance`, `Cooldown`, `Charges`) VALUES
-(806409, 0, 22, 0, 32769, 32, 69904, 1, 1, 0, 0, 0, 0, 0, 0, 0),
-(520755, 0, 38, 4194304, 1048576, 262208, 69904, 1, 1, 0, 0, 0, 0, 0, 0, 0),
-(706523, 0, 38, 0, 0, 393216, 69904, 1, 2, 0, 0, 0, 0, 0, 0, 0),
-(712308, 0, 38, 8388608, 0, 0, 69972, 1, 2, 2, 0, 0, 0, 0, 0, 0),
-(804061, 0, 38, 256, 0, 260, 69904, 1, 2, 0, 0, 0, 0, 0, 0, 0);
+(806409, 0, 22, 0, 0, 0, 69904, 1, 1, 0, 0, 0, 0, 0, 0, 0),
+(520755, 0, 38, 0, 0, 0, 69904, 1, 1, 0, 0, 0, 0, 0, 0, 0),
+(706523, 0, 38, 0, 0, 0, 69904, 1, 2, 0, 0, 0, 0, 0, 0, 0),
+(712308, 0, 38, 0, 0, 0, 69972, 1, 2, 2, 0, 0, 0, 0, 0, 0),
+(804061, 0, 38, 256, 0, 4, 69904, 1, 2, 0, 0, 0, 0, 0, 0, 0);
+
+DELETE FROM `spell_script_names` WHERE `spell_id` IN (806409, 520755, 706523, 712308)
+  AND `ScriptName` = 'spell_ascension_stormbringer_runemaster_talent_proc';
+INSERT INTO `spell_script_names` (`spell_id`, `ScriptName`) VALUES
+(806409, 'spell_ascension_stormbringer_runemaster_talent_proc'),
+(520755, 'spell_ascension_stormbringer_runemaster_talent_proc'),
+(706523, 'spell_ascension_stormbringer_runemaster_talent_proc'),
+(712308, 'spell_ascension_stormbringer_runemaster_talent_proc');

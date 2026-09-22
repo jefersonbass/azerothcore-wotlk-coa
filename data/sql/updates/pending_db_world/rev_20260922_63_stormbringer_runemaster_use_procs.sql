@@ -18,4 +18,9 @@ DELETE FROM `spell_proc` WHERE `SpellId` IN (705713, 705664, 802157);
 INSERT INTO `spell_proc` (`SpellId`, `SchoolMask`, `SpellFamilyName`, `SpellFamilyMask0`, `SpellFamilyMask1`, `SpellFamilyMask2`, `ProcFlags`, `SpellTypeMask`, `SpellPhaseMask`, `HitMask`, `AttributesMask`, `DisableEffectsMask`, `ProcsPerMinute`, `Chance`, `Cooldown`, `Charges`) VALUES
 (705713, 0, 22, 262144, 0, 0, 87312, 7, 1, 0, 0, 0, 0, 0, 0, 0),
 (705664, 0, 22, 0, 4194336, 8388608, 87312, 7, 1, 0, 0, 0, 0, 0, 0, 0),
-(802157, 0, 38, 4194304, 1048576, 64, 69904, 1, 2, 0, 0, 0, 0, 0, 0, 0);
+(802157, 0, 38, 0, 0, 0, 69904, 1, 2, 0, 0, 0, 0, 0, 0, 0);
+
+DELETE FROM `spell_script_names` WHERE `spell_id` IN (802157)
+  AND `ScriptName` = 'spell_ascension_stormbringer_runemaster_talent_proc';
+INSERT INTO `spell_script_names` (`spell_id`, `ScriptName`) VALUES
+(802157, 'spell_ascension_stormbringer_runemaster_talent_proc');

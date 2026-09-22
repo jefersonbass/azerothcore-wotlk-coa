@@ -26,11 +26,12 @@ INSERT INTO `spell_proc` (`SpellId`, `SchoolMask`, `SpellFamilyName`, `SpellFami
 (500476, 0, 0, 0, 0, 0, 69904, 1, 2, 0, 0, 0, 0, 0, 0, 0),
 (520237, 0, 0, 0, 0, 0, 69904, 1, 1, 0, 0, 0, 0, 0, 0, 0),
 (520917, 0, 0, 0, 0, 0, 69972, 1, 2, 2, 0, 0, 0, 0, 0, 0),
-(804016, 0, 22, 0, 2, 16777296, 69904, 1, 2, 0, 0, 0, 0, 0, 0, 0);
+(804016, 0, 22, 0, 0, 0, 69904, 1, 2, 0, 0, 0, 0, 0, 0, 0);
 
-DELETE FROM `spell_script_names` WHERE `spell_id` IN (500476, 520237, 520917)
+DELETE FROM `spell_script_names` WHERE `spell_id` IN (500476, 520237, 520917, 804016)
   AND `ScriptName` = 'spell_ascension_stormbringer_runemaster_talent_proc';
 INSERT INTO `spell_script_names` (`spell_id`, `ScriptName`) VALUES
 (500476, 'spell_ascension_stormbringer_runemaster_talent_proc'),
 (520237, 'spell_ascension_stormbringer_runemaster_talent_proc'),
-(520917, 'spell_ascension_stormbringer_runemaster_talent_proc');
+(520917, 'spell_ascension_stormbringer_runemaster_talent_proc'),
+(804016, 'spell_ascension_stormbringer_runemaster_talent_proc');
