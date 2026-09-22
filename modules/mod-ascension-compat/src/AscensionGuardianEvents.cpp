@@ -133,8 +133,6 @@ class aura_ascension_guardian_event : public AuraScript
 
     void Proc(ProcEventInfo& event)
     {
-        // The native counter aura already implements the damage and healing;
-        // the SQL entry supplies its missing attack event and five charges.
         if (GetId() == 802188 || GetId() == 520651)
             return;
         PreventDefaultAction();
@@ -200,7 +198,7 @@ class aura_ascension_guardian_event : public AuraScript
                 break;
             case 504910:
             case 653303:
-                break; // Native charges remove the already applied bonus.
+                break;
             case 560093:
                 if (Player* player = owner->ToPlayer())
                     player->ModifySpellCooldown(300983, -int32(player->GetSpellCooldownDelay(300983) / 10));
@@ -255,7 +253,7 @@ class aura_ascension_guardian_converted_bleed : public AuraScript
 {
     PrepareAuraScript(aura_ascension_guardian_converted_bleed);
 
-    void Amount(AuraEffect const* /*effect*/, int32& /*amount*/, bool& recalculate)
+    void Amount(AuraEffect const*, int32&, bool& recalculate)
     {
         recalculate = false;
     }

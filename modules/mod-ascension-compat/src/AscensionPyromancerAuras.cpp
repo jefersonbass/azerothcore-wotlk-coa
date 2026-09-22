@@ -84,7 +84,7 @@ class aura_ascension_pyromancer_lifecycle : public AuraScript
         if (player && Any(GetSpellInfo(), {680962, 807403, 520826}) && effect->GetEffIndex() != EFFECT_0)
         {
             amount = 0;
-            recalculate = false; // Remaining amount and tick count survive native aura saves.
+            recalculate = false;
         }
     }
     void HealArea(Player* player, uint32 id)
@@ -223,10 +223,6 @@ class aura_ascension_pyromancer_phoenix : public AuraScript
         OnEffectAbsorb += AuraEffectAbsorbFn(aura_ascension_pyromancer_phoenix::Absorb, EFFECT_0);
     }
 };
-// Magnitude 10 (520485): "Increases the critical strike chance of Flare Bolt by
-// 5%." Flare Bolt carries no spell family, so the copied SPELLMOD_CRITICAL_CHANCE
-// modifier can never match it through family/mask checks; pin the modifier to
-// the Flare Bolt chain root so only that ability is affected.
 class aura_ascension_pyromancer_magnitude : public AuraScript
 {
     PrepareAuraScript(aura_ascension_pyromancer_magnitude);
@@ -246,7 +242,7 @@ class aura_ascension_pyromancer_magnitude : public AuraScript
             EFFECT_0, SPELL_AURA_ADD_FLAT_MODIFIER);
     }
 };
-} // namespace
+}
 void AddSC_AscensionPyromancerAuras()
 {
     RegisterSpellScript(aura_ascension_pyromancer_magnitude);
