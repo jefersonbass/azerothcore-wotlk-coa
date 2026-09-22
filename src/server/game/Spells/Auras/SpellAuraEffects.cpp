@@ -4423,14 +4423,18 @@ void AuraEffect::HandleAscensionModMaxManaFromStat(AuraApplication const* aurApp
         return;
 
     int32 const sourceStat = GetMiscValueB();
-    if (GetMiscValue() != POWER_MANA || sourceStat < STAT_STRENGTH || sourceStat >= MAX_STATS)
+    Powers const power = Powers(GetMiscValue());
+    if ((power != POWER_MANA && power != POWER_HEALTH) || sourceStat < STAT_STRENGTH || sourceStat >= MAX_STATS)
     {
-        LOG_ERROR("spells.aura.effect", "Spell {} effect {} has invalid mana/stat mapping {} <- {} for aura 328",
-            GetId(), GetEffIndex(), GetMiscValue(), sourceStat);
+        LOG_ERROR("spells.aura.effect", "Spell {} effect {} has invalid power/stat mapping {} <- {} for aura 328",
+            GetId(), GetEffIndex(), int32(power), sourceStat);
         return;
     }
 
-    target->ToPlayer()->UpdateMaxPower(POWER_MANA);
+    if (power == POWER_MANA)
+        target->ToPlayer()->UpdateMaxPower(POWER_MANA);
+    else
+        target->ToPlayer()->UpdateMaxHealth();
 }
 
 void AuraEffect::HandleModSpellDamagePercentFromStat(AuraApplication const* aurApp, uint8 mode, bool /*apply*/) const
