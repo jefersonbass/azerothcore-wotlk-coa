@@ -78,6 +78,8 @@ void ApplyContracts(SpellInfo* info)
         info->Effects[EFFECT_0].TargetA = SpellImplicitTargetInfo(TARGET_UNIT_CASTER);
         info->Effects[EFFECT_1].ApplyAuraName = SPELL_AURA_DUMMY;
     }
+    if (id == 300493)
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
     if (id == 804749)
     {
         // Incredibly Strong: without SPELL_ATTR0_PASSIVE the learned talent is
