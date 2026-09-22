@@ -1,0 +1,35 @@
+-- Commander (705077): "Skullpiercer now increases the effectiveness of your next Ranger Horn spell by 5%.
+-- Lasts 15 sec."
+--
+-- SpellMgr::LoadSpellProcs skips a record that carries no DBC proc flags ("Skip if no proc flags in
+-- DBC", src/server/game/Spells/SpellMgr.cpp), so no fallback entry is generated; Aura::GetProcEffectMask
+-- then returns 0 for any aura with no proc entry ("only auras with spell proc entry can trigger proc",
+-- src/server/game/Spells/Auras/SpellAuras.cpp). 705077 ships ProcFlags 0, so its effect 0 - aura 42
+-- (SPELL_AURA_PROC_TRIGGER_SPELL), effect type 6, on TriggerSpell 705078 - has never fired.
+-- The payload is authored and carries the whole tooltip: 705078 Plumes of War is an aura 108
+-- (SPELL_AURA_ADD_PCT_MODIFIER) with BasePoints 4, duration index 8 and StackAmount 5, and its own
+-- SpellClassMask word 1 bit 22 is what selects the Ranger Horn spells. Only the gate was missing.
+-- Same defect and same shape as rev_20260920_48_bloodmage_ultra_instinct_proc.sql.
+--
+-- Effect 1 is deliberately left alone. It is a DUMMY slot (effect type 3) that carries an aura 108, a
+-- BasePoints of 9 and a non-empty mask, which reads like a spellmod that lost its effect type - but that
+-- mask selects Skullpiercer (family 27 word 1 bit 27 is held by ten Skullpiercer records and one visual),
+-- and the tooltip asks for a bonus to Ranger Horn, not to Skullpiercer. Turning that slot live would add
+-- a +10% Skullpiercer modifier the tooltip never mentions, so the slot stays inert.
+--
+-- SpellFamilyName 27 with SpellFamilyMask1 0x8000000 (word 1, bit 27) selects Skullpiercer: ten family-27
+-- records carry that bit and every one of them is a Skullpiercer rank, so the proc stays on the ability
+-- the tooltip names and does not need the script-list route.
+-- ProcFlags 69904 (PROC_FLAG_DONE_SPELL_MELEE_DMG_CLASS 16 | DONE_SPELL_RANGED_DMG_CLASS 256 |
+--   DONE_SPELL_NONE_DMG_CLASS_NEG 4096 | DONE_SPELL_MAGIC_DMG_CLASS_NEG 65536) is the spell-only set:
+--   Skullpiercer is an attack ability, so auto attacks are left out.
+-- SpellTypeMask 1 (PROC_SPELL_TYPE_DAMAGE) - Unit::ProcSkillsAndAuras computes DAMAGE only when the event
+--   carries a DamageInfo with damage or absorb. It is never 0 while ProcFlags carries spell bits: the
+--   loader logs an error and the proc does not fire.
+-- SpellPhaseMask 2 (PROC_SPELL_PHASE_HIT) - Skullpiercer has to land, so the HIT phase, not CAST.
+-- HitMask 0 (PROC_HIT_NONE) - any hit, not only a critical one.
+-- Chance stays 0 so the record's own ProcChance (100) is used, per
+-- rev_20260919_20_coa_proc_chance_parity.sql.
+DELETE FROM `spell_proc` WHERE `SpellId` = 705077;
+INSERT INTO `spell_proc` (`SpellId`, `SchoolMask`, `SpellFamilyName`, `SpellFamilyMask0`, `SpellFamilyMask1`, `SpellFamilyMask2`, `ProcFlags`, `SpellTypeMask`, `SpellPhaseMask`, `HitMask`, `AttributesMask`, `DisableEffectsMask`, `ProcsPerMinute`, `Chance`, `Cooldown`, `Charges`) VALUES
+(705077, 0, 27, 0, 134217728, 0, 69904, 1, 2, 0, 0, 0, 0, 0, 0, 0);
