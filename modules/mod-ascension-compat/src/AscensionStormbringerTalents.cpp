@@ -23,6 +23,7 @@ enum StormbringerTalentSpells : uint32
     SPELL_PERPETUAL_SHOCK = 570054,
     SPELL_STORM_SOUL = 300591,
     SPELL_PERPETUAL_SHOCK_TALENT = 300625,
+    SPELL_DARK_SKIES_BUFF = 680855,
     SPELL_CALL_LIGHTNING = 500040,
     SPELL_THUNDER_WARD = 800098,
     SPELL_STATIC = 803102,
@@ -439,6 +440,29 @@ class aura_ascension_charged_conduit : public AuraScript
             EFFECT_1, SPELL_AURA_HASTE_SPELLS, AURA_EFFECT_HANDLE_REAL);
     }
 };
+
+class aura_ascension_stormbringer_dark_skies : public AuraScript
+{
+    PrepareAuraScript(aura_ascension_stormbringer_dark_skies);
+
+    bool CheckProc(ProcEventInfo& event)
+    {
+        return event.GetActor() == GetTarget();
+    }
+
+    void Remove(AuraEffect const*, ProcEventInfo&)
+    {
+        PreventDefaultAction();
+        GetTarget()->RemoveAurasDueToSpell(SPELL_DARK_SKIES_BUFF);
+    }
+
+    void Register() override
+    {
+        DoCheckProc += AuraCheckProcFn(aura_ascension_stormbringer_dark_skies::CheckProc);
+        OnEffectProc += AuraEffectProcFn(aura_ascension_stormbringer_dark_skies::Remove,
+            EFFECT_0, SPELL_AURA_PROC_TRIGGER_SPELL);
+    }
+};
 }
 
 void AddSC_AscensionStormbringerTalents()
@@ -448,4 +472,5 @@ void AddSC_AscensionStormbringerTalents()
     RegisterSpellScript(aura_ascension_barometric_pressure);
     RegisterSpellScript(aura_ascension_electrical_charge);
     RegisterSpellScript(aura_ascension_charged_conduit);
+    RegisterSpellScript(aura_ascension_stormbringer_dark_skies);
 }
