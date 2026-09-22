@@ -627,6 +627,8 @@ int32 AuraEffect::CalculateAmount(Unit* caster)
 
     GetBase()->CallScriptEffectCalcAmountHandlers(this, amount, m_canBeRecalculated);
 
+    sScriptMgr->OnAfterAuraEffectCalculateAmount(this, caster, amount);
+
     // Aura 317's healing clauses use independent healing-taken auras in the
     // copied data. This channel modifies only the completed absorb capacity.
     if (amount > 0 && GetBase()->GetType() == UNIT_AURA_TYPE &&
@@ -907,6 +909,12 @@ void AuraEffect::HandleEffect(Unit* target, uint8 mode, bool apply)
 void AuraEffect::ApplySpellMod(Unit* target, bool apply)
 {
     if (!m_spellmod || !target->IsPlayer())
+        return;
+
+    // Bramblepatch supplies Grove Tender's cooldown amount only on its caster's own ground.
+    // ApplySpellMod precedes aura application hooks, and a dynamic aura is shared by its recipients.
+    if (GetId() == 807120 && GetEffIndex() == EFFECT_1 && GetSpellInfo()->SpellFamilyName == 37 &&
+        GetCasterGUID() != target->GetGUID())
         return;
 
     target->ToPlayer()->AddSpellMod(m_spellmod, apply);
@@ -4204,12 +4212,23 @@ void AuraEffect::HandleAuraModResistance(AuraApplication const* aurApp, uint8 mo
         return;
 
     Unit* target = aurApp->GetTarget();
+    int32 amount = GetAmount();
+    if (GetMiscValue() == SPELL_SCHOOL_MASK_NORMAL)
+    {
+        // Keep area-aura sources active, but apply only the strongest grouped armor contribution.
+        // On removal, the same delta restores the next strongest remaining source.
+        int32 groupAmount = target->GetHighestExclusiveSameEffectSpellGroupValue(this, GetAuraType(),
+            true, SPELL_SCHOOL_MASK_NORMAL);
+        if (std::abs(groupAmount) >= std::abs(amount))
+            return;
+        amount -= groupAmount;
+    }
 
     for (int8 x = SPELL_SCHOOL_NORMAL; x < MAX_SPELL_SCHOOL; x++)
     {
         if (GetMiscValue() & int32(1 << x))
         {
-            target->HandleStatFlatModifier(UnitMods(UNIT_MOD_RESISTANCE_START + x), TOTAL_VALUE, float(GetAmount()), apply);
+            target->HandleStatFlatModifier(UnitMods(UNIT_MOD_RESISTANCE_START + x), TOTAL_VALUE, float(amount), apply);
             if (target->IsPlayer() || target->IsPet())
                 target->UpdateResistanceBuffModsMod(SpellSchools(x));
         }
@@ -4404,14 +4423,18 @@ void AuraEffect::HandleAscensionModMaxManaFromStat(AuraApplication const* aurApp
         return;
 
     int32 const sourceStat = GetMiscValueB();
-    if (GetMiscValue() != POWER_MANA || sourceStat < STAT_STRENGTH || sourceStat >= MAX_STATS)
+    Powers const power = Powers(GetMiscValue());
+    if ((power != POWER_MANA && power != POWER_HEALTH) || sourceStat < STAT_STRENGTH || sourceStat >= MAX_STATS)
     {
-        LOG_ERROR("spells.aura.effect", "Spell {} effect {} has invalid mana/stat mapping {} <- {} for aura 328",
-            GetId(), GetEffIndex(), GetMiscValue(), sourceStat);
+        LOG_ERROR("spells.aura.effect", "Spell {} effect {} has invalid power/stat mapping {} <- {} for aura 328",
+            GetId(), GetEffIndex(), int32(power), sourceStat);
         return;
     }
 
-    target->ToPlayer()->UpdateMaxPower(POWER_MANA);
+    if (power == POWER_MANA)
+        target->ToPlayer()->UpdateMaxPower(POWER_MANA);
+    else
+        target->ToPlayer()->UpdateMaxHealth();
 }
 
 void AuraEffect::HandleModSpellDamagePercentFromStat(AuraApplication const* aurApp, uint8 mode, bool /*apply*/) const

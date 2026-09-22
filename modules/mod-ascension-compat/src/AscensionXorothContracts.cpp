@@ -116,28 +116,19 @@ void ApplyContracts(SpellInfo* info)
         // rating-from-stat path).
         info->Attributes |= SPELL_ATTR0_PASSIVE;
     if (id == SPELL_WARPATH_PROTECTION && info->Effects[EFFECT_0].ApplyAuraName == SPELL_AURA_MOD_MINIMUM_SPEED)
-        info->DurationEntry = sSpellDurationStore.LookupEntry(27); // Three seconds after Unleash Pestilence.
+        info->DurationEntry = sSpellDurationStore.LookupEntry(27);
     if (id == 706759)
-        // Soul Furnace shield: the helper carries no duration entry in the DBC;
-        // the tooltip grants the absorb for 10 s.
         info->DurationEntry = sSpellDurationStore.LookupEntry(1);
     if (id == 706758)
-        // Soul Furnace: without SPELL_ATTR0_PASSIVE the learned talent is never
-        // applied as a standing aura, so its duration modifier never comes
-        // online. Effect 0 (aura 107, SPELLMOD_DURATION flat +9999 ms) rides
-        // the Sacrificial Circle mask (flags[0] 0x200000).
         info->Attributes |= SPELL_ATTR0_PASSIVE;
     if (id == SPELL_FLESH_HOOK_PULL)
     {
-        // The parent has already passed its range and hit checks before scheduling this helper.
-        // Do not roll melee avoidance again or reject an enemy that approaches during the delay.
-        // Native spell/mechanic immunities still apply to this non-damaging pull.
         info->DmgClass = SPELL_DAMAGE_CLASS_NONE;
         info->RangeEntry = sSpellRangeStore.LookupEntry(SPELL_RANGE_THIRTY_YARDS);
     }
     if (id == 520440 || id == 520441)
         for (auto& effect : info->Effects)
-            effect.Effect = 0; // Legacy delayed removal must not erase Demonfire generated after reservation.
+            effect.Effect = 0;
     auto dummy = [info](uint8 i) {
         info->Effects[i].ApplyAuraName = SPELL_AURA_DUMMY;
         info->Effects[i].TriggerSpell = 0;
@@ -197,7 +188,7 @@ void ApplyContracts(SpellInfo* info)
     if (id == 92100)
         info->Effects[1].MiscValue = 127;
     if (id == 804284)
-        dummy(2); // double only the weapon portion in the effect callback
+        dummy(2);
     if (id == 573035)
         dummy(0);
     if (id == 573075)
@@ -314,7 +305,7 @@ void ApplyContracts(SpellInfo* info)
         dummy(2);
     }
     if (id == 805677)
-        info->CasterAuraSpell = 0; // spell_ascension_xoroth_sacrificial_circle checks the living Hellfire Imps
+        info->CasterAuraSpell = 0;
     if (id == 805965)
     {
         auto& e = info->Effects[0];
@@ -345,7 +336,6 @@ void ApplyContracts(SpellInfo* info)
     }
     if (id == 804786)
     {
-        // The original enemy area aura was classified before conversion to the self-only driver above.
         info->AttributesCu &= ~SPELL_ATTR0_CU_NEGATIVE_EFF0;
     }
     if (id == 801055 || id == 560817 || id == 802855 || id == 802856 || id == 802857 || id == 801052)
@@ -363,7 +353,6 @@ void ApplyContracts(SpellInfo* info)
         info->Effects[0].TargetA = SpellImplicitTargetInfo(TARGET_UNIT_CONE_ENEMY_104);
     if (id == 520292)
     {
-        // The behind helper carries the authored cost/cooldown; charge them on the player cast.
         info->ManaCost = 200;
         info->RecoveryTime = 15000;
         info->CategoryRecoveryTime = 0;
@@ -418,7 +407,7 @@ void ApplyContracts(SpellInfo* info)
     }
     info->_InitializeExplicitTargetMask();
 }
-} // namespace AscensionXoroth
+}
 namespace
 {
 using namespace AscensionXoroth;
@@ -441,7 +430,6 @@ class xoroth_scaling : public UnitScript
             return;
         if (info->Id == 630930 && index == EFFECT_0 && caster->GetEntry() == 510100)
         {
-            // Burning Slap: copied SpellDescriptionVariables row 182 ($scalingbp), then AP/SP bonuses.
             double level = caster->GetLevel();
             value *= float(0.0267291844060354 + 0.0048541098014737 * level + 0.0001859597762293 * level * level);
         }
@@ -563,7 +551,7 @@ class xoroth_scaling : public UnitScript
             }
     }
 };
-} // namespace
+}
 void AddSC_AscensionXorothContracts()
 {
     new xoroth_scaling();

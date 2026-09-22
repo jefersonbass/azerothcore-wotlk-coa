@@ -21,6 +21,7 @@ enum StormbringerTalentSpells : uint32
     SPELL_SHOCK = 804020,
     SPELL_SHOCK_DOT = 560336,
     SPELL_PERPETUAL_SHOCK = 570054,
+    SPELL_DARK_SKIES_BUFF = 680855,
     SPELL_CALL_LIGHTNING = 500040,
     SPELL_THUNDER_WARD = 800098,
     SPELL_STATIC = 803102,
@@ -57,9 +58,6 @@ enum StormbringerTalentSpells : uint32
 };
 
 float const FLUX_ARC_SPLASH_RADIUS = 10.0f;
-
-// The passive's tooltip gives a base chance (92096 carries 5%) and says it grows with
-// Static. No public record has the rate, so each Static adds a fifth of a percent.
 uint32 ElectrocutionerChance(Player const* player)
 {
     SpellInfo const* talent = sSpellMgr->GetSpellInfo(SPELL_ELECTROCUTIONER_TALENT);
@@ -78,8 +76,6 @@ public:
         Player* player = caster ? caster->ToPlayer() : nullptr;
         if (player && player->getClass() == CLASS_STORMBRINGER && info->SpellFamilyName == 22 &&
             info->Id == SPELL_CLOUDBURST && !spell->IsTriggered())
-            // The active spell has a zero-radius dummy. Its separate native
-            // helper supplies the ten-yard area and authored knockback speeds.
             player->CastSpell(player, SPELL_CLOUDBURST_KNOCKBACK, true);
         // Enveloping Winds (707546): casting Gale makes the Air Elemental cast Gale
         // as well. The passive's Dummy aura is inert; the armor emanation is native
@@ -161,7 +157,6 @@ public:
             !target || target == player || player->IsFriendlyTo(target) || miss != SPELL_MISS_NONE)
             return;
 
-        // Neither passive carries proc flags, so the spell-damage event is supplied here.
         if (damage && !spell->IsTriggered() &&
             (player->HasSpell(SPELL_ELECTROCUTIONER_PASSIVE) || player->HasSpell(SPELL_ELECTROCUTIONER_TALENT)) &&
             roll_chance_i(ElectrocutionerChance(player)))
@@ -171,8 +166,6 @@ public:
         if (!repeat && (spell->IsTriggered() || sSpellMgr->GetFirstSpellInChain(info->Id) != SPELL_SHOCK))
             return;
 
-        // Two native half-second ticks each copy ten percent of the resolved hit.
-        // The damage-over-time component does not require Call Lightning.
         if (damage && !spell->GetScriptValue(SPELL_SHOCK_DOT))
         {
             spell->SetScriptValue(SPELL_SHOCK_DOT, 1);
@@ -268,7 +261,6 @@ public:
             info->Attributes |= SPELL_ATTR0_PASSIVE;
         }
         if (info->Id == SPELL_PERPETUAL_SHOCK)
-            // The hit callback supplies the learned-spell gate and one 20-Static grant.
             info->Effects[EFFECT_1].Effect = 0;
         if (info->Id == SPELL_FLUX_ARC)
         {
@@ -338,7 +330,6 @@ public:
             info->Effects[EFFECT_2].DieSides = 1;
         }
         if (info->Id == SPELL_CHARGED_CONDUIT)
-            // Keep the charges until this ten-second buff ends.
             info->Effects[EFFECT_2].Effect = 0;
         if (info->Id == 806397)
         {
@@ -375,8 +366,6 @@ class aura_ascension_barometric_pressure : public AuraScript
 
     void Apply(AuraEffect const*, AuraEffectHandleModes)
     {
-        // Only the owner's dummy effect may start the companion area aura.
-        // Starting it on each hostile recipient would create extra area sources.
         if (GetCaster() && GetCaster() == GetTarget())
             GetCaster()->AddAura(SPELL_BAROMETRIC_SLOW, GetTarget());
     }
@@ -447,6 +436,29 @@ class aura_ascension_charged_conduit : public AuraScript
             EFFECT_1, SPELL_AURA_HASTE_SPELLS, AURA_EFFECT_HANDLE_REAL);
     }
 };
+
+class aura_ascension_stormbringer_dark_skies : public AuraScript
+{
+    PrepareAuraScript(aura_ascension_stormbringer_dark_skies);
+
+    bool CheckProc(ProcEventInfo& event)
+    {
+        return event.GetActor() == GetTarget();
+    }
+
+    void Remove(AuraEffect const*, ProcEventInfo&)
+    {
+        PreventDefaultAction();
+        GetTarget()->RemoveAurasDueToSpell(SPELL_DARK_SKIES_BUFF);
+    }
+
+    void Register() override
+    {
+        DoCheckProc += AuraCheckProcFn(aura_ascension_stormbringer_dark_skies::CheckProc);
+        OnEffectProc += AuraEffectProcFn(aura_ascension_stormbringer_dark_skies::Remove,
+            EFFECT_0, SPELL_AURA_PROC_TRIGGER_SPELL);
+    }
+};
 }
 
 void AddSC_AscensionStormbringerTalents()
@@ -456,4 +468,5 @@ void AddSC_AscensionStormbringerTalents()
     RegisterSpellScript(aura_ascension_barometric_pressure);
     RegisterSpellScript(aura_ascension_electrical_charge);
     RegisterSpellScript(aura_ascension_charged_conduit);
+    RegisterSpellScript(aura_ascension_stormbringer_dark_skies);
 }

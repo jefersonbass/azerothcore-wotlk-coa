@@ -36,6 +36,8 @@ enum ReaperSecondarySpells : uint32
     SPELL_GRAVESITE_AREA = 804722,
     SPELL_GRAVESITE_HIT = 300979,
     SPELL_SPIRIT_CHASER = 560434,
+    SPELL_SPIRIT_SCYTHES = 300548,
+    SPELL_SWIFT_DEATH = 300549,
     SPELL_REAP = 801327,
     SPELL_DEATHCHASER = 560351,
     SPELL_WRAITHBLADE = 805258,
@@ -167,16 +169,26 @@ public:
     void OnSpellCritChance(Spell* spell, Unit* target, float& chance) override
     {
         Player* player = spell->GetCaster() ? spell->GetCaster()->ToPlayer() : nullptr;
-        if (!player || player->getClass() != CLASS_REAPER || !player->HasAura(SPELL_SPIRIT_CHASER))
+        if (!player || player->getClass() != CLASS_REAPER)
             return;
         uint32 const root = sSpellMgr->GetFirstSpellInChain(spell->GetSpellInfo()->Id);
-        // Spirit Chaser (560434): "Increases the critical strike chance and
-        // critical damage of Reap, Deathchaser, and Wraithblade by 10%." Those
-        // abilities carry no spell family, so the passive's native Spell Flat
-        // Mod can never match them. The +10% crit damage rides the same
-        // multiplier the engine applies to crits of these abilities.
-        if (root == SPELL_REAP || root == SPELL_DEATHCHASER || root == SPELL_WRAITHBLADE)
-            chance += 10;
+        if (player->HasAura(SPELL_SPIRIT_CHASER))
+        {
+            // Spirit Chaser (560434): "Increases the critical strike chance and
+            // critical damage of Reap, Deathchaser, and Wraithblade by 10%." Those
+            // abilities carry no spell family, so the passive's native Spell Flat
+            // Mod can never match them. The +10% crit damage rides the same
+            // multiplier the engine applies to crits of these abilities.
+            if (root == SPELL_REAP || root == SPELL_DEATHCHASER || root == SPELL_WRAITHBLADE)
+                chance += 10;
+        }
+        // Issue 1638: Spirit Scythes (300548) "Increases the critical strike
+        // chance of Soulrend and Reap by 3%." The shipped 107 masks (0x2001,
+        // 0x2001+0x4) match neither Soulrend (fam 36 flag 0x2000) nor Reap
+        // (familyless), so apply the authored +3% here.
+        if (player->HasAura(SPELL_SPIRIT_SCYTHES) &&
+            (root == SPELL_SOULREND || root == SPELL_REAP))
+            chance += 3;
     }
 
     void OnSpellCast(Spell* spell, Unit* caster, SpellInfo const* info, bool) override
@@ -321,10 +333,9 @@ public:
         if (info->Id == SPELL_ENDBRINGER)
         {
             info->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_DUMMY;
-            info->ProcFlags = 0; // Do not also execute the obsolete leap/resource proc.
+            info->ProcFlags = 0;
         }
         if (info->Id == SPELL_ENDBRINGER_HEAL)
-            // This heal copies resolved weapon damage; native healing-taken effects still apply.
             info->DmgClass = SPELL_DAMAGE_CLASS_NONE;
         if (info->Id == SPELL_SPIRIT_WALKER_SPEED || info->Id == SPELL_CRIMSON_STACK)
         {

@@ -52,10 +52,6 @@ void SyncStonePetroglyph(Player* player)
         player->CastSpell(player, 712310, true);
 }
 
-// Palm Sigil (805380/805381/805382) gates its cast on CasterAuraSpell 808089, a marker spell
-// literally named "Runeshroud or Waveforged" that nothing else ever grants, making it permanently
-// uncastable. Mirror the real Runeshroud/Waveforged state onto it instead.
-// Runic Tempest (560036) also opens the gate for its 8 sec duration.
 void SyncRuneshroudOrWaveforged(Player* player)
 {
     bool active = player->HasAura(500288, player->GetGUID()) || player->HasAura(705565, player->GetGUID()) ||
@@ -71,7 +67,6 @@ constexpr uint32 SPELL_PERMAFROST_MARKER = 807114;
 constexpr uint32 SPELL_RUNESHROUD = 500288;
 constexpr int32 PERMAFROST_PLAYER_DURATION = 8000;
 
-// Permafrost Rune: 8 sec against players, 80% reduced cooldown while in Runeshroud.
 void ApplyPermafrostAura(Unit* unit, Aura* aura)
 {
     uint32 id = aura->GetId();
@@ -121,7 +116,6 @@ public:
 
     void OnAuraRemove(Unit* unit, AuraApplication* application, AuraRemoveMode mode) override
     {
-        // The marker aura must not outlive the rune that damage or dispels ended early.
         if (unit && application && application->GetBase()->GetId() == SPELL_PERMAFROST_RUNE)
             unit->RemoveAurasDueToSpell(SPELL_PERMAFROST_MARKER, application->GetBase()->GetCasterGUID());
         Player* player = unit ? unit->ToPlayer() : nullptr;
@@ -230,7 +224,6 @@ void ApplyAscensionRunemasterTalentContracts(SpellInfo* info)
 {
     if (info->Id == SPELL_PERMAFROST_RUNE)
     {
-        // "Damage taken will end the effect."
         info->AuraInterruptFlags |= AURA_INTERRUPT_FLAG_TAKE_DAMAGE;
         return;
     }
@@ -246,8 +239,6 @@ void ApplyAscensionRunemasterTalentContracts(SpellInfo* info)
     }
     if (info->Id == 712310 && info->SpellFamilyName == 38)
     {
-        // The native periodic heal and effect-98 immunity already exist. Complete
-        // knockback immunity for the separate destination-based effect as well.
         auto& effect = info->Effects[EFFECT_1];
         effect.Effect = SPELL_EFFECT_APPLY_AURA;
         effect.ApplyAuraName = SPELL_AURA_EFFECT_IMMUNITY;
@@ -257,8 +248,6 @@ void ApplyAscensionRunemasterTalentContracts(SpellInfo* info)
     }
     else if (info->Id == 806996)
     {
-        // Issue 883: the shipped periodic trigger targets a dead spell, so the passive
-        // never granted anything. Point the 20 s tick at the real Granite Shield absorb.
         auto& effect = info->Effects[EFFECT_1];
         effect.Effect = SPELL_EFFECT_APPLY_AURA;
         effect.ApplyAuraName = SPELL_AURA_PERIODIC_TRIGGER_SPELL;
@@ -267,18 +256,10 @@ void ApplyAscensionRunemasterTalentContracts(SpellInfo* info)
     }
     else if (info->Id == 800756)
     {
-        // Issue 905: the DBC ships a dead Proc Trigger Spell with no proc flags, so
-        // "critical damage taken" never reached any handler. Arm the taken-damage
-        // proc; the bound script filters to crits and shaves the Guarding Rune CD.
         info->ProcFlags = PROC_FLAG_TAKEN_DAMAGE | PROC_FLAG_TAKEN_PERIODIC;
     }
     else if (info->Id == 705618)
     {
-        // Issue 973: Elemental Carvings ships without SPELL_ATTR0_PASSIVE, so the
-        // talent learn and login-load passes never applied anything, and its DBC
-        // proc points at "Primeval Carving" (712327), whose random-trigger effect
-        // (184) has a null handler and a dead spell id. The bound script picks
-        // the carving directly on Fist of the Ancients casts instead.
         info->Attributes |= SPELL_ATTR0_PASSIVE;
     }
 }

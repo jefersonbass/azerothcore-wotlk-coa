@@ -8,6 +8,7 @@
 #include "SpellScript.h"
 #include "ScriptMgr.h"
 #include <algorithm>
+#include <cmath>
 #include <limits>
 
 namespace
@@ -45,8 +46,6 @@ class spell_ascension_ranger_light_arrows : public SpellScript
 
     void Damage()
     {
-        // All native base/AP terms have been calculated; retain subsequent crit,
-        // armor, absorption and resistance. Distance was captured at cast launch.
         if (_bonus && GetHitDamage() > 0)
             SetHitDamage(int32(std::min<int64>(int64(GetHitDamage()) * (int64(100) + _bonus) / 100,
                 std::numeric_limits<int32>::max())));
@@ -74,8 +73,26 @@ class spell_ascension_ranger_knockout : public SpellScript
 
     void Register() override
     {
-        // Effect 0 has already made the victim execute the native bleed/poison cleanser.
         OnEffectHitTarget += SpellEffectFn(spell_ascension_ranger_knockout::Incapacitate, EFFECT_1, SPELL_EFFECT_DUMMY);
+    }
+};
+
+class aura_ascension_ranger_highwayman : public AuraScript
+{
+    PrepareAuraScript(aura_ascension_ranger_highwayman);
+
+    bool CheckProc(ProcEventInfo& event)
+    {
+        Unit* owner = GetTarget();
+        Unit* victim = event.GetActionTarget();
+        return owner->IsPlayer() && owner->getClass() == CLASS_RANGER && event.GetActor() == owner &&
+            victim && victim != owner && !owner->IsFriendlyTo(victim) &&
+            (event.GetHitMask() & PROC_HIT_CRITICAL) && !victim->HasInArc(float(M_PI), owner);
+    }
+
+    void Register() override
+    {
+        DoCheckProc += AuraCheckProcFn(aura_ascension_ranger_highwayman::CheckProc);
     }
 };
 }
@@ -144,4 +161,5 @@ void AddSC_AscensionRangerTalents()
     new ranger_pierced_crits();
     RegisterSpellScript(spell_ascension_ranger_light_arrows);
     RegisterSpellScript(spell_ascension_ranger_knockout);
+    RegisterSpellScript(aura_ascension_ranger_highwayman);
 }

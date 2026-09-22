@@ -27,7 +27,6 @@ Player* Owner(Unit* unit)
 Unit* Ancestor(Player* player)
 {
     Unit* pet = player ? player->GetGuardianPet() : nullptr;
-    // Native summon entry, not an arbitrary charm, guardian or temporary pet.
     return pet && pet->GetEntry() == 51265 && pet->GetOwnerGUID() == player->GetGUID() && pet->IsAlive() ?
         pet : nullptr;
 }
@@ -66,15 +65,13 @@ void ApplyContracts(SpellInfo* info)
         info->Effects[EFFECT_0].SpellClassMask = flag96(0, 64 | 2 | 2048, 0);
     if (id == 705234 || id == 707779)
     {
-        // Spears include Maiming Spear. Axe damage resolves on 806960 (word 1,
-        // bit 3), while the old private mask accidentally included Throw Weapon.
         info->Effects[EFFECT_0].MiscValue = ASCENSION_STATE_MASKED_CRIT;
         info->Effects[EFFECT_0].SpellClassMask = flag96(5120, 4 | 256 | 8 | 524288, 0);
     }
     if (id == 705152 || id == 707766)
     {
         info->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_ADD_PCT_MODIFIER;
-        info->Effects[EFFECT_0].SpellClassMask[0] |= 33554432; // Keg Smash's Frost child
+        info->Effects[EFFECT_0].SpellClassMask[0] |= 33554432;
     }
     if (id == 804750)
     {
@@ -93,7 +90,6 @@ void ApplyContracts(SpellInfo* info)
     }
     if (id == 807047)
         info->Effects[EFFECT_1].ApplyAuraName = SPELL_AURA_DUMMY;
-    // Amounts are computed at the actual cast/tick instead of stale periodic +1 helpers.
     if (id == 570242 || id == 560446)
     {
         info->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_DUMMY;
@@ -111,9 +107,9 @@ void ApplyContracts(SpellInfo* info)
     if (id == 806228)
         info->Effects[EFFECT_1].ApplyAuraName = SPELL_AURA_DUMMY;
     if (id == 570106)
-        info->Effects[EFFECT_1].Effect = 0; // conditional two-handed helper
+        info->Effects[EFFECT_1].Effect = 0;
     if (id == 804862)
-        info->Effects[EFFECT_1].Effect = 0; // refund the actual cost, once
+        info->Effects[EFFECT_1].Effect = 0;
     if (id == 804341)
     {
         info->Effects[EFFECT_0].Effect = 0;
@@ -125,7 +121,6 @@ void ApplyContracts(SpellInfo* info)
         info->StackAmount = 1;
     if (id == 707584)
     {
-        // The old effect launches the jump before the volley; its proc is an unrelated CDR.
         info->Effects[EFFECT_0].Effect = 0;
         info->Effects[EFFECT_2].Effect = 0;
     }
@@ -141,8 +136,8 @@ void ApplyContracts(SpellInfo* info)
     }
     if (id == 801783)
     {
-        info->Effects[EFFECT_0].BasePoints = 99; // an additional main-hand attack
-        info->Effects[EFFECT_1].Effect = 0; // Might of Utgarde is gated by the owner's proc callback.
+        info->Effects[EFFECT_0].BasePoints = 99;
+        info->Effects[EFFECT_1].Effect = 0;
     }
     if (id == 573077 || id == 804771 || id == 500534)
         for (SpellEffectInfo& effect : info->Effects)
@@ -158,7 +153,7 @@ void ApplyContracts(SpellInfo* info)
         info->AttributesCu |= SPELL_ATTR0_CU_IGNORE_ARMOR;
     }
     if (id == 707410)
-        info->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_DUMMY; // cost only while Unbridled Rage is active
+        info->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_DUMMY;
     if (id == 801761)
     {
         SpellEffectInfo& cost = info->Effects[EFFECT_1];
@@ -168,7 +163,6 @@ void ApplyContracts(SpellInfo* info)
         cost.TargetA = SpellImplicitTargetInfo(TARGET_UNIT_CASTER);
     }
     if (id == 804337)
-        // The native DBC targets the ~1.5s global cooldown instead of ability cooldowns.
         info->Effects[EFFECT_0].MiscValue = SPELLMOD_COOLDOWN;
     if (id == 681473)
         // Breaking Morale's DBC masks are shifted: the flat cost half must key
@@ -281,7 +275,7 @@ class aura_ascension_barbarian_lifecycle : public AuraScript
 {
     PrepareAuraScript(aura_ascension_barbarian_lifecycle);
 
-    void Apply(AuraEffect const* effect, AuraEffectHandleModes /*mode*/)
+    void Apply(AuraEffect const* effect, AuraEffectHandleModes)
     {
         if (effect->GetEffIndex() != EFFECT_0)
             return;
@@ -352,7 +346,7 @@ class aura_ascension_barbarian_lifecycle : public AuraScript
         }
     }
 
-    void Remove(AuraEffect const* effect, AuraEffectHandleModes /*mode*/)
+    void Remove(AuraEffect const* effect, AuraEffectHandleModes)
     {
         if (effect->GetEffIndex() != EFFECT_0)
             return;
@@ -392,7 +386,7 @@ class aura_ascension_barbarian_lifecycle : public AuraScript
             player->RemoveAurasDueToSpell(800645);
     }
 
-    void Periodic(AuraEffect const* effect, bool& /*periodic*/, int32& amplitude)
+    void Periodic(AuraEffect const* effect, bool&, int32& amplitude)
     {
         if (GetId() == 560521 && effect->GetEffIndex() <= EFFECT_1)
             if (Unit* caster = GetCaster())
@@ -422,7 +416,6 @@ public:
         Player* player = Owner(caster);
         if (!player || spell->IsTriggered() || !Family(info, 1, 2048) || !spell->TryMarkScriptEventHandled(26))
             return;
-        // Native validation, miss refunds and base-cost spending have already run.
         bool landed = std::any_of(spell->GetUniqueTargetInfo()->begin(), spell->GetUniqueTargetInfo()->end(),
             [](TargetInfo const& hit) { return hit.missCondition == SPELL_MISS_NONE; });
         if (!landed)
@@ -433,7 +426,7 @@ public:
         spell->SetScriptExtraPowerSpent(extra);
     }
 
-    void OnSpellCheckCast(Spell* spell, bool /*strict*/, SpellCastResult& result) override
+    void OnSpellCheckCast(Spell* spell, bool, SpellCastResult& result) override
     {
         Player* player = Owner(spell->GetCaster());
         if (player && !spell->IsTriggered() &&
@@ -441,7 +434,7 @@ public:
             result = SPELL_FAILED_CASTER_AURASTATE;
     }
 
-    void OnSpellCast(Spell* spell, Unit* caster, SpellInfo const* info, bool /*skip*/) override
+    void OnSpellCast(Spell* spell, Unit* caster, SpellInfo const* info, bool) override
     {
         Player* player = Owner(caster);
         if (!player || spell->IsTriggered())
@@ -472,7 +465,6 @@ public:
         if (Spear(info) && Enraged(player) && player->HasAura(560564))
         {
             player->CastSpell(player, 804341, true);
-            // These client-authored charges use the native category-charge system.
             player->RestoreSpellChargeCategory(60, 3);
         }
         if (Family(info, 1, 262144) && player->HasAura(705198) && roll_chance_i(25))
@@ -523,7 +515,7 @@ public:
         hit.damageBeforeTakenMods = int32(hit.damageBeforeTakenMods * multiplier);
     }
 
-    void OnSpellSuccessfulInterrupt(Spell* spell, Unit* /*target*/) override
+    void OnSpellSuccessfulInterrupt(Spell* spell, Unit*) override
     {
         Player* player = Owner(spell->GetCaster());
         if (player && spell->GetSpellInfo()->Id == 802792 && !spell->IsTriggered() && player->HasAura(705196) &&

@@ -26,7 +26,7 @@ void ApplyAscensionBarbarianSpellChanges(SpellInfo* info)
     AscensionBarbarian::ApplyContracts(info);
     if (info && info->Id == BODY_BUILDER_SIZE && info->Effects[EFFECT_1].ApplyAuraName == SPELL_AURA_MOD_SCALE &&
         info->Effects[EFFECT_1].BasePoints == 6 && info->Effects[EFFECT_1].DieSides == 1)
-        info->Effects[EFFECT_1].BasePoints = 4; // authored 5%, not the old helper's 7%
+        info->Effects[EFFECT_1].BasePoints = 4;
 }
 
 void HandleAscensionBarbarianAura(Player* player, uint32 spellId, bool apply)
@@ -52,8 +52,6 @@ void HandleAscensionBarbarianAura(Player* player, uint32 spellId, bool apply)
             return;
     }
 
-    // Specialization identities are real learned passives. Their private helper
-    // auras are runtime effects, not extra paid spells or account collections.
     if (apply)
     {
         if (!player->HasAura(helper))
@@ -69,8 +67,6 @@ void HandleAscensionBarbarianAttackPower(Player* player, float& modifier, bool r
         player->GetStat(STAT_STRENGTH) < player->GetStat(STAT_AGILITY))
         return;
 
-    // The stock aura 268 is unconditional. Undo only this passive's contribution
-    // at/above the strict boundary; normal Strength and unrelated AP auras remain.
     if (AuraEffect const* effect = player->GetAuraEffect(BODY_BUILDER, EFFECT_0))
         modifier -= CalculatePct(player->GetStat(STAT_STRENGTH), effect->GetAmount());
 }
@@ -91,20 +87,15 @@ void HandleAscensionBarbarianCast(Spell* spell)
         SpellInfo const* resource = tankard->GetSpellInfo();
         if (!preserveTankard && resource->SpellFamilyName == info->SpellFamilyName &&
             (resource->Effects[EFFECT_0].SpellClassMask & info->SpellFamilyFlags))
-            // OnSpellCast runs AFTER SendSpellCooldown: the native -10% per stack
-            // modifier has already shortened this cast's cooldown, then empties.
-            // The Finest Ale keeps those stacks after Ale of the God-King.
             player->RemoveAurasDueToSpell(TANKARD);
     }
 
-    // Sen'jin's Guidance: Throw Weapon is thrown as a Javelin Toss.
     if (player->HasAura(707661) && info->SpellFamilyName == 18 &&
         (info->SpellFamilyFlags[1] & 0x00040000))
         if (SpellInfo const* javelin = sSpellMgr->GetSpellInfo(504217))
             if (Unit* victim = spell->m_targets.GetUnitTarget())
                 player->CastSpell(victim, javelin->Id, TRIGGERED_FULL_MASK);
 
-    // Bloodbound: trims the cooldowns of Warband (Headhunting) and Ancestral Roar (Ancestry).
     if (player->HasAura(801767))
     {
         if (AuraEffect const* bound = player->GetAuraEffect(801767, EFFECT_0))
@@ -115,7 +106,6 @@ void HandleAscensionBarbarianCast(Spell* spell)
                 player->ModifySpellCooldown(info->Id, bound->GetAmount());
     }
 
-    // Incredibly Strong: extends the Maiming Spear slow by its stored percentage.
     if (player->HasAura(804749) && sSpellMgr->GetFirstSpellInChain(info->Id) == sSpellMgr->GetFirstSpellInChain(804139))
         if (Unit* victim = spell->m_targets.GetUnitTarget())
             for (auto const& pair : victim->GetAppliedAuras())
@@ -131,8 +121,6 @@ void HandleAscensionBarbarianCast(Spell* spell)
                     aura->SetDuration(aura->GetDuration() + extra);
                     break;
                 }
-
-    // Exact Throw Weapon family bit, shared by all its installed ranks.
     if (info->SpellFamilyName != 18 || !(info->SpellFamilyFlags[1] & 0x00040000) ||
         !player->HasAura(SPEAR_THROWER))
         return;
@@ -142,9 +130,6 @@ void HandleAscensionBarbarianCast(Spell* spell)
     if (!roll_chance_f(chance))
         return;
 
-    // The old 574322 helper contains +100, which the local effect-165 handler
-    // treats as +100ms, not a reset. Clear the four verified spear rank families
-    // and their shared categories explicitly; never touch unrelated cooldowns.
     std::vector<uint32> reset;
     for (auto const& [spellId, cooldown] : player->GetSpellCooldownMap())
     {

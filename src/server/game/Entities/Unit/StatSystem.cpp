@@ -64,14 +64,14 @@ float GetAscensionStatFromStatBonus(Player const& player, Stats destinationStat)
     return bonus;
 }
 
-float GetAscensionMaxManaFromStatBonus(Player const& player)
+float GetAscensionMaxPowerFromStatBonus(Player const& player, Powers power)
 {
     float bonus = 0.0f;
     Unit::AuraEffectList const& effects = player.GetAuraEffectsByType(SPELL_AURA_ASCENSION_MOD_MAX_MANA_FROM_STAT);
     for (AuraEffect const* effect : effects)
     {
         int32 const sourceStat = effect->GetMiscValueB();
-        if (effect->GetMiscValue() != POWER_MANA || sourceStat < STAT_STRENGTH || sourceStat >= MAX_STATS)
+        if (effect->GetMiscValue() != int32(power) || sourceStat < STAT_STRENGTH || sourceStat >= MAX_STATS)
             continue;
 
         bonus += CalculatePct(float(player.GetStat(Stats(sourceStat))), effect->GetAmount());
@@ -155,6 +155,8 @@ bool Player::UpdateStats(Stats stat)
             break;
         case STAT_INTELLECT:
             UpdateMaxPower(POWER_MANA);
+            if (HasAuraTypeWithMiscvalue(SPELL_AURA_ASCENSION_MOD_MAX_MANA_FROM_STAT, POWER_HEALTH))
+                UpdateMaxHealth();
             UpdateAllSpellCritChances();
             UpdateArmor();                                  //SPELL_AURA_MOD_RESISTANCE_OF_INTELLECT_PERCENT, only armor currently
             break;
@@ -213,15 +215,24 @@ bool Player::UpdateStats(Stats stat)
 
     if (stat != STAT_INTELLECT)
     {
-        AuraEffectList const& manaFromStat = GetAuraEffectsByType(SPELL_AURA_ASCENSION_MOD_MAX_MANA_FROM_STAT);
-        for (AuraEffect const* effect : manaFromStat)
+        bool manaFromStat = false;
+        bool healthFromStat = false;
+        AuraEffectList const& powerFromStat = GetAuraEffectsByType(SPELL_AURA_ASCENSION_MOD_MAX_MANA_FROM_STAT);
+        for (AuraEffect const* effect : powerFromStat)
         {
-            if (effect->GetMiscValue() == POWER_MANA && effect->GetMiscValueB() == stat)
-            {
-                UpdateMaxPower(POWER_MANA);
-                break;
-            }
+            if (effect->GetMiscValueB() != stat)
+                continue;
+
+            if (effect->GetMiscValue() == POWER_MANA)
+                manaFromStat = true;
+            else if (effect->GetMiscValue() == POWER_HEALTH)
+                healthFromStat = true;
         }
+
+        if (manaFromStat)
+            UpdateMaxPower(POWER_MANA);
+        if (healthFromStat)
+            UpdateMaxHealth();
     }
 
     return true;
@@ -408,7 +419,8 @@ void Player::UpdateMaxHealth()
 
     float value = GetFlatModifierValue(unitMod, BASE_VALUE) + GetCreateHealth();
     value *= GetPctModifierValue(unitMod, BASE_PCT);
-    value += GetFlatModifierValue(unitMod, TOTAL_VALUE) + GetHealthBonusFromStamina();
+    value += GetFlatModifierValue(unitMod, TOTAL_VALUE) + GetHealthBonusFromStamina() +
+        GetAscensionMaxPowerFromStatBonus(*this, POWER_HEALTH);
     value *= GetPctModifierValue(unitMod, TOTAL_PCT);
 
     sScriptMgr->OnPlayerAfterUpdateMaxHealth(this, value);
@@ -424,7 +436,7 @@ void Player::UpdateMaxPower(Powers power)
     {
         if (GetCreatePowers(power) > 0)
             bonusPower += GetManaBonusFromIntellect();
-        bonusPower += GetAscensionMaxManaFromStatBonus(*this);
+        bonusPower += GetAscensionMaxPowerFromStatBonus(*this, POWER_MANA);
     }
 
     float value = GetFlatModifierValue(unitMod, BASE_VALUE) + GetCreatePowers(power);
@@ -893,9 +905,10 @@ void Player::UpdateParryPercentage()
     // No parry
     float value = 0.0f;
     m_realParry = 0.0f;
-    // Starcaller learns Parry, unlike its general Druid stat fallback.
-    // Use the Hunter parry curve for both its cap and diminishing coefficient.
-    Classes const parryClass = getClass() == CLASS_STARCALLER ? CLASS_HUNTER :
+    // Starcaller and Primalist need Hunter's parry curve; their general Druid fallback has no parry cap.
+    // Sun Cleric's March of the Valkyr uses the Paladin curve with its Strength-based melee scaling.
+    Classes const parryClass = getClass() == CLASS_STARCALLER || getClass() == CLASS_WILDWALKER ? CLASS_HUNTER :
+        getClass() == CLASS_SUN_CLERIC ? CLASS_PALADIN :
         GetLegacyClassForCustomClass(Classes(getClass()));
     uint32 const pclass = parryClass - 1;
     if (CanParry() && parry_cap[pclass] > 0.0f)

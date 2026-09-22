@@ -7,6 +7,7 @@
 #include "ScriptMgr.h"
 #include "Spell.h"
 #include "SpellAuraEffects.h"
+#include "SpellAuraEffects.h"
 #include "SpellAuras.h"
 #include "SpellMgr.h"
 #include "SpellScript.h"
@@ -14,6 +15,7 @@
 #include <cmath>
 #include <limits>
 #include <list>
+#include <unordered_map>
 #include <vector>
 
 namespace
@@ -65,7 +67,7 @@ enum BloodmageSecondarySpells : uint32
     SPELL_HEMAL_EXCISION_HOLD = 803734,
     SPELL_DISSIPATION = 680730,
     SPELL_ROTCLAW = 804197,
-    SPELL_ROTCLAW_ENERGIZE = 805352, // Ravenous Strike (Energize): 30..70 internal, i.e. 3 to 7 Rage
+    SPELL_ROTCLAW_ENERGIZE = 805352,
     SPELL_PUNCTURING_FANGS = 804604,
     SPELL_BLOODMOON_BLAST = 578304,
     SPELL_CURSED_BLOOD = 681792,
@@ -74,17 +76,24 @@ enum BloodmageSecondarySpells : uint32
     SPELL_INSATIABLE = 706621,
     SPELL_INSATIABLE_STACK = 706663,
     SPELL_VAMPIRIC_FANG = 804726,
-    SPELL_VAMPIRIC_FANG_SCALAR = 680753, // Thirst SLS: EFFECT_2 carries the damage percent per Thirst stack
+    SPELL_VAMPIRIC_FANG_SCALAR = 680753,
     SPELL_BLOOD_SHARDS = 804849,
-    SPELL_BLOOD_SHARDS_STACK = 505366, // Gore Barrage stack counter: 8-stack DUMMY aura
-    SPELL_BLOOD_SHARDS_DAMAGE = 506640, // per-stack Spellshadow strike (type 3 DUMMY)
+    SPELL_BLOOD_SHARDS_STACK = 505366,
+    SPELL_BLOOD_SHARDS_DAMAGE = 506640,
+    SPELL_ANEURYSM = 806099,
+    SPELL_ANEURYSM_HEAL = 520860,
+    SPELL_KILLER_INSTINCT = 704690,
+    SPELL_DARK_ESSENCE_HEAL = 681036,
+    SPELL_BLOOD_RITUALS = 706623,
+    SPELL_CURSED_FORM_REQUIREMENT = 525031,
+    SPELL_CURSED_FORM_REQUIREMENT_2 = 524861,
+    SPELL_VAMPIRIC_FANG_SHARE = 572373,
+    SPELL_VAMPIRIC_FANG_HEAL = 572374
 };
 
-// Every rank of the two abilities Enthraller empowers.
 constexpr uint32 EnthralledRanks[] = {560249, 561175, 561176, 561177,
     560315, 561027, 561028, 561029};
 
-// Hemal Excision: collects the target's curse auras for the reactivation window.
 std::vector<Aura*> CollectCurses(Unit* target)
 {
     std::vector<Aura*> curses;
@@ -97,12 +106,9 @@ std::vector<Aura*> CollectCurses(Unit* target)
     return curses;
 }
 
-// Every rank of Bloodfang Bite the kit currently teaches.
 constexpr uint32 BloodfangBiteRanks[] = {501695, 501696, 501697, 503613, 503614,
     503615, 572549, 572550, 572551, 800156};
 
-// Dark Essence (680732): heals a Blood-Rituals-marked ally every 1.5 seconds for
-// three seconds — two scheduled ticks.
 class DarkEssenceTick : public BasicEvent
 {
 public:
@@ -126,14 +132,18 @@ private:
     ObjectGuid _ally;
     uint32 _amount;
 };
-
-// Every Vampiric Fang rank: the base strike plus its learned ranks.
 constexpr uint32 VampiricFangRanks[] = {804726, 504093, 504094, 504095, 504096, 504097, 553271, 553272};
 
 bool IsVampiricFang(uint32 id)
 {
     return std::find(std::begin(VampiricFangRanks), std::end(VampiricFangRanks), id) !=
         std::end(VampiricFangRanks);
+}
+
+bool IsCursedFormAbility(SpellInfo const* info)
+{
+    return info->CasterAuraSpell == SPELL_CURSED_FORM_REQUIREMENT ||
+        info->CasterAuraSpell == SPELL_CURSED_FORM_REQUIREMENT_2;
 }
 
 bool RankOf(uint32 id, uint32 root)
@@ -152,7 +162,6 @@ void CopyDamage(Player* player, Unit* target, uint32 id, uint32 damage)
 {
     if (!damage)
         return;
-    // Custom basepoints pass through native float arithmetic before conversion back to int32.
     uint32 maximum = uint32(std::nextafter(float(std::numeric_limits<int32>::max()), 0.0f));
     player->CastCustomSpell(id, SPELLVALUE_BASE_POINT0, int32(std::min(damage, maximum)), target, true);
 }
@@ -162,7 +171,17 @@ class bloodmage_secondary_casts : public AllSpellScript
 public:
     bloodmage_secondary_casts() : AllSpellScript("bloodmage_secondary_casts",
         {ALLSPELLHOOK_ON_CAST, ALLSPELLHOOK_ON_CALCULATED_TARGET, ALLSPELLHOOK_ON_CRIT_CHANCE,
-            ALLSPELLHOOK_ON_HIT_RESULT}) { }
+            ALLSPELLHOOK_ON_HIT_RESULT, ALLSPELLHOOK_ON_SUCCESSFUL_INTERRUPT}) { }
+
+    void OnSpellSuccessfulInterrupt(Spell* spell, Unit*) override
+    {
+        Player* player = Bloodmage(spell);
+        if (!player || spell->GetSpellInfo()->Id != SPELL_ANEURYSM ||
+            spell->GetScriptValue(SPELL_ANEURYSM_HEAL))
+            return;
+        spell->SetScriptValue(SPELL_ANEURYSM_HEAL, 1);
+        player->CastSpell(player, SPELL_ANEURYSM_HEAL, true);
+    }
 
     void OnSpellCast(Spell* spell, Unit*, SpellInfo const* info, bool) override
     {
@@ -180,14 +199,10 @@ public:
                 info->PowerType == POWER_RAGE && spell->GetPowerCost() > 0 && roll_chance_i(40))
                 player->ModifyPower(POWER_RAGE, spell->GetPowerCost() / 2);
         }
-        // Dark Essence (680732): Cursed Form abilities and Bloodbolt pulse a small
-        // heal every 1.5 seconds for three seconds into every ally carrying this
-        // Bloodmage's Blood Rituals mark (114 + 10% healing bonus per tick).
-        bool cursedAbility = player->HasAura(AscensionBloodmage::CursedForm) &&
-            info->SpellFamilyName == 26 && info->PowerType == POWER_RAGE &&
-            (info->ManaCost || info->ManaCostPercentage);
-        if (!player->HasAura(SPELL_DARK_ESSENCE) ||
-            (!cursedAbility && AscensionBloodmage::GetEmpowerment(info->Id) != AscensionBloodmage::Bloodbolt))
+        if (player->HasAura(SPELL_DARK_ESSENCE) && (IsCursedFormAbility(info) ||
+            AscensionBloodmage::GetEmpowerment(info->Id) == AscensionBloodmage::Bloodbolt))
+            player->CastSpell(player, SPELL_DARK_ESSENCE_HEAL, true);
+        if (!player->HasAura(SPELL_NIGHT_HUNTER))
             return;
         uint32 const amount = 114 + uint32(player->SpellBaseHealingBonusDone(SPELL_SCHOOL_MASK_SHADOW) / 10);
         std::vector<Unit*> marked;
@@ -256,15 +271,14 @@ public:
 
     void OnSpellCritChance(Spell* spell, Unit* target, float& chance) override
     {
-        if (Bloodmage(spell) && target && RankOf(spell->GetSpellInfo()->Id, SPELL_HEMOBURST) &&
+        Player* player = Bloodmage(spell);
+        if (!player)
+            return;
+        if (target && RankOf(spell->GetSpellInfo()->Id, SPELL_HEMOBURST) &&
             target->HasAuraState(AURA_STATE_BLEEDING))
             chance = 100;
-        // Atherann's Anguish: hemoplague damage cannot critically strike.
         if (spell->GetSpellInfo()->Id == SPELL_ATHERANNS_ANGUISH_BURST)
             chance = 0;
-        // Blood Prince's Command (704641): Bloodbolt always crits targets carrying
-        // Taldaram's Torment (any rank of the torment DoT).
-        Player* player = Bloodmage(spell);
         if (player && target && player->HasAura(SPELL_BLOOD_PRINCES_COMMAND) &&
             AscensionBloodmage::GetEmpowerment(spell->GetSpellInfo()->Id) == AscensionBloodmage::Bloodbolt)
             for (uint32 torment : {800772, 802568, 802569, 802570})
@@ -273,12 +287,14 @@ public:
                     chance = 100;
                     break;
                 }
-        // Enthraller (706619): Valanar's Vengeance and Keleseth's Calamity gain
-        // ten percent critical strike chance.
         if (player && player->HasAura(SPELL_ENTHRALLER) &&
             std::find(std::begin(EnthralledRanks), std::end(EnthralledRanks), spell->GetSpellInfo()->Id) !=
                 std::end(EnthralledRanks))
             chance += 10.0f;
+        if (AuraEffect const* instinct = player->GetAuraEffect(SPELL_KILLER_INSTINCT, EFFECT_0))
+            if (instinct->IsAffectedOnSpell(spell->GetSpellInfo()))
+                chance += std::min(float(player->GetPower(POWER_RAGE)) * instinct->GetAmount() / 10000.0f,
+                    float(instinct->GetMiscValueB()));
     }
 
     void OnSpellCalculatedTarget(Spell* spell, Unit* target, TargetInfo& hit) override
@@ -299,14 +315,10 @@ public:
                 conditions |= 2;
             if (!target->HasInArc(float(M_PI), player))
                 conditions |= 4;
-            // Reave has one victim. Snapshot its conditions before the initial hit changes health.
             spell->SetScriptValue(SPELL_REAVE, conditions);
         }
         if (IsVampiricFang(id))
         {
-            // Vampiric Fang promises bonus damage per Thirst stack. The scalar
-            // lives on Thirst SLS (680753) EFFECT_2; fixed values read straight
-            // off BasePoints, rolled ones add the engine's +1.
             int32 pctPerStack = 0;
             if (SpellInfo const* scalar = sSpellMgr->GetSpellInfo(SPELL_VAMPIRIC_FANG_SCALAR))
                 pctPerStack = scalar->Effects[EFFECT_2].BasePoints +
@@ -316,7 +328,6 @@ public:
                 stacks = thirst->GetStackAmount();
             if (stacks && pctPerStack > 0)
             {
-                // Custom basepoints pass through native float arithmetic before returning to int32.
                 uint32 maximum =
                     uint32(std::nextafter(float(std::numeric_limits<int32>::max()), 0.0f));
                 double mult = 1.0 + double(stacks) * double(pctPerStack) / 100.0;
@@ -334,7 +345,6 @@ public:
             return;
         uint32 id = spell->GetSpellInfo()->Id;
         if (target == player && (id == SPELL_CURSED_FORM || id == SPELL_ACCURSED_FORM))
-            // Native duration modifiers have already extended this application.
             player->RemoveAurasDueToSpell(SPELL_HEMOTURGY);
         if (target == player || player->IsFriendlyTo(target))
             return;
@@ -343,22 +353,11 @@ public:
             spell->SetScriptValue(SPELL_HEMOTURGY, 1);
             player->CastSpell(player, SPELL_HEMOTURGY, true);
         }
-        // Rotclaw's description promises the income ("dealing ... Shadow damage, generating Rage and
-        // infecting their wounds"), but none of its three effects is an energize and no companion
-        // "Rotclaw (Energize)" record exists, unlike Ravenous Strike, Bloodmoon Blast, Sanguine Rupture
-        // and Lunge, which all carry effect 142 pointing at their own Energize spell. Unit::DealDamage
-        // only pays Rage for weapon damage, so the ability granted none. The amount is in no source -
-        // not Spell.dbc, not spell_proc/spell_linked_spell, not the 2026-09-13 exiles-db export - so the
-        // Rage is paid with Ravenous Strike's own Energize record rather than a new number, and once per
-        // cast: Rotclaw hits up to 25 enemies.
         if (RankOf(id, SPELL_ROTCLAW) && !spell->GetScriptValue(SPELL_ROTCLAW_ENERGIZE))
         {
             spell->SetScriptValue(SPELL_ROTCLAW_ENERGIZE, 1);
             player->CastSpell(player, SPELL_ROTCLAW_ENERGIZE, true);
         }
-        // Vampiric Fang expends Thirst: steal health equal to the damage dealt,
-        // then clear Thirst and Insatiable. Runs once per cast on the first
-        // successful hostile hit.
         if (IsVampiricFang(id) && !spell->GetScriptValue(SPELL_VAMPIRIC_FANG))
         {
             spell->SetScriptValue(SPELL_VAMPIRIC_FANG, 1);
@@ -370,6 +369,18 @@ public:
         }
         if (!damage)
             return;
+        if (RankOf(id, SPELL_VAMPIRIC_FANG))
+            if (SpellInfo const* share = sSpellMgr->GetSpellInfo(SPELL_VAMPIRIC_FANG_SHARE))
+            {
+                SpellEffectInfo const& effect = share->Effects[EFFECT_0];
+                int32 authored = effect.BasePoints + (effect.DieSides ? 1 : 0);
+                if (int32 increase = effect.CalcValue(player) - authored; increase > 0)
+                {
+                    uint64 heal = uint64(damage) * uint64(increase) / 100;
+                    CopyDamage(player, player, SPELL_VAMPIRIC_FANG_HEAL,
+                        uint32(std::min<uint64>(heal, std::numeric_limits<uint32>::max())));
+                }
+            }
         // Sovereignty (806049): Crimson Tide damage banks a stack of the buff,
         // whose cost reduction and extra Bloodbolt bounce are native.
         if (player->HasAura(SPELL_SOVEREIGNTY) &&
@@ -493,6 +504,7 @@ public:
         if (AuraEffect const* bank = aura->GetEffect(EFFECT_0); bank && bank->GetAmount() > 0)
             infuser->CastCustomSpell(SPELL_INFUSE_BURST, SPELLVALUE_BASE_POINT0,
                 bank->GetAmount(), unit, true);
+
     }
 };
 
@@ -506,8 +518,6 @@ public:
     {
         if (!target || !target->IsAlive() || !damage)
             return;
-        // The active curse copies all periodic damage to its victim, including allied casters' ticks.
-        // Collect owner GUIDs before casting, since a copy can kill the target and remove its auras.
         std::vector<ObjectGuid> owners;
         for (auto const& pair : target->GetAppliedAuras())
         {
@@ -523,7 +533,6 @@ public:
                     player->IsValidAttackTarget(target))
                 {
                     CopyDamage(player, target, SPELL_VAMPYRS_KISS_COPY, damage / 4);
-                    // Black Heart: Vampyr's Kiss also regenerates 20% of maximum Rage when it copies damage.
                     if (player->HasAura(SPELL_BLACK_HEART))
                         player->ModifyPower(POWER_RAGE, int32(player->GetMaxPower(POWER_RAGE)) / 5);
                     // Lingering Essence (680695): periodic damage rolls fifty percent
@@ -572,18 +581,65 @@ public:
         }
         if (info->Id == SPELL_BLOOD_SHARDS)
         {
-            // Issue 673: the talent's real defect is its proc aura (42 into
-            // DUMMY 506640), which cannot express stack generation, so nothing
-            // accumulated and Veinburst had nothing to spend. The stack
-            // generation and Veinburst expenditure live in the hit callback
-            // above, and the dead proc aura is neutralized so it cannot
-            // double-fire. The DBC already carries SPELL_ATTR0_PASSIVE, so
-            // the re-mark below is a defensive no-op kept in case the record
-            // is ever regenerated without it.
             info->Attributes |= SPELL_ATTR0_PASSIVE;
             info->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_DUMMY;
             info->Effects[EFFECT_0].TriggerSpell = 0;
         }
+        if (info->Id == SPELL_THIRST_FOR_BLOOD &&
+            info->Effects[EFFECT_0].ApplyAuraName == SPELL_AURA_DUMMY && info->Effects[EFFECT_0].Amplitude)
+            info->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_PERIODIC_DUMMY;
+    }
+};
+
+class aura_ascension_bloodmage_thirst_for_blood : public AuraScript
+{
+    PrepareAuraScript(aura_ascension_bloodmage_thirst_for_blood);
+
+    bool Validate(SpellInfo const*) override { return ValidateSpellInfo({SPELL_SATED, SPELL_RAVENOUS}); }
+
+    void Evaluate(AuraEffect const*)
+    {
+        Player* player = GetTarget() ? GetTarget()->ToPlayer() : nullptr;
+        if (!player || player->getClass() != CLASS_SON_OF_ARUGAL || !player->IsAlive())
+            return;
+        Aura const* thirst = player->GetAura(SPELL_BLOOD_THIRST);
+        uint32 stacks = thirst ? thirst->GetStackAmount() : 0;
+        uint32 wanted = !stacks ? 0u : stacks <= 5 ? uint32(SPELL_SATED) : uint32(SPELL_RAVENOUS);
+        for (uint32 id : {uint32(SPELL_SATED), uint32(SPELL_RAVENOUS)})
+            if (id != wanted)
+                player->RemoveAurasDueToSpell(id, player->GetGUID());
+        if (!wanted)
+            return;
+        if (Aura* tier = player->GetAura(wanted, player->GetGUID()))
+            tier->RefreshDuration();
+        else
+            player->CastSpell(player, wanted, true);
+    }
+
+    void Register() override
+    {
+        OnEffectPeriodic += AuraEffectPeriodicFn(aura_ascension_bloodmage_thirst_for_blood::Evaluate,
+            EFFECT_0, SPELL_AURA_PERIODIC_DUMMY);
+    }
+};
+
+class spell_ascension_dark_essence : public SpellScript
+{
+    PrepareSpellScript(spell_ascension_dark_essence);
+
+    void Select(std::list<WorldObject*>& targets)
+    {
+        targets.remove_if([](WorldObject* object)
+        {
+            Unit* target = object ? object->ToUnit() : nullptr;
+            return !target || !target->HasAura(SPELL_BLOOD_RITUALS);
+        });
+    }
+
+    void Register() override
+    {
+        OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_ascension_dark_essence::Select,
+            EFFECT_0, TARGET_UNIT_SRC_AREA_ALLY);
     }
 };
 
@@ -594,7 +650,6 @@ class spell_ascension_blood_feast_corpses : public SpellScript
     void Select(std::list<WorldObject*>& targets)
     {
         Unit* caster = GetCaster();
-        // Filter before the native three-target cap so living units cannot take corpse slots.
         targets.remove_if([caster](WorldObject* object)
         {
             Unit* target = object ? object->ToUnit() : nullptr;
@@ -629,6 +684,208 @@ class spell_ascension_blood_feast_drain : public SpellScript
         OnEffectHitTarget += SpellEffectFn(spell_ascension_blood_feast_drain::Drain, EFFECT_0, SPELL_EFFECT_DUMMY);
     }
 };
+
+class spell_ascension_bloodmage_blood_craving : public SpellScript
+{
+    PrepareSpellScript(spell_ascension_bloodmage_blood_craving);
+
+    void MissingRage(SpellEffIndex index)
+    {
+        PreventHitDefaultEffect(index);
+        Unit* caster = GetCaster();
+        Unit* target = GetHitUnit();
+        int32 misc = GetSpellInfo()->Effects[index].MiscValue;
+        if (!caster || !target || !target->IsAlive() || misc < 0 || misc >= int32(MAX_POWERS))
+            return;
+        Powers power = Powers(misc);
+        if (target->IsPlayer() && !target->CanReceivePowerFromSpell(power))
+            return;
+        uint32 maximum = target->GetMaxPower(power);
+        uint32 current = target->GetPower(power);
+        if (maximum <= current)
+            return;
+        if (uint32 gain = CalculatePct(maximum - current, GetEffectValue()))
+            caster->EnergizeBySpell(target, GetSpellInfo()->Id, gain, power);
+    }
+
+    void Register() override
+    {
+        OnEffectHitTarget += SpellEffectFn(spell_ascension_bloodmage_blood_craving::MissingRage,
+            EFFECT_1, SPELL_EFFECT_ENERGIZE_PCT);
+    }
+};
+constexpr uint32 WavesOfBloodHeal = 807652;
+
+class aura_ascension_waves_of_blood : public AuraScript
+{
+    PrepareAuraScript(aura_ascension_waves_of_blood);
+
+    bool Validate(SpellInfo const*) override { return ValidateSpellInfo({WavesOfBloodHeal}); }
+
+    bool Check(ProcEventInfo& event)
+    {
+        Unit* player = GetTarget();
+        DamageInfo const* damage = event.GetDamageInfo();
+        return player->IsPlayer() && player->getClass() == CLASS_SON_OF_ARUGAL && player->IsAlive() &&
+            player->IsInWorld() && event.GetActor() == player && damage && damage->GetDamage();
+    }
+
+    void Proc(AuraEffect const* effect, ProcEventInfo& event)
+    {
+        PreventDefaultAction();
+        uint64 amount = uint64(event.GetDamageInfo()->GetDamage()) * std::clamp(effect->GetAmount(), 0, 100) / 100;
+        if (!amount)
+            return;
+        GetTarget()->CastCustomSpell(WavesOfBloodHeal, SPELLVALUE_BASE_POINT0,
+            int32(std::min<uint64>(amount, std::numeric_limits<int32>::max())), GetTarget(), TRIGGERED_FULL_MASK);
+    }
+
+    void Register() override
+    {
+        DoCheckProc += AuraCheckProcFn(aura_ascension_waves_of_blood::Check);
+        OnEffectProc += AuraEffectProcFn(aura_ascension_waves_of_blood::Proc, EFFECT_0, AuraType(354));
+    }
+};
+
+constexpr uint32 SPELL_EXCISION = 803733;
+constexpr uint32 SPELL_HEMAL_EXCISION_WINDOW = 803734;
+
+struct SiphonedCurse
+{
+    uint32 spellId;
+    ObjectGuid caster;
+    int32 duration;
+    uint8 stacks;
+};
+
+std::unordered_map<ObjectGuid, std::vector<SiphonedCurse>> siphonedCurses;
+
+class spell_ascension_bloodmage_hemal_excision : public SpellScript
+{
+    PrepareSpellScript(spell_ascension_bloodmage_hemal_excision);
+
+    bool Validate(SpellInfo const*) override { return ValidateSpellInfo({SPELL_HEMAL_EXCISION_WINDOW}); }
+
+    void Capture(SpellMissInfo missInfo)
+    {
+        _candidates.clear();
+        Unit* caster = GetCaster();
+        Unit* target = GetHitUnit();
+        if (missInfo != SPELL_MISS_NONE || !caster || !target)
+            return;
+        DispelChargesList dispellable;
+        target->GetDispellableAuraList(caster, SpellInfo::GetDispelMask(DISPEL_CURSE), dispellable,
+            GetSpellInfo());
+        for (auto const& pair : dispellable)
+            if (Aura const* aura = pair.first)
+                _candidates.push_back({aura->GetId(), aura->GetCasterGUID(), aura->GetDuration(),
+                    aura->GetStackAmount()});
+    }
+
+    void Siphon()
+    {
+        Player* player = GetCaster() ? GetCaster()->ToPlayer() : nullptr;
+        Unit* target = GetHitUnit();
+        if (!player || !target || _candidates.empty())
+            return;
+        std::vector<SiphonedCurse> taken;
+        for (SiphonedCurse const& curse : _candidates)
+            if (!target->GetAura(curse.spellId, curse.caster))
+                taken.push_back(curse);
+        if (taken.empty())
+            return;
+        siphonedCurses[player->GetGUID()] = taken;
+        player->CastSpell(player, SPELL_HEMAL_EXCISION_WINDOW, true);
+    }
+
+    void Register() override
+    {
+        BeforeHit += BeforeSpellHitFn(spell_ascension_bloodmage_hemal_excision::Capture);
+        AfterHit += SpellHitFn(spell_ascension_bloodmage_hemal_excision::Siphon);
+    }
+
+    std::vector<SiphonedCurse> _candidates;
+};
+
+class aura_ascension_bloodmage_hemal_excision : public AuraScript
+{
+    PrepareAuraScript(aura_ascension_bloodmage_hemal_excision);
+
+    bool Validate(SpellInfo const*) override { return ValidateSpellInfo({SPELL_EXCISION}); }
+
+    void Offer(AuraEffect const*, AuraEffectHandleModes)
+    {
+        Player* player = GetTarget() ? GetTarget()->ToPlayer() : nullptr;
+        if (!player)
+            return;
+        if (player->GetSpellMap().find(SPELL_EXCISION) == player->GetSpellMap().end())
+            player->learnSpell(SPELL_EXCISION, true);
+        player->SetTemporarySpellReplacement(SPELL_HEMAL_EXCISION, SPELL_EXCISION);
+    }
+
+    void Withdraw(AuraEffect const*, AuraEffectHandleModes)
+    {
+        Player* player = GetTarget() ? GetTarget()->ToPlayer() : nullptr;
+        if (!player)
+            return;
+        player->SetTemporarySpellReplacement(SPELL_HEMAL_EXCISION, 0);
+        if (player->GetSpellMap().find(SPELL_EXCISION) != player->GetSpellMap().end())
+            player->removeSpell(SPELL_EXCISION, SPEC_MASK_ALL, true);
+        siphonedCurses.erase(player->GetGUID());
+    }
+
+    void Register() override
+    {
+        AfterEffectApply += AuraEffectApplyFn(aura_ascension_bloodmage_hemal_excision::Offer,
+            EFFECT_0, SPELL_AURA_DUMMY, AURA_EFFECT_HANDLE_REAL);
+        AfterEffectRemove += AuraEffectRemoveFn(aura_ascension_bloodmage_hemal_excision::Withdraw,
+            EFFECT_0, SPELL_AURA_DUMMY, AURA_EFFECT_HANDLE_REAL);
+    }
+};
+
+class spell_ascension_bloodmage_excision : public SpellScript
+{
+    PrepareSpellScript(spell_ascension_bloodmage_excision);
+
+    bool Validate(SpellInfo const*) override { return ValidateSpellInfo({SPELL_HEMAL_EXCISION_WINDOW}); }
+
+    SpellCastResult CheckWindow()
+    {
+        Player* player = GetCaster() ? GetCaster()->ToPlayer() : nullptr;
+        if (!player || !player->HasAura(SPELL_HEMAL_EXCISION_WINDOW, player->GetGUID()))
+            return SPELL_FAILED_CANT_DO_THAT_RIGHT_NOW;
+        auto itr = siphonedCurses.find(player->GetGUID());
+        return itr != siphonedCurses.end() && !itr->second.empty() ?
+            SPELL_CAST_OK : SPELL_FAILED_CANT_DO_THAT_RIGHT_NOW;
+    }
+
+    void Place(SpellEffIndex)
+    {
+        Player* player = GetCaster() ? GetCaster()->ToPlayer() : nullptr;
+        Unit* target = GetHitUnit();
+        if (!player || !target)
+            return;
+        auto itr = siphonedCurses.find(player->GetGUID());
+        if (itr == siphonedCurses.end())
+            return;
+        for (SiphonedCurse const& curse : itr->second)
+            if (Aura* aura = player->AddAura(curse.spellId, target))
+            {
+                if (curse.stacks > 1)
+                    aura->SetStackAmount(curse.stacks);
+                if (curse.duration > 0)
+                    aura->SetDuration(curse.duration);
+            }
+        siphonedCurses.erase(itr);
+    }
+
+    void Register() override
+    {
+        OnCheckCast += SpellCheckCastFn(spell_ascension_bloodmage_excision::CheckWindow);
+        OnEffectHitTarget += SpellEffectFn(spell_ascension_bloodmage_excision::Place,
+            EFFECT_0, SPELL_EFFECT_DUMMY);
+    }
+};
 }
 
 void AddSC_AscensionBloodmageSecondary()
@@ -639,4 +896,11 @@ void AddSC_AscensionBloodmageSecondary()
     new bloodmage_secondary_contracts();
     RegisterSpellScript(spell_ascension_blood_feast_corpses);
     RegisterSpellScript(spell_ascension_blood_feast_drain);
+    RegisterSpellScript(spell_ascension_bloodmage_blood_craving);
+    RegisterSpellScript(aura_ascension_bloodmage_thirst_for_blood);
+    RegisterSpellScript(spell_ascension_dark_essence);
+    RegisterSpellScript(aura_ascension_waves_of_blood);
+    RegisterSpellScript(spell_ascension_bloodmage_hemal_excision);
+    RegisterSpellScript(aura_ascension_bloodmage_hemal_excision);
+    RegisterSpellScript(spell_ascension_bloodmage_excision);
 }

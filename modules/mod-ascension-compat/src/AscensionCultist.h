@@ -17,6 +17,8 @@ constexpr uint32 Insanity = 500706;
 constexpr uint32 VoidRune = 800431;
 constexpr uint32 Madness = 803061;
 constexpr uint32 Herald = 520326;
+constexpr uint32 Voidguard = 300266;
+constexpr uint32 DarkCelerity = 300283;
 constexpr uint32 BlackBlood = 804153;
 constexpr uint32 CthunTentacle = 50272;
 constexpr uint32 MentalAssault = 801151;
@@ -59,5 +61,5 @@ void Command(Player* player, Unit* target, bool blast = false);
 void StartDash(Player* player);
 void UpdateDash(Player* player, uint32 diff);
 void ApplyContracts(SpellInfo* info);
-} // namespace AscensionCultist
+}
 #endif
