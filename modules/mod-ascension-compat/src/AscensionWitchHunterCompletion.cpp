@@ -119,6 +119,8 @@ void ApplyContracts(SpellInfo* info)
         info->Effects[EFFECT_0].MiscValue = SPELLMOD_COOLDOWN;
     if (id == 705453)
         info->Effects[EFFECT_0].MiscValue = SPELLMOD_COST;
+    if (id == 681493)
+        info->Effects[EFFECT_2].SpellClassMask = flag96(0, 0, 33554432);
     if (Family(info, 1, 4194304))
     {
         info->InterruptFlags |= SPELL_INTERRUPT_FLAG_MOVEMENT;
