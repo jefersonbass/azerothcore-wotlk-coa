@@ -51,9 +51,29 @@ class spell_ascension_stormbringer_runemaster_talent_proc : public AuraScript
         DoCheckProc += AuraCheckProcFn(spell_ascension_stormbringer_runemaster_talent_proc::CheckProc);
     }
 };
+
+constexpr std::uint32_t SPELL_DROWN = 572760;
+constexpr std::uint32_t SPELL_DROWN_SECOND_RANK = 572761;
+
+class aura_stormbringer_electrified_waters : public AuraScript
+{
+    PrepareAuraScript(aura_stormbringer_electrified_waters);
+
+    bool CheckProc(ProcEventInfo& eventInfo)
+    {
+        Unit* target = eventInfo.GetActionTarget();
+        return target && (target->HasAura(SPELL_DROWN) || target->HasAura(SPELL_DROWN_SECOND_RANK));
+    }
+
+    void Register() override
+    {
+        DoCheckProc += AuraCheckProcFn(aura_stormbringer_electrified_waters::CheckProc);
+    }
+};
 }
 
 void AddSC_AscensionStormbringerRunemasterTalentProcs()
 {
     RegisterSpellScript(spell_ascension_stormbringer_runemaster_talent_proc);
+    RegisterSpellScript(aura_stormbringer_electrified_waters);
 }
