@@ -1312,7 +1312,7 @@ DELETE FROM `spell_proc` WHERE `SpellId` IN (520628, 807459, 520586, 704545, 706
 INSERT INTO `spell_proc` (`SpellId`, `SchoolMask`, `SpellFamilyName`, `SpellFamilyMask0`, `SpellFamilyMask1`, `SpellFamilyMask2`, `ProcFlags`, `SpellTypeMask`, `SpellPhaseMask`, `HitMask`, `AttributesMask`, `DisableEffectsMask`, `ProcsPerMinute`, `Chance`, `Cooldown`, `Charges`) VALUES
 (520628, 0, 0, 0, 0, 0, 69972, 1, 2, 2, 0, 0, 0, 0, 0, 0),
 (807459, 0, 27, 0, 16, 0, 256, 1, 2, 0, 0, 0, 0, 0, 0, 0),
-(520586, 0, 27, 0, 4194304, 8, 1280, 0, 1, 0, 0, 0, 0, 0, 0, 0),
+(520586, 0, 0, 0, 0, 0, 1280, 0, 1, 0, 0, 0, 0, 0, 0, 0),
 (704545, 0, 0, 0, 0, 0, 340, 0, 2, 0, 0, 0, 0, 0, 0, 2),
 (706748, 0, 27, 32, 1073741824, 0, 272, 0, 2, 0, 0, 0, 0, 0, 0, 0),
 (504329, 0, 27, 0, 0, 536870912, 16384, 0, 1, 0, 0, 0, 0, 0, 0, 0),
@@ -1320,7 +1320,7 @@ INSERT INTO `spell_proc` (`SpellId`, `SchoolMask`, `SpellFamilyName`, `SpellFami
 (680931, 0, 27, 32768, 0, 128, 262144, 1, 2, 0, 0, 0, 0, 0, 0, 0),
 (520353, 0, 27, 16, 0, 0, 16, 0, 2, 0, 0, 0, 0, 0, 0, 0),
 (300702, 0, 27, 0, 4096, 0, 16, 0, 2, 0, 0, 0, 0, 0, 0, 0),
-(300703, 0, 27, 0, 33024, 524288, 16, 1, 2, 0, 0, 0, 0, 0, 0, 0),
+(300703, 0, 0, 0, 0, 0, 16, 1, 2, 0, 0, 0, 0, 0, 0, 0),
 (301249, 0, 0, 0, 0, 0, 64, 1, 2, 0, 0, 0, 0, 0, 0, 0),
 (520783, 0, 0, 0, 0, 0, 2, 0, 0, 0, 1, 0, 0, 0, 4000, 0),
 (524831, 0, 27, 0, 4194305, 0, 256, 1, 2, 2, 0, 0, 0, 0, 0, 0),
@@ -1345,3 +1345,15 @@ INSERT INTO `spell_proc` (`SpellId`, `SchoolMask`, `SpellFamilyName`, `SpellFami
 (806957, 0, 0, 0, 0, 0, 262144, 1, 2, 0, 0, 0, 0, 0, 0, 0),
 (806973, 0, 0, 0, 0, 0, 69972, 1, 2, 2, 0, 0, 0, 0, 0, 0),
 (807023, 0, 27, 0, 256, 0, 16, 1, 2, 0, 0, 0, 0, 0, 0, 0);
+
+-- Mask audit (2026-09-22): 300703 Corrosive Poison and 520586 Falcon Guide were measured with
+-- mask_group.py and counted in distinct abilities, not carriers. 300703's (0, 33024, 524288) reached 23
+-- carriers and 3 abilities - Wild Strike, Assault and Sucker Punch, which shares Assault's flags[1]
+-- 0x8000. 520586's (0, 4194304, 8) reached 21 carriers and 3 abilities - Falconstrike, Battle Screech and
+-- Instinctual Combatant, which shares Battle Screech's flags[2] 0x8. Assault and Battle Screech have no
+-- exclusive bit, so both rows drop the mask (family 0) and aura_ascension_spell_list_talent_proc filters
+-- the event spell against AscensionSpellListTalentProcs.h.
+DELETE FROM `spell_script_names` WHERE `ScriptName` = 'spell_ascension_spell_list_talent_proc' AND `spell_id` IN (300703, 520586);
+INSERT INTO `spell_script_names` (`spell_id`, `ScriptName`) VALUES
+(300703, 'spell_ascension_spell_list_talent_proc'),
+(520586, 'spell_ascension_spell_list_talent_proc');

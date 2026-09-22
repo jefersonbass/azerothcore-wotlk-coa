@@ -52,3 +52,8 @@ INSERT INTO `spell_proc` (`SpellId`, `SchoolMask`, `SpellFamilyName`, `SpellFami
 DELETE FROM `spell_script_names` WHERE `spell_id` = 704120 AND `ScriptName` = 'aura_ascension_bloodmage_malediction';
 INSERT INTO `spell_script_names` (`spell_id`, `ScriptName`) VALUES
 (704120, 'aura_ascension_bloodmage_malediction');
+
+-- Mask audit (2026-09-22): 704120's mask (262144, 2826240, 0) was measured with mask_group.py and counted
+-- in distinct abilities, not carriers - 36 carriers resolve to 6 abilities (Bloodmoon Blast, Vampiric Fang,
+-- Bloodbolt, Valanar's Vengeance, Sanguine Rupture, Atherann's Anguish) and the tooltip deliberately names
+-- the whole family ("your next 5 offensive Bloodmage spells"). Measured clean, no change.

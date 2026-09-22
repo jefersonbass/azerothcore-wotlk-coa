@@ -9,3 +9,8 @@ INSERT INTO `spell_proc` (`SpellId`, `SchoolMask`, `SpellFamilyName`, `SpellFami
 (804047, 0, 24, 0, 0, 4104, 16, 7, 4, 12287, 0, 0, 0, 20, 0, 0);
 DELETE FROM `spell_script_names` WHERE `spell_id` = 704322 AND `ScriptName` = 'aura_ascension_guardian_favor_gain';
 INSERT INTO `spell_script_names` (`spell_id`, `ScriptName`) VALUES (704322, 'aura_ascension_guardian_favor_gain');
+
+-- Mask audit (2026-09-22): 804047's mask (0, 0, 4104) was measured with mask_group.py and counted in
+-- distinct abilities, not carriers - 20 carriers resolve to exactly 3 abilities (Ballad of the
+-- Dragonslayer, Ballad of the Conqueror, Lesser Ballad of the Dragonslayer) and the tooltip names the
+-- whole family ("Casting a Ballad"). Measured clean, no change.

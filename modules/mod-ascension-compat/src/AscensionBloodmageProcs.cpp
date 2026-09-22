@@ -4,6 +4,8 @@
 #include "SpellMgr.h"
 #include "SpellScript.h"
 #include "Unit.h"
+#include <algorithm>
+#include <array>
 
 namespace
 {
@@ -14,6 +16,12 @@ constexpr uint32 GRIM_OMEN_STRIKE_MASK1 = 1 | 8388608;
 
 constexpr uint32 GRIM_OMEN_HOWL_MASK1 = 4;
 constexpr uint32 GRIM_OMEN_HOWL_MASK2 = 128 | 2048 | 131072;
+
+constexpr std::array<uint32, 35> GRIM_OMEN_SOURCES = {
+    500123, 501671, 501672, 501673, 501674, 501675, 501676, 501677, 501678, 501679, 805352,
+    501695, 501696, 501697, 503613, 503614, 503615, 572549, 572550, 572551, 800156,
+    500124, 501680, 501681, 501682, 501683, 501684, 501685, 501686, 520459,
+    800782, 804207, 804091, 804811, 806177};
 
 class aura_ascension_bloodmage_infection : public AuraScript
 {
@@ -39,6 +47,10 @@ class aura_ascension_bloodmage_grim_omen : public AuraScript
     {
         SpellInfo const* spellInfo = event.GetSpellInfo();
         if (!spellInfo || spellInfo->SpellFamilyName != BLOODMAGE_SPELL_FAMILY)
+            return false;
+
+        if (std::find(GRIM_OMEN_SOURCES.begin(), GRIM_OMEN_SOURCES.end(), spellInfo->Id) ==
+            GRIM_OMEN_SOURCES.end())
             return false;
 
         if (spellInfo->SpellFamilyFlags.HasFlag(0, GRIM_OMEN_HOWL_MASK1, GRIM_OMEN_HOWL_MASK2))

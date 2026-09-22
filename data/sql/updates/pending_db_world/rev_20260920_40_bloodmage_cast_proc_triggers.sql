@@ -67,5 +67,18 @@ INSERT INTO `spell_proc` (`SpellId`, `SchoolMask`, `SpellFamilyName`, `SpellFami
 (807566, 0, 26, 32768, 0, 4194304, 70656, 0, 1, 0, 0, 2, 0, 100, 0, 0),
 (806428, 0, 26, 32768, 0, 4194304, 70656, 0, 1, 0, 0, 0, 0, 100, 0, 0),
 (684331, 0, 26, 16384, 0, 0, 65536, 0, 1, 0, 0, 0, 0, 100, 0, 0),
-(704625, 0, 26, 0, 8519680, 0, 65552, 0, 1, 0, 0, 0, 0, 100, 0, 0),
-(800766, 0, 26, 0, 4, 133248, 81936, 0, 1, 0, 0, 0, 0, 100, 0, 0);
+(704625, 0, 0, 0, 0, 0, 65552, 0, 1, 0, 0, 0, 0, 100, 0, 0),
+(800766, 0, 0, 0, 0, 0, 81936, 0, 1, 0, 0, 0, 0, 100, 0, 0);
+
+-- Mask audit (2026-09-22): the family masks on 704625 and 800766 were measured with mask_group.py and
+-- counted in distinct abilities, not carriers. 704625's mask (0, 8519680, 0) reached 19 carriers but 3
+-- abilities - Bloodbolt, Bloodfang Bite and Crimson Maw 803388, which shares Bloodfang Bite's flags[1]
+-- 0x800000. 800766's (0, 4, 133248) reached 13 carriers and 6 abilities - the five Howls plus Blood
+-- Craving 800780, which shares Night Hunter's Howl's flags[2] 0x800. Neither named ability has an
+-- exclusive bit, so both rows drop the mask (family 0) and aura_ascension_spell_list_talent_proc filters
+-- the event spell against AscensionSpellListTalentProcs.h. The other three rows in this file keep their
+-- masks: Infuse/Vampyr's Kiss and Crimson Tide are single-ability keys.
+DELETE FROM `spell_script_names` WHERE `ScriptName` = 'spell_ascension_spell_list_talent_proc' AND `spell_id` IN (704625, 800766);
+INSERT INTO `spell_script_names` (`spell_id`, `ScriptName`) VALUES
+(704625, 'spell_ascension_spell_list_talent_proc'),
+(800766, 'spell_ascension_spell_list_talent_proc');

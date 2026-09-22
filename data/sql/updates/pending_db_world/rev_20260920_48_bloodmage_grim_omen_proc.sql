@@ -36,6 +36,12 @@ DELETE FROM `spell_proc` WHERE `SpellId` = 800154;
 INSERT INTO `spell_proc` (`SpellId`, `SchoolMask`, `SpellFamilyName`, `SpellFamilyMask0`, `SpellFamilyMask1`, `SpellFamilyMask2`, `ProcFlags`, `SpellTypeMask`, `SpellPhaseMask`, `HitMask`, `AttributesMask`, `DisableEffectsMask`, `ProcsPerMinute`, `Chance`, `Cooldown`, `Charges`) VALUES
 (800154, 0, 26, 0, 8388613, 133248, 81936, 0, 3, 0, 0, 0, 0, 100, 0, 0);
 
+-- Mask audit (2026-09-22): the family mask above was measured with mask_group.py and counted in distinct
+-- abilities, not carriers - 34 carriers resolve to 9 abilities, and two of them are NOT named by the
+-- tooltip: Crimson Maw 803388 shares Bloodfang Bite's flags[1] 0x800000 and Blood Craving 800780 shares
+-- Night Hunter's Howl's flags[2] 0x800. Family masks match on any shared bit (SpellInfo::IsAffected and
+-- flag96::HasFlag alike), so the companion CheckProc script now also checks the source spell id against
+-- GRIM_OMEN_SOURCES before applying the per-clause phase rule - a family mask alone cannot exclude them.
 DELETE FROM `spell_script_names` WHERE `spell_id` = 800154 AND `ScriptName` = 'aura_ascension_bloodmage_grim_omen';
 INSERT INTO `spell_script_names` (`spell_id`, `ScriptName`) VALUES
 (800154, 'aura_ascension_bloodmage_grim_omen');
