@@ -29,6 +29,21 @@ enum RangerTalentSpells : uint32
     SPELL_PIERCED = 705033
 };
 
+constexpr uint32 STONEMASON_SOURCE_FIRST = 501715;
+constexpr uint32 STONEMASON_SOURCE_LAST = 501723;
+constexpr uint32 STONEMASON_SOURCE_SKULLPIERCER_LATEST = 802036;
+constexpr uint32 STONEMASON_ASSAULT_FIRST = 503099;
+constexpr uint32 STONEMASON_ASSAULT_LAST = 503105;
+constexpr uint32 STONEMASON_ASSAULT_LATEST = 803108;
+
+inline bool IsSkullpiercerOrAssault(uint32 spellId)
+{
+    return (spellId >= STONEMASON_SOURCE_FIRST && spellId <= STONEMASON_SOURCE_LAST) ||
+        spellId == STONEMASON_SOURCE_SKULLPIERCER_LATEST ||
+        (spellId >= STONEMASON_ASSAULT_FIRST && spellId <= STONEMASON_ASSAULT_LAST) ||
+        spellId == STONEMASON_ASSAULT_LATEST;
+}
+
 class spell_ascension_ranger_light_arrows : public SpellScript
 {
     PrepareSpellScript(spell_ascension_ranger_light_arrows);
@@ -101,7 +116,7 @@ void HandleAscensionRangerStonemason(Spell* spell, Player* player)
 {
     SpellInfo const* info = spell->GetSpellInfo();
     if (player->getClass() != CLASS_RANGER || info->SpellFamilyName != 27 ||
-        !(info->SpellFamilyFlags[1] & (32768 | 134217728)) || !player->HasAura(SPELL_STONEMASONS_SECRET) ||
+        !IsSkullpiercerOrAssault(info->Id) || !player->HasAura(SPELL_STONEMASONS_SECRET) ||
         !player->HasAura(SPELL_DIRTY_BLADES, player->GetGUID()))
         return;
     if (Aura const* advantage = player->GetAura(SPELL_ADVANTAGE); advantage && advantage->GetStackAmount() == 5)

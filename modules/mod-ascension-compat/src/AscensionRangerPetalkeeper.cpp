@@ -29,6 +29,9 @@ enum PetalkeeperSpells : uint32
     SPELL_RED_DREAM_HEAL = 521643
 };
 
+constexpr std::array<uint32, 7> WOODLAND_ARROW_SPELLS = {
+    572579, 806368, 806444, 806445, 806446, 806447, 806448};
+
 enum PetalkeeperEntries : uint32
 {
     NPC_RED_FLOWER = 454240,
@@ -184,7 +187,8 @@ public:
         if (!player || player->getClass() != CLASS_RANGER || info->SpellFamilyName != 27 || spell->IsTriggered() ||
             !player->IsAlive() || !player->IsInWorld() || !player->HasAura(SPELL_PETALKEEPER))
             return;
-        if (info->SpellFamilyFlags[2] & 8192)
+        if (std::find(WOODLAND_ARROW_SPELLS.begin(), WOODLAND_ARROW_SPELLS.end(), info->Id) !=
+            WOODLAND_ARROW_SPELLS.end())
             player->CastSpell(player, SPELL_RED_FLOWER, true);
         if (info->SpellFamilyFlags[2] & 1)
             for (ObjectGuid guid : RedFlowerGuids(player->GetGUID()))
