@@ -6,10 +6,14 @@
 #include "ScriptMgr.h"
 #include "SpellInfo.h"
 #include <algorithm>
+#include <array>
 namespace
 {
 using namespace AscensionSunCleric;
 constexpr uint32 SUN_CLERIC_GRACE = 504070;
+
+constexpr std::array<uint32, 8> DAWNSEAR_SPELLS = {
+    500146, 502366, 502367, 502368, 502369, 502370, 502371, 554406};
 class sun_cleric_devotion_scaling : public UnitScript
 {
 public:
@@ -20,7 +24,8 @@ public:
         Player* player = Owner(caster);
         if (!player || !info || info->SpellFamilyName != 33 || Derived(info) || !player->HasAura(SUN_CLERIC_GRACE))
             return;
-        bool const dawnsear = info->SpellFamilyFlags.HasFlag(0, 0x2, 0);
+        bool const dawnsear = std::find(DAWNSEAR_SPELLS.begin(), DAWNSEAR_SPELLS.end(), info->Id) !=
+            DAWNSEAR_SPELLS.end();
         bool const sunflare = !dawnsear && info->SpellFamilyFlags.HasFlag(0, 0x100, 0);
         if (!dawnsear && !sunflare)
             return;
