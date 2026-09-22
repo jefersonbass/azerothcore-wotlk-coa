@@ -13,10 +13,23 @@
 -- Runeshroud 32768/1073741824/134217728 (both records OR-ed), Phase Out 64/0/0, Unshackle 16/0/0,
 -- Call Lightning 0/16/32, Weapon Engraving: Air 131072/2147745792/0 OR Weapon Engraving: Earth
 -- 131072/131072/0 -> 131072/2147876864/0.
+-- MASK CORRECTION (2026-09-22) - THIS SUPERSEDES THE MASK VALUES NAMED ABOVE: SpellFamilyMask
+-- matches by ANY shared bit (flag96 operator& plus
+-- operator bool in Util.h:513/557, consumed at SpellInfo.cpp:1439), so a mask set to an ability full
+-- flags also matched every ability sharing any of those bits - word2 bit 32 alone is shared by about
+-- thirteen Stormbringer abilities. The rows here now carry only the bits that are EXCLUSIVE to the
+-- ability the clause names, so the mask selects it alone. Where an ability has no exclusive bit at
+-- all (its whole flag set is shared), the mask cannot isolate it and the row must be filtered by the
+-- spell list in AscensionStormbringerRunemasterTalentProcs instead.
 DELETE FROM `spell_proc` WHERE `SpellId` IN (707423, 705581, 300839, 706629, 560053);
 INSERT INTO `spell_proc` (`SpellId`, `SchoolMask`, `SpellFamilyName`, `SpellFamilyMask0`, `SpellFamilyMask1`, `SpellFamilyMask2`, `ProcFlags`, `SpellTypeMask`, `SpellPhaseMask`, `HitMask`, `AttributesMask`, `DisableEffectsMask`, `ProcsPerMinute`, `Chance`, `Cooldown`, `Charges`) VALUES
 (707423, 0, 38, 32768, 1073741824, 134217728, 87312, 7, 1, 0, 0, 0, 0, 0, 0, 0),
 (705581, 0, 38, 64, 0, 0, 87312, 7, 1, 0, 0, 0, 0, 0, 0, 0),
 (300839, 0, 22, 16, 0, 0, 87312, 7, 1, 0, 0, 0, 0, 0, 0, 0),
-(706629, 0, 22, 0, 16, 32, 69904, 1, 1, 0, 0, 0, 0, 0, 0, 0),
-(560053, 0, 38, 131072, 2147876864, 0, 69904, 1, 2, 0, 0, 0, 0, 0, 0, 0);
+(706629, 0, 22, 0, 0, 0, 69904, 1, 1, 0, 0, 0, 0, 0, 0, 0),
+(560053, 0, 38, 0, 2147614720, 0, 69904, 1, 2, 0, 0, 0, 0, 0, 0, 0);
+
+DELETE FROM `spell_script_names` WHERE `spell_id` IN (706629)
+  AND `ScriptName` = 'spell_ascension_stormbringer_runemaster_talent_proc';
+INSERT INTO `spell_script_names` (`spell_id`, `ScriptName`) VALUES
+(706629, 'spell_ascension_stormbringer_runemaster_talent_proc');

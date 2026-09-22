@@ -16,6 +16,12 @@
 DELETE FROM `spell_proc` WHERE `SpellId` IN (707542, 705717, 705670, 500580);
 INSERT INTO `spell_proc` (`SpellId`, `SchoolMask`, `SpellFamilyName`, `SpellFamilyMask0`, `SpellFamilyMask1`, `SpellFamilyMask2`, `ProcFlags`, `SpellTypeMask`, `SpellPhaseMask`, `HitMask`, `AttributesMask`, `DisableEffectsMask`, `ProcsPerMinute`, `Chance`, `Cooldown`, `Charges`) VALUES
 (707542, 0, 22, 32768, 0, 0, 69904, 1, 2, 0, 0, 0, 0, 0, 0, 0),
-(705717, 0, 22, 0, 16, 0, 69904, 1, 2, 0, 0, 0, 0, 0, 0, 0),
-(705670, 0, 22, 0, 4096, 0, 69904, 1, 2, 0, 0, 0, 0, 0, 0, 0),
+(705717, 0, 22, 0, 0, 0, 69904, 1, 2, 0, 0, 0, 0, 0, 0, 0),
+(705670, 0, 22, 0, 0, 0, 69904, 1, 2, 0, 0, 0, 0, 0, 0, 0),
 (500580, 0, 0, 0, 0, 0, 69972, 1, 2, 0, 0, 0, 0, 0, 0, 0);
+
+DELETE FROM `spell_script_names` WHERE `spell_id` IN (705717, 705670)
+  AND `ScriptName` = 'spell_ascension_stormbringer_runemaster_talent_proc';
+INSERT INTO `spell_script_names` (`spell_id`, `ScriptName`) VALUES
+(705717, 'spell_ascension_stormbringer_runemaster_talent_proc'),
+(705670, 'spell_ascension_stormbringer_runemaster_talent_proc');

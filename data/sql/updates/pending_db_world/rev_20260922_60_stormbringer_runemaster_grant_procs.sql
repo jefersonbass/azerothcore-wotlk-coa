@@ -13,9 +13,23 @@
 -- Gift of Air's tooltip has a second clause - "your critical strikes now extend the duration of your
 -- Tailwind by 1.5 sec" - which is not driven by this aura and is NOT restored here; only the
 -- "Casting Kiss of the Clouds empowers your Air Elemental" clause rides this row.
+-- MASK CORRECTION (2026-09-22) - THIS SUPERSEDES THE MASK VALUES NAMED ABOVE: SpellFamilyMask
+-- matches by ANY shared bit (flag96 operator& plus
+-- operator bool in Util.h:513/557, consumed at SpellInfo.cpp:1439), so a mask set to an ability full
+-- flags also matched every ability sharing any of those bits - word2 bit 32 alone is shared by about
+-- thirteen Stormbringer abilities. The rows here now carry only the bits that are EXCLUSIVE to the
+-- ability the clause names, so the mask selects it alone. Where an ability has no exclusive bit at
+-- all (its whole flag set is shared), the mask cannot isolate it and the row must be filtered by the
+-- spell list in AscensionStormbringerRunemasterTalentProcs instead.
 DELETE FROM `spell_proc` WHERE `SpellId` IN (705634, 705700, 707053, 705715);
 INSERT INTO `spell_proc` (`SpellId`, `SchoolMask`, `SpellFamilyName`, `SpellFamilyMask0`, `SpellFamilyMask1`, `SpellFamilyMask2`, `ProcFlags`, `SpellTypeMask`, `SpellPhaseMask`, `HitMask`, `AttributesMask`, `DisableEffectsMask`, `ProcsPerMinute`, `Chance`, `Cooldown`, `Charges`) VALUES
-(705634, 0, 38, 0, 4, 0, 87312, 7, 1, 0, 0, 0, 0, 0, 0, 0),
-(705700, 0, 22, 8388608, 16, 32, 69904, 1, 1, 0, 0, 0, 0, 0, 0, 0),
-(707053, 0, 22, 0, 4096, 0, 69904, 1, 1, 0, 0, 0, 0, 0, 0, 0),
+(705634, 0, 38, 0, 0, 0, 87312, 7, 1, 0, 0, 0, 0, 0, 0, 0),
+(705700, 0, 22, 8388608, 0, 0, 69904, 1, 1, 0, 0, 0, 0, 0, 0, 0),
+(707053, 0, 22, 0, 0, 0, 69904, 1, 1, 0, 0, 0, 0, 0, 0, 0),
 (705715, 0, 22, 0, 0, 1048576, 87312, 7, 1, 0, 0, 0, 0, 0, 0, 0);
+
+DELETE FROM `spell_script_names` WHERE `spell_id` IN (705634, 707053)
+  AND `ScriptName` = 'spell_ascension_stormbringer_runemaster_talent_proc';
+INSERT INTO `spell_script_names` (`spell_id`, `ScriptName`) VALUES
+(705634, 'spell_ascension_stormbringer_runemaster_talent_proc'),
+(707053, 'spell_ascension_stormbringer_runemaster_talent_proc');
