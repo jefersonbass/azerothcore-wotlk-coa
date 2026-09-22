@@ -250,6 +250,8 @@ void ApplyContracts(SpellInfo* info)
         info->Effects[EFFECT_1].DieSides = 1;
         info->Effects[EFFECT_2].DieSides = 1;
     }
+    if (id == 705919)
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
     if (id == 572871)
     {
         // Issue 803: Presence of the Loa ships without SPELL_ATTR0_PASSIVE,
