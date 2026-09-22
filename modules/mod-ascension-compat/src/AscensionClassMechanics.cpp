@@ -24,6 +24,7 @@
 #include "AscensionVenomancer.h"
 #include "AscensionTinker.h"
 #include "AscensionSunCleric.h"
+#include "AscensionSunClericRadiance.h"
 #include "AscensionConditionalCombat.h"
 #include "AscensionRunemasterGlyphs.h"
 #include "AscensionRunemasterBrand.h"
@@ -1320,10 +1321,9 @@ void ApplyAscensionClassMechanics(SpellInfo* spellInfo)
     ApplyRangerForestDwellerContract(spellInfo);
     ApplyRangerFalconGuideContract(spellInfo);
     ApplyRangerFocusedFighterContract(spellInfo);
-
     ApplyRangerOutlawContract(spellInfo);
     ApplyRangerSurefootedContract(spellInfo);
-
+    ApplyAscensionSunClericRadianceContracts(spellInfo);
 
     if (spellInfo->Id == 504144) // Bannerman
     {
