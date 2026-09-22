@@ -250,7 +250,7 @@ void ApplyContracts(SpellInfo* info)
         info->Effects[EFFECT_1].DieSides = 1;
         info->Effects[EFFECT_2].DieSides = 1;
     }
-    if (id == 705919 || id == 802218)
+    if (id == 705919 || id == 802218 || id == 806271)
         info->Attributes |= SPELL_ATTR0_PASSIVE;
     if (id == 572871)
     {
