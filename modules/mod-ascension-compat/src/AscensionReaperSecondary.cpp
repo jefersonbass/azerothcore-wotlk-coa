@@ -57,6 +57,7 @@ enum ReaperSecondarySpells : uint32
     SPELL_PURGATORY_BUFF = 504047,
     SPELL_RELIQUARY = 500631,
     SPELL_SOUL_INFUSION = 803031,
+    SPELL_WARDEN_OF_THE_LOST = 707116,
     PURGATORY_BONUS = 20
 };
 
@@ -351,6 +352,16 @@ public:
             // without them.
             info->Attributes |= SPELL_ATTR0_PASSIVE;
             info->Effects[EFFECT_0].DieSides = 1;
+        }
+        if (info->Id == SPELL_WARDEN_OF_THE_LOST)
+        {
+            // Issue 683: Warden of the Lost's aura (effect 0, aura 42 on the
+            // summons, trigger 707128 -> force cast of 707127's -0.5 sec on
+            // Spectral Warden 805716) ships with ProcFlags 0. LoadSpellProcs
+            // skips the default proc entry for a trigger aura without flags,
+            // so the authored chain never fired. The aura sits on the Reaper's
+            // summons, so the flags are the damage-dealt set.
+            info->ProcFlags = DONE_HIT_PROC_FLAG_MASK;
         }
     }
 };
