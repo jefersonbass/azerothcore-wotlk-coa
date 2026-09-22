@@ -19,6 +19,18 @@ constexpr uint32 TANKARD = 805813;
 constexpr uint32 BODY_BUILDER = 706481;
 constexpr uint32 BODY_BUILDER_SIZE = 706508;
 constexpr uint32 SPEAR_THROWER = 574321;
+constexpr uint32 SPELL_THROW_WEAPON = 804136;
+constexpr uint32 SPELL_JAVELIN_TOSS = 504217;
+
+bool IsThrowWeaponAbility(SpellInfo const* info)
+{
+    if (!info)
+        return false;
+
+    uint32 const root = sSpellMgr->GetFirstSpellInChain(info->Id);
+    return root == sSpellMgr->GetFirstSpellInChain(SPELL_THROW_WEAPON) ||
+        root == sSpellMgr->GetFirstSpellInChain(SPELL_JAVELIN_TOSS);
+}
 }
 
 void ApplyAscensionBarbarianSpellChanges(SpellInfo* info)
@@ -90,8 +102,7 @@ void HandleAscensionBarbarianCast(Spell* spell)
             player->RemoveAurasDueToSpell(TANKARD);
     }
 
-    if (player->HasAura(707661) && info->SpellFamilyName == 18 &&
-        (info->SpellFamilyFlags[1] & 0x00040000))
+    if (player->HasAura(707661) && info->SpellFamilyName == 18 && IsThrowWeaponAbility(info))
         if (SpellInfo const* javelin = sSpellMgr->GetSpellInfo(504217))
             if (Unit* victim = spell->m_targets.GetUnitTarget())
                 player->CastSpell(victim, javelin->Id, TRIGGERED_FULL_MASK);
@@ -121,8 +132,7 @@ void HandleAscensionBarbarianCast(Spell* spell)
                     aura->SetDuration(aura->GetDuration() + extra);
                     break;
                 }
-    if (info->SpellFamilyName != 18 || !(info->SpellFamilyFlags[1] & 0x00040000) ||
-        !player->HasAura(SPEAR_THROWER))
+    if (info->SpellFamilyName != 18 || !IsThrowWeaponAbility(info) || !player->HasAura(SPEAR_THROWER))
         return;
 
     float chance = 30.0f;
