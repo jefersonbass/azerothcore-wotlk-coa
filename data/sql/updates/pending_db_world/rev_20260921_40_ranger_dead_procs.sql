@@ -1324,7 +1324,7 @@ INSERT INTO `spell_proc` (`SpellId`, `SchoolMask`, `SpellFamilyName`, `SpellFami
 (301249, 0, 0, 0, 0, 0, 64, 1, 2, 0, 0, 0, 0, 0, 0, 0),
 (520783, 0, 0, 0, 0, 0, 2, 0, 0, 0, 1, 0, 0, 0, 4000, 0),
 (524831, 0, 27, 0, 4194305, 0, 256, 1, 2, 2, 0, 0, 0, 0, 0, 0),
-(560802, 0, 27, 0, 67108864, 8192, 256, 1, 2, 0, 0, 0, 0, 0, 0, 0),
+(560802, 0, 0, 0, 0, 0, 256, 1, 2, 0, 0, 0, 0, 0, 0, 0),
 (560810, 0, 0, 0, 0, 0, 64, 1, 2, 0, 0, 0, 0, 0, 0, 0),
 (570737, 0, 0, 0, 0, 0, 20, 1, 2, 0, 0, 0, 0, 0, 0, 0),
 (572372, 0, 0, 0, 0, 0, 64, 1, 2, 0, 0, 0, 0, 0, 0, 0),
@@ -1353,7 +1353,27 @@ INSERT INTO `spell_proc` (`SpellId`, `SchoolMask`, `SpellFamilyName`, `SpellFami
 -- Instinctual Combatant, which shares Battle Screech's flags[2] 0x8. Assault and Battle Screech have no
 -- exclusive bit, so both rows drop the mask (family 0) and aura_ascension_spell_list_talent_proc filters
 -- the event spell against AscensionSpellListTalentProcs.h.
-DELETE FROM `spell_script_names` WHERE `ScriptName` = 'spell_ascension_spell_list_talent_proc' AND `spell_id` IN (300703, 520586);
+DELETE FROM `spell_script_names` WHERE `ScriptName` = 'spell_ascension_spell_list_talent_proc' AND `spell_id` IN (300703, 520586, 560802);
 INSERT INTO `spell_script_names` (`spell_id`, `ScriptName`) VALUES
 (300703, 'spell_ascension_spell_list_talent_proc'),
-(520586, 'spell_ascension_spell_list_talent_proc');
+(520586, 'spell_ascension_spell_list_talent_proc'),
+(560802, 'spell_ascension_spell_list_talent_proc');
+
+-- Mask audit (2026-09-22), the rest of this file's masked rows, measured with mask_group.py and counted in
+-- distinct abilities rather than carriers:
+--   560802 Quel'dorei Poison: (0, 67108864, 8192) reached 14 carriers and 3 abilities - the tooltip names
+--     Woodland Arrow and Emerald Arrow, but Neurotoxin Arrow shares their bit. Neither named ability has an
+--     exclusive bit, so the row drops the mask and joins the spell-list rules.
+--   680931 Headshots Only: (32768, 0, 128) reached 16 carriers and 3 names - Toxic Dart, Serrated Shot and
+--     "Serrated Shot Visual", which carries no damage effect and therefore raises no periodic proc event.
+--     Measured clean.
+--   524831 Thread The Needle: (0, 4194305, 0) reached 15 carriers and exactly the two the tooltip names
+--     (Quick Shot, Falconstrike). Measured clean.
+--   300702 Pillager: (0, 4096, 0) reached 15 carriers and one ability (Ravage, plus its UNUSED variant).
+--     Measured clean.
+--   807023: (0, 256, 0) reached 14 carriers, all Wild Strike - an exclusive bit. Measured clean.
+--   807459 Venom-Coated Seeds: (0, 16, 0) reached 13 carriers, all Snapseed - an exclusive bit. Measured
+--     clean.
+--   705069 Battle Screech: (0, 4194304, 2048) reached 14 carriers and 6 names (Falconstrike, Falcon's Call,
+--     Phoenix Plumes, Falconstrike Summon, Falcon Dive and one more). The tooltip says "Abilities that
+--     summon War Falcons", which does not pin the set down; left as authored pending a design call.
