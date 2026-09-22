@@ -8,6 +8,7 @@
 #include "SpellScript.h"
 #include "ScriptMgr.h"
 #include <algorithm>
+#include <cmath>
 #include <limits>
 
 namespace
@@ -78,6 +79,25 @@ class spell_ascension_ranger_knockout : public SpellScript
         OnEffectHitTarget += SpellEffectFn(spell_ascension_ranger_knockout::Incapacitate, EFFECT_1, SPELL_EFFECT_DUMMY);
     }
 };
+
+class aura_ascension_ranger_highwayman : public AuraScript
+{
+    PrepareAuraScript(aura_ascension_ranger_highwayman);
+
+    bool CheckProc(ProcEventInfo& event)
+    {
+        Unit* owner = GetTarget();
+        Unit* victim = event.GetActionTarget();
+        return owner->IsPlayer() && owner->getClass() == CLASS_RANGER && event.GetActor() == owner &&
+            victim && victim != owner && !owner->IsFriendlyTo(victim) &&
+            (event.GetHitMask() & PROC_HIT_CRITICAL) && !victim->HasInArc(float(M_PI), owner);
+    }
+
+    void Register() override
+    {
+        DoCheckProc += AuraCheckProcFn(aura_ascension_ranger_highwayman::CheckProc);
+    }
+};
 }
 
 void HandleAscensionRangerStonemason(Spell* spell, Player* player)
@@ -144,4 +164,5 @@ void AddSC_AscensionRangerTalents()
     new ranger_pierced_crits();
     RegisterSpellScript(spell_ascension_ranger_light_arrows);
     RegisterSpellScript(spell_ascension_ranger_knockout);
+    RegisterSpellScript(aura_ascension_ranger_highwayman);
 }
