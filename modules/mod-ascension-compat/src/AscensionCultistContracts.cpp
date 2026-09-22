@@ -345,6 +345,10 @@ void ApplyContracts(SpellInfo* info)
         info->Effects[1].ApplyAuraName = SPELL_AURA_PERIODIC_DUMMY;
     if (id == 806039)
         info->Effects[1].Effect = SPELL_EFFECT_DUMMY;
+    if (id == 680500 && info->Effects[1].ApplyAuraName == SPELL_AURA_ADD_PCT_MODIFIER &&
+        info->Effects[1].MiscValue == SPELLMOD_CRIT_DAMAGE_BONUS && info->Effects[1].BasePoints == 24 &&
+        info->Effects[1].DieSides == 1 && info->Effects[1].SpellClassMask == flag96(0, 0, 0x84000))
+        info->Effects[1].SpellClassMask = flag96(0x10000000, 0, 0x84000);
     info->_InitializeExplicitTargetMask();
 }
 }

@@ -218,6 +218,31 @@ public:
         }
     }
 };
+
+constexpr uint32 SPELL_KIRIN_TOR_ADEPT = 705635;
+constexpr uint32 SPELL_EYE_OF_THE_BEHOLDER = 500121;
+
+class aura_runemaster_kirin_tor_adept : public AuraScript
+{
+    PrepareAuraScript(aura_runemaster_kirin_tor_adept);
+
+    void RetargetToEyeOfTheBeholder(AuraEffect const*, SpellModifier*& modifier)
+    {
+        if (!modifier || modifier->ownerAura != GetAura() ||
+            modifier->spellId != SPELL_KIRIN_TOR_ADEPT ||
+            modifier->op != SPELLMOD_ALL_EFFECTS || modifier->type != SPELLMOD_PCT ||
+            (modifier->targetSpellId && modifier->targetSpellId != SPELL_EYE_OF_THE_BEHOLDER))
+            return;
+
+        modifier->targetSpellId = SPELL_EYE_OF_THE_BEHOLDER;
+    }
+
+    void Register() override
+    {
+        DoEffectCalcSpellMod += AuraEffectCalcSpellModFn(
+            aura_runemaster_kirin_tor_adept::RetargetToEyeOfTheBeholder, EFFECT_0, SPELL_AURA_ADD_PCT_MODIFIER);
+    }
+};
 }
 
 void ApplyAscensionRunemasterTalentContracts(SpellInfo* info)
@@ -270,4 +295,5 @@ void AddSC_AscensionRunemasterTalents()
     new runemaster_elemental_carvings();
     RegisterSpellScript(aura_runemaster_granite_shield);
     RegisterSpellScript(aura_runemaster_protective_warding);
+    RegisterSpellScript(aura_runemaster_kirin_tor_adept);
 }
