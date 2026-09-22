@@ -23,6 +23,12 @@
 -- HitMask 0 (PROC_HIT_NONE) - any hit, not only a critical one.
 -- Chance stays 0 so the record's own ProcChance (100) is used, per
 -- rev_20260919_20_coa_proc_chance_parity.sql.
-DELETE FROM `spell_proc` WHERE `SpellId` = 705226;
-INSERT INTO `spell_proc` (`SpellId`, `SchoolMask`, `SpellFamilyName`, `SpellFamilyMask0`, `SpellFamilyMask1`, `SpellFamilyMask2`, `ProcFlags`, `SpellTypeMask`, `SpellPhaseMask`, `HitMask`, `AttributesMask`, `DisableEffectsMask`, `ProcsPerMinute`, `Chance`, `Cooldown`, `Charges`) VALUES
-(705226, 0, 18, 0, 524288, 0, 69904, 1, 2, 0, 0, 0, 0, 0, 0, 0);
+--
+-- SUPERSEDED: the row this file used to insert is now owned by
+-- rev_20260922_73_barbarian_intensity_mask_to_list.sql, which keeps the same gate (ProcFlags 69904,
+-- SpellTypeMask 1, SpellPhaseMask 2, Chance 0) but drops SpellFamilyName and the family mask in favour of
+-- the exact Berserker Axe list held by spell_ascension_barbarian_talent_proc. That removes the Spite
+-- collateral this file had accepted: SpellFamilyMask1 0x80000 is shared by Spite, so the mask could never
+-- select Berserker Axe alone. Both files used to insert a row for 705226 and, because `_73` sorts later,
+-- it deleted and replaced this one; the duplicate is removed so the outcome no longer depends on file order.
+-- The analysis above is kept as the record of why the gate is shaped the way it is.
