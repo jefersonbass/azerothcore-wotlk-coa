@@ -11,17 +11,18 @@
 -- passes install the aura.
 -- Leystone Springs (300581, Runemaster): "melee auto attacks now have a 15% chance" - ProcFlags 4 is
 -- PROC_FLAG_DONE_MELEE_AUTO_ATTACK, outside the spell/phase masks, so those stay 0.
--- Magic Etchings (300582, Runemaster): "Dealing damage with Primordial Blast" - family 38 masks 0x400000 /
--- 0x100000 / 0x40 are Primordial Blast's own flags (502823/502825).
+-- NOT added: Magic Etchings (300582, Runemaster). Its mask (Primordial Blast's own flags 0x400000 / 0x100000 /
+-- 0x40) also selects Hydros 713002, Plasma Ball 802966 and Runic Obliteration 807014/807025, because
+-- IsAffected (SpellInfo.cpp:1439) matches on ANY shared bit - the armour debuff would land from those
+-- abilities too. Primordial Blast has no exclusive bit, so it needs the mask-0 + spell-list script route.
 -- Dark Skies (300593, Stormbringer): "direct damage spells fail to critically strike" is the non-critical
 -- half of a direct damage spell hit - ProcFlags 69904 (the four direct damage spell classes) with HitMask 1
 -- = PROC_HIT_NORMAL. Its second half, "critically striking removes this effect", rides the buff itself
 -- (680855): a crit proc whose script removes the stack (aura_ascension_stormbringer_dark_skies).
-DELETE FROM `spell_proc` WHERE `SpellId` IN (300493, 300581, 300582, 300593, 680855);
+DELETE FROM `spell_proc` WHERE `SpellId` IN (300493, 300581, 300593, 680855);
 INSERT INTO `spell_proc` (`SpellId`, `SchoolMask`, `SpellFamilyName`, `SpellFamilyMask0`, `SpellFamilyMask1`, `SpellFamilyMask2`, `ProcFlags`, `SpellTypeMask`, `SpellPhaseMask`, `HitMask`, `AttributesMask`, `DisableEffectsMask`, `ProcsPerMinute`, `Chance`, `Cooldown`, `Charges`) VALUES
 (300493, 0, 18, 0, 1048578, 0, 69904, 1, 2, 0, 0, 0, 0, 0, 0, 0),
 (300581, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0),
-(300582, 0, 38, 4194304, 1048576, 64, 69904, 1, 2, 0, 0, 0, 0, 0, 0, 0),
 (300593, 0, 0, 0, 0, 0, 69904, 1, 2, 1, 0, 0, 0, 0, 0, 0),
 (680855, 0, 0, 0, 0, 0, 69904, 1, 2, 2, 0, 0, 0, 0, 0, 0);
 
