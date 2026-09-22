@@ -332,10 +332,9 @@ public:
         if (info->Id == SPELL_ENDBRINGER)
         {
             info->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_DUMMY;
-            info->ProcFlags = 0; // Do not also execute the obsolete leap/resource proc.
+            info->ProcFlags = 0;
         }
         if (info->Id == SPELL_ENDBRINGER_HEAL)
-            // This heal copies resolved weapon damage; native healing-taken effects still apply.
             info->DmgClass = SPELL_DAMAGE_CLASS_NONE;
         if (info->Id == SPELL_SPIRIT_WALKER_SPEED || info->Id == SPELL_CRIMSON_STACK)
         {

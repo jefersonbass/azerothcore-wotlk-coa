@@ -83,14 +83,10 @@ void ApplyContracts(SpellInfo* info)
         return;
     uint32 id = info->Id;
     if (id == 705477)
-        // Houndfeeder's "all crit" auras carry no mechanical type; map them to the
-        // shared crit-percent aura the engine reads for both melee and spell crits.
         info->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_MOD_CRIT_PCT,
         info->Effects[EFFECT_1].ApplyAuraName = SPELL_AURA_MOD_CRIT_PCT;
     if (id == 681486)
     {
-        // Shadow Order: its damage half reads through the damage op keyed to the
-        // Shadow Brand and Dawn Blade ranks; the rating half becomes hit-per-Agility.
         info->Effects[EFFECT_0].MiscValue = SPELLMOD_DAMAGE;
         info->Effects[EFFECT_1].ApplyAuraName = SPELL_AURA_MOD_RATING_FROM_STAT;
         info->Effects[EFFECT_1].MiscValue = CR_HIT_MELEE;
@@ -98,29 +94,18 @@ void ApplyContracts(SpellInfo* info)
     }
     if (id == 680247)
     {
-        // Low Dawn keys its halves to the Sixfold Shot chain: the percent half as the
-        // damage op and the flat half (a negative -500ms) as the activation-time op.
         info->Effects[EFFECT_0].MiscValue = SPELLMOD_DAMAGE;
         info->Effects[EFFECT_1].MiscValue = SPELLMOD_ACTIVATION_TIME;
     }
     if (id == 681180)
-        // Trapper's percent modifier must read as the cooldown op so the engine
-        // trims the Trap spells; the DBC mask already keys them.
         info->Effects[EFFECT_0].MiscValue = SPELLMOD_COOLDOWN;
     if (id == 680331)
-        // One Shot: the +20% crit-chance spellmod ships with an empty mask (the
-        // DBC parked the Heartseeking Bolt bit on an effectless slot); key it to
-        // Heartseeking Bolt (word 1, bit 11).
         info->Effects[EFFECT_0].SpellClassMask = flag96(0, 2048, 0);
     if (id == 504677 || id == 504891)
-        // Duskwood Renegade's flat modifier must read as the cooldown op so the
-        // engine trims Burrow Bolt; the DBC mask already keys that chain.
         info->Effects[EFFECT_0].MiscValue = SPELLMOD_COOLDOWN;
     if (id == 705453)
-        // Darkrider's flat discount (-100 tenths = 10 Rage) must read as the cost op so
-        // the engine trims Shadowblast, Vault, and Unleash the Hounds; the mask keys them.
         info->Effects[EFFECT_0].MiscValue = SPELLMOD_COST;
-    if (Family(info, 1, 4194304)) // Witchbane and its ranks.
+    if (Family(info, 1, 4194304))
     {
         info->InterruptFlags |= SPELL_INTERRUPT_FLAG_MOVEMENT;
         info->ChannelInterruptFlags |= AURA_INTERRUPT_FLAG_MOVE;
@@ -140,27 +125,17 @@ void ApplyContracts(SpellInfo* info)
         info->AttributesEx3 &= ~SPELL_ATTR3_REQUIRES_OFF_HAND_WEAPON;
     if (Heartseeking(info))
         info->Effects[EFFECT_2].TriggerSpell = 807316;
-    // Tormenting the Tormented: its "Mod Periodic Damage %" aura with amount 0 carries no mechanic.
-    // Turn it into the periodic-crit aura the engine rolls on DoT ticks, keyed to the Tormentor ranks.
     if (id == 805758)
     {
         info->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_ABILITY_PERIODIC_CRIT;
         info->Effects[EFFECT_0].SpellClassMask = flag96(0, 0, 268435456);
     }
-    // Quickdraw hands its Rage to Darkslayer (Energize) 680235 through a DUMMY effect, which is
-    // scripted-only and never runs. Its sibling Darkslayer authors the identical payload as a trigger
-    // effect. Record and text conflict here: Darkslayer's and Sixfold Shot's descriptions name the Rage
-    // income, Quickdraw's omits it. The income is taken as authored because Sixfold Shot, the upgrade
-    // that replaces this same family mask, advertises and receives one, and because the ability was
-    // reported in game as spending Rage without ever paying any back. The amount is 680235's own
-    // authored 100-250 internal (10-25 Rage) and has not been observed live.
     if (Quickdraw(info) && info->Effects[EFFECT_2].TriggerSpell == 680235)
         info->Effects[EFFECT_2].Effect = SPELL_EFFECT_TRIGGER_SPELL;
     if (id == 503662)
         info->CasterAuraSpell = 0;
     if (id == 300872)
-        info->Effects[EFFECT_1].Effect = 0; // aura 192 already affects both weapon speeds
-    // Slayer keeps native raid crit (effect 0) separate from its personal bonus (effect 1).
+        info->Effects[EFFECT_1].Effect = 0;
     if (id == 524854 || id == 680505)
         info->Effects[id == 524854 ? EFFECT_2 : EFFECT_0].ApplyAuraName = SPELL_AURA_MOD_DAMAGE_PERCENT_TAKEN;
     if (id == 504478 || id == 500569)
@@ -211,16 +186,16 @@ void ApplyContracts(SpellInfo* info)
     if (id == 680498)
         info->Effects[EFFECT_1].ApplyAuraName = SPELL_AURA_DUMMY;
     if (id == 680519)
-        info->Effects[EFFECT_0].Effect = 0; // per-brand healing is separate from the once-per-cast flat heal
+        info->Effects[EFFECT_0].Effect = 0;
     if (id == 805347)
-        info->Effects[EFFECT_2].Effect = 0; // the cast-deduplicated handler reduces every Tonic rank
+        info->Effects[EFFECT_2].Effect = 0;
     if (id == 520271)
-        info->Effects[EFFECT_1].Effect = 0; // missing private visual 500565 is not the damage payload
+        info->Effects[EFFECT_1].Effect = 0;
     if (id == 681098)
         info->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_DUMMY;
     if (id == 524669)
     {
-        info->StackAmount = 1; // one explicit sum of the last three contributions
+        info->StackAmount = 1;
         info->Effects[EFFECT_1].Effect = 0;
     }
     if (id == 681392 || id == 681489)
@@ -232,11 +207,11 @@ void ApplyContracts(SpellInfo* info)
         info->AttributesEx3 |= SPELL_ATTR3_REQUIRES_OFF_HAND_WEAPON;
     }
     if (id == 681415 || id == 681524)
-        info->Effects[EFFECT_1].Effect = 0; // the hit script owns both stack consumptions
+        info->Effects[EFFECT_1].Effect = 0;
     if (id == 681524)
         info->SchoolMask = 33;
     if (id == 681270)
-        info->Effects[EFFECT_1].Effect = 0; // the same resolved amount feeds the explicit mana return
+        info->Effects[EFFECT_1].Effect = 0;
     if (id == 573266 || id == 800528)
         for (SpellEffectInfo& effect : info->Effects)
             if (effect.IsAura())
@@ -249,7 +224,7 @@ void ApplyContracts(SpellInfo* info)
     if (id == 574335 || id == 574337)
         info->Effects[EFFECT_0].TargetA = SpellImplicitTargetInfo(TARGET_UNIT_TARGET_ALLY);
     if (id == 706332)
-        info->Effects[EFFECT_0].Effect = 0; // AI owns the leap and its two landing hits
+        info->Effects[EFFECT_0].Effect = 0;
     if (id == 805770)
     {
         info->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_DUMMY;
@@ -273,7 +248,6 @@ void ApplyContracts(SpellInfo* info)
         info->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_MOD_DAMAGE_PERCENT_TAKEN;
     if (id == 501380)
     {
-        // This damage-breakable incapacitate shares the native disorient DR group.
         info->Mechanic = MECHANIC_KNOCKOUT;
         info->Effects[EFFECT_0].Effect = SPELL_EFFECT_APPLY_AURA;
         info->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_MOD_CONFUSE;
@@ -321,7 +295,7 @@ void ApplyContracts(SpellInfo* info)
                 effect.TargetB = SpellImplicitTargetInfo();
             }
     if (id == 520865)
-        info->Effects[EFFECT_1].Effect = 0; // authored 504854 visual replaces the absent gameobject
+        info->Effects[EFFECT_1].Effect = 0;
     if (id == 805756)
     {
         info->Effects[EFFECT_1].ApplyAuraName = SPELL_AURA_DUMMY;
@@ -339,7 +313,7 @@ void ApplyContracts(SpellInfo* info)
         info->Effects[EFFECT_2].MiscValue = 127;
     }
     if (id == 681327 || id == 680237 || id == 680539 || id == 681390 || id == 500161 || id == 500566)
-        info->ProcCharges = 0; // selected successful casts consume these explicitly
+        info->ProcCharges = 0;
     for (WitchCoefficient const& coefficient : WitchCoefficients)
         if (coefficient.id == id)
             info->Effects[coefficient.effect].BonusMultiplier = 0.0f;
@@ -355,7 +329,7 @@ void ApplyContracts(SpellInfo* info)
         info->AttributesCu |= SPELL_ATTR0_CU_IGNORE_ARMOR;
     }
     if (id == 807198)
-        info->Effects[EFFECT_1].Effect = 0; // night grants the authored Agility only
+        info->Effects[EFFECT_1].Effect = 0;
     if (id == 804185)
         for (SpellEffectInfo& effect : info->Effects)
             if (effect.IsAura())
@@ -369,22 +343,17 @@ void ApplyContracts(SpellInfo* info)
         for (SpellEffectInfo& effect : info->Effects)
             if (effect.IsAura(SPELL_AURA_PROC_TRIGGER_SPELL))
                 effect.ApplyAuraName = SPELL_AURA_DUMMY;
-    // The following events run on successful casts, not once per victim or channel tick.
     for (uint32 talent : {705455, 500101, 681100, 705490, 524812, 500055, 681156, 680513, 582310, 504645, 500567,
                           705450, 706365, 707891, 503669, 705463, 705480})
         if (id == talent)
             info->ProcFlags = 0;
 }
-} // namespace AscensionWitchHunter
+}
 
 namespace
 {
 using namespace AscensionWitchHunter;
 
-// The Witch Hunter spends Rage - 216 of its family-21 records carry a Rage cost - but ChrClasses.dbc
-// gives class 15 Mana as its display power. Unit::DealDamage grants Rage for melee damage dealt and
-// for damage received only when HasActivePowerType(POWER_RAGE) is true, which asks the scripts first
-// and otherwise compares the display power, so the class gained Rage from its own abilities alone.
 class witch_hunter_resources : public PlayerScript
 {
   public:
@@ -427,7 +396,6 @@ class witch_hunter_scaling : public UnitScript
     }
 };
 
-// Copies of resolved damage must not gain a second crit, SP coefficient or taken modifier.
 class spell_ascension_witch_hunter_copy : public SpellScript
 {
     PrepareSpellScript(spell_ascension_witch_hunter_copy);
@@ -446,7 +414,7 @@ class spell_ascension_witch_hunter_copy : public SpellScript
         OnEffectHitTarget += SpellEffectFn(spell_ascension_witch_hunter_copy::Hit, EFFECT_ALL, SPELL_EFFECT_ANY);
     }
 };
-} // namespace
+}
 
 void AddAscensionWitchHunterCompletionScripts()
 {

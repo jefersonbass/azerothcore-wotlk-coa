@@ -192,8 +192,6 @@ public:
         if (!player || !player->IsAlive() || !damage || damage < player->GetHealth() ||
             !player->HasAura(560157) || player->HasSpellCooldown(560157))
             return;
-        // DealDamage reaches this hook after mitigation and absorption. Mark the
-        // native saved cooldown before casting the heal, including any nested events.
         player->AddSpellCooldown(560157, 0, 120000);
         damage = 0;
         player->CastSpell(player, 560179, true);
@@ -208,7 +206,6 @@ public:
         Aura* aura = application->GetBase();
         if (aura->GetCasterGUID() != player->GetGUID())
             return;
-        // Only the visible defenses, not their separately removed SLS helpers.
         if (aura->GetId() == 680421 || aura->GetId() == 800094 || aura->GetId() == 503630)
             player->CastSpell(player, 503716, true);
     }
@@ -231,8 +228,6 @@ class aura_ascension_natural_efficiency : public AuraScript
         AuraApplication const* application = GetTarget()->GetAuraApplication(info->Id, caster->GetGUID());
         if (!application || application->GetRemoveMode() || application->IsPositive())
             return false;
-        // Filter the existing native proc by effects actually applied to the victim.
-        // An immune control effect can still leave a slow or another secondary aura.
         Aura* aura = application->GetBase();
         for (uint8 i = 0; i < MAX_SPELL_EFFECTS; ++i)
             if (application->GetEffectMask() & (1 << i))
@@ -452,22 +447,14 @@ public:
         SpellInfo const* info = spell->GetSpellInfo();
         if (!player)
             return;
-        // Mending Touch (524971): Soothing Touch dispels an additional poison and
-        // disease effect. The Dispel effect's damage field is the dispel charge
-        // count, so +1 to both dispel effects when the passive is learned.
         if (player->HasAura(SPELL_MENDING_TOUCH) &&
             sSpellMgr->GetFirstSpellInChain(info->Id) == sSpellMgr->GetFirstSpellInChain(SPELL_SOOTHING_TOUCH))
             for (auto const& effect : info->Effects)
                 if (effect.IsEffect() && effect.Effect == SPELL_EFFECT_DISPEL && hit.effectMask & (1 << effect.EffectIndex))
                     hit.damage += 1;
-        // Crashing Out (574313): Seismic Crash deals thirty percent more damage.
-        // The hit-result hook receives damage by value, so the boost rides here
-        // where the calculated amount is still mutable.
         if (hit.damage && player->HasAura(SPELL_CRASHING_OUT) &&
             sSpellMgr->GetFirstSpellInChain(info->Id) == sSpellMgr->GetFirstSpellInChain(SPELL_SEISMIC_CRASH))
             hit.damage += CalculatePct(hit.damage, 30);
-        // One With The Earth (704402): Stoneshard and Geode Barrage deal twenty-five
-        // percent more damage, and Stoneshard restores four percent of maximum mana.
         if (hit.damage && player->HasAura(SPELL_ONE_WITH_THE_EARTH))
         {
             uint32 const root = sSpellMgr->GetFirstSpellInChain(info->Id);
@@ -480,11 +467,6 @@ public:
                         CalculatePct(player->GetMaxPower(POWER_MANA), 4));
             }
         }
-        // Rockslide (560154): Stoneshard has a fifteen percent chance to cast an
-        // additional time, and the extra stone can trigger Rockslide again. The
-        // authored proc trigger (effect 0, aura 42 triggering the 560155 recast
-        // helper) carries no proc flags in the DBC, so the chain never fires;
-        // the additional cast is rolled here on every successful Stoneshard hit.
         if (hit.damage && player->HasAura(SPELL_ROCKSLIDE) &&
             sSpellMgr->GetFirstSpellInChain(info->Id) == sSpellMgr->GetFirstSpellInChain(SPELL_STONESHARD) &&
             roll_chance_i(15))
@@ -493,8 +475,6 @@ public:
             targets.SetUnitTarget(target);
             player->CastSpell(targets, sSpellMgr->GetSpellInfo(info->Id), nullptr, TRIGGERED_FULL_MASK);
         }
-        // Mountain Mover (805643): Wildclaw deals five percent more damage per
-        // stack; the stacks are consumed when the cast completes.
         if (hit.damage && player->HasAura(SPELL_MOUNTAIN_MOVER_STACKS) &&
             sSpellMgr->GetFirstSpellInChain(info->Id) == sSpellMgr->GetFirstSpellInChain(SPELL_WILDCLAW))
             if (Aura const* stacks = player->GetAura(SPELL_MOUNTAIN_MOVER_STACKS))
@@ -549,7 +529,7 @@ class spell_ascension_throat_clamp : public SpellScript
         Player* player = Primalist(GetCaster());
         Unit* target = GetHitUnit();
         if (CheckThroatClamp(player, target) == SPELL_CAST_OK)
-            player->GetPet()->CastSpell(target, 500811, false); // Native dash, interrupt and school lockout.
+            player->GetPet()->CastSpell(target, 500811, false);
     }
 
     void Register() override
@@ -595,9 +575,6 @@ class aura_ascension_primal_shred_critical : public AuraScript
         if (!pet)
             return;
         SpellInfo const* info = GetSpellInfo();
-        // Legacy of Rexxar explicitly procs from Primal Shred critical strikes.
-        // Native periodic crit admission only checks the owner's aura 286 and
-        // samples the owner's crit. This pet-cast bleed needs the pet's chance.
         float chance = pet->SpellDoneCritChance(GetTarget(), info, info->GetSchoolMask(), BASE_ATTACK, true);
         chance = GetTarget()->SpellTakenCritChance(pet, info, info->GetSchoolMask(), chance, BASE_ATTACK, true);
         GetEffect(EFFECT_0)->SetCritChance(std::max(0.0f, chance));

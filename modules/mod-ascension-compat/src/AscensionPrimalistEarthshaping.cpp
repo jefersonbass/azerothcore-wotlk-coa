@@ -55,8 +55,6 @@ void SynchronizeEarthshapingHelpers(Unit* owner, bool remove)
             helper = owner->AddAura(spellId, owner);
         if (helper)
         {
-            // SetStackAmount also recalculates Blessing's effect-2 modifier.
-            // The visible aura alone owns expiry, including no-refresh gains.
             helper->SetStackAmount(main->GetStackAmount());
             helper->SetDuration(-1);
         }
@@ -76,8 +74,6 @@ bool ValidateEarthshapingHelpers()
             helper->HasAttribute(SPELL_ATTR0_CU_FORCE_AURA_SAVING))
             return false;
 
-    // Refuse the old wildcard damage modifier if the metadata correction was
-    // not installed. Every other effect keeps its native calculation path.
     return stoneshard->Effects[EFFECT_0].IsAura(SPELL_AURA_DUMMY) &&
         stoneshard->Effects[EFFECT_1].IsAura(SPELL_AURA_ADD_PCT_MODIFIER) &&
         stoneshard->Effects[EFFECT_1].SpellClassMask == flag96(0, 512, 0) &&
@@ -191,14 +187,11 @@ bool HandleAscensionPrimalistEarthshapingGain(Player* player)
     if (player->HasAura(SPELL_HEAVY_EARTH, player->GetGUID()))
         return true;
 
-    // Check the old count: reaching ten is not a gain made while already at ten.
-    // A gain attempted at the fifteen-stack cap still grants or refreshes Dream.
     if (player->HasAura(SPELL_DREAM, player->GetGUID()))
         if (Aura const* resource = player->GetAura(SPELL_EARTHSHAPING, player->GetGUID());
             resource && resource->GetStackAmount() >= 10)
             player->CastSpell(player, SPELL_DREAM_BUFF, TRIGGERED_FULL_MASK);
 
-    // Cataclysm rolls only for a resource gain, not an attempt at the stack cap.
     if (Aura const* talent = player->GetAura(SPELL_CATACLYSM, player->GetGUID()))
     {
         Aura const* resource = player->GetAura(SPELL_EARTHSHAPING, player->GetGUID());
@@ -232,31 +225,18 @@ void ApplyAscensionPrimalistEarthshapingContracts(SpellInfo* spellInfo)
 
     if (spellInfo->Id == 706137)
     {
-        // Keeper of the Grove's native cooldown modifier would trim 30 sec
-        // from every spell the owner casts; the Bramblepatch-only trim is
-        // scripted in the cast hook instead.
         spellInfo->Effects[EFFECT_0].Effect = SPELL_EFFECT_APPLY_AURA;
         spellInfo->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_DUMMY;
         return;
     }
     if (spellInfo->Id == 706165)
     {
-        // Issue 1039: Fury of the Elements ships without the passive flag, so
-        // the learn/login passes never applied its aura, and its mask is
-        // empty, which would double every Primalist energize. Mark passive
-        // and key to Primal Rush's own family bit; the native flat-mod path
-        // then grants the authored +10 Rage.
         spellInfo->Attributes |= SPELL_ATTR0_PASSIVE;
         spellInfo->Effects[EFFECT_0].SpellClassMask = flag96(0x4000, 0, 0);
         return;
     }
     if (spellInfo->Id == 504220)
     {
-        // Issue 969: Spiritual Warrior ships without the passive flag, so the
-        // learn/login passes never applied its crit aura, and its mask is
-        // keyed to the wrong word, missing Spirit Charge's own family bit.
-        // Mark passive and rekey; the native crit-chance mod path then grants
-        // the authored +25%.
         spellInfo->Attributes |= SPELL_ATTR0_PASSIVE;
         spellInfo->Effects[EFFECT_0].SpellClassMask = flag96(0, 0x20000, 0);
         return;
@@ -264,17 +244,10 @@ void ApplyAscensionPrimalistEarthshapingContracts(SpellInfo* spellInfo)
 
     if (spellInfo->Id == 504215)
     {
-        // Issue 987: Vitality Surge's haste buff ships as a self-only instant
-        // with no duration; the authored mark is +5% haste on party and raid
-        // members for 20 sec, so retarget to the caster's raid and set the
-        // 20-second duration. Both haste halves are native.
         for (uint8 slot : {EFFECT_0, EFFECT_1})
             spellInfo->Effects[slot].TargetA = SpellImplicitTargetInfo(TARGET_UNIT_CASTER_AREA_RAID);
-        spellInfo->DurationEntry = sSpellDurationStore.LookupEntry(18); // Twenty seconds.
+        spellInfo->DurationEntry = sSpellDurationStore.LookupEntry(18);
         return;
-
-    // Eruption's visible description specifies Firestorm damage and the higher
-    // of Fire/Nature power. The native multi-school mask also selects resistance.
     if (spellInfo->Id == SPELL_MAGMA_GEODE && spellInfo->SchoolMask == SPELL_SCHOOL_MASK_FIRE &&
         spellInfo->Effects[EFFECT_0].Effect == SPELL_EFFECT_SCHOOL_DAMAGE)
         spellInfo->SchoolMask = SPELL_SCHOOL_MASK_FIRE | SPELL_SCHOOL_MASK_NATURE;
@@ -282,8 +255,6 @@ void ApplyAscensionPrimalistEarthshapingContracts(SpellInfo* spellInfo)
     if (spellInfo->Id == SPELL_ERUPTION)
     {
         SpellEffectInfo& bonus = spellInfo->Effects[EFFECT_2];
-        // This leftover self modifier adds 40% beyond the visible per-stone
-        // formula. Keep the periodic trigger and native duration/haste handling.
         if (bonus.IsAura(SPELL_AURA_ADD_PCT_MODIFIER) && bonus.MiscValue == SPELLMOD_DAMAGE &&
             bonus.BasePoints == 39 && bonus.SpellClassMask == flag96(0, 0, 128))
             bonus.ApplyAuraName = SPELL_AURA_DUMMY;

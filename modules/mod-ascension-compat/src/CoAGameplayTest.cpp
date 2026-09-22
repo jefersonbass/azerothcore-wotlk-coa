@@ -3,6 +3,7 @@
  * https://github.com/azerothcore/azerothcore-wotlk/blob/master/LICENSE-AGPL3
  */
 
+#include "AscensionReaperTalents.h"
 #include "AccountMgr.h"
 #include "AscensionWisdomball.h"
 #include "AsyncCallbackProcessor.h"
@@ -48,11 +49,7 @@
 #include "WorldSession.h"
 #include "WhoListCacheMgr.h"
 
-// The Books of Ascension live in their own module; the driver only needs to ask it what a
-// player's window would contain (see spellbook_api.h).
 #include "../../mod-spellbook/src/spellbook_api.h"
-// BOOST_BIND_NO_PLACEHOLDERS (deps/boost) stops boost/bind/bind.hpp from including
-// placeholders.hpp, but the Boost.PropertyTree JSON parser uses boost::placeholders (e.g. Boost 1.83).
 #include <boost/bind/placeholders.hpp>
 #include <boost/property_tree/json_parser.hpp>
 #include <algorithm>
@@ -76,7 +73,6 @@ namespace
 using Tree = boost::property_tree::ptree;
 using Clock = std::chrono::steady_clock;
 
-// Only populated by an explicitly configured actor in the isolated gameplay harness.
 std::set<ObjectGuid> NoRegenerationActors;
 
 class CoAGameplayTestRegeneration final : public PlayerScript
@@ -90,7 +86,6 @@ public:
         return !NoRegenerationActors.contains(player->GetGUID());
     }
 };
-// Creature level scaling reads the same mask to tell a fixture from a world creature.
 constexpr uint32 TestPhase = LocalLevelScaling::FixturePhaseMask;
 constexpr uint32 MaximumActors = 8;
 constexpr uint16 LevelScalingOpcode = 0x0667;
@@ -126,11 +121,6 @@ uint64 Elapsed(Clock::time_point start)
     return std::chrono::duration_cast<std::chrono::milliseconds>(Clock::now() - start).count();
 }
 
-// A proc below 100% leaves no state to read: the only honest observation is how often it fired
-// over many rolls. The count is kept per unit carrying the proc aura and per that aura's own
-// spell, and is fed from the one native point that names both - a cast whose triggering aura
-// Spell::prepare recorded. Counting is off unless a scenario is running, so nothing accumulates
-// on an ordinary server.
 class ProcCounter
 {
 public:
@@ -153,7 +143,6 @@ public:
         return itr == _counts.end() ? 0 : itr->second;
     }
 
-    // Every cast a unit completes, triggered or not, keyed by the cast spell itself.
     static void RecordCast(ObjectGuid unit, uint32 spell)
     {
         if (_enabled)
@@ -230,17 +219,26 @@ struct Actor
     std::map<uint32, uint32> buySucceeded;
     std::map<uint32, uint32> buyFailed;
     std::set<uint32> announced;
-    std::map<uint32, uint32> notifyRows; // rows of the client's spell attribute table, by spell
-    std::map<uint32, uint32> notifiedAt; // spell -> the ordinal of the row push for it
+    std::map<uint32, uint32> notifyRows;
+    std::map<uint32, uint32> notifiedAt;
     uint32 notifyRowTotal = 0;
-    uint32 buysNotNotified = 0; // a granted purchase whose own row push never came first
-    uint32 packetOrdinal = 0;   // every packet this session has sent, in order
+    uint32 buysNotNotified = 0;
+    uint32 packetOrdinal = 0;
     uint32 buysGranted = 0;
     uint32 buysUnannounced = 0;
     uint32 buysMisannounced = 0;
-    uint32 trainerWindows = 0;                    // trainer windows this session has been sent
-    uint32 trainerWindowRows = 0;                 // rows in the last of them
-    std::map<uint32, uint8> trainerWindowState;   // spell -> the state byte that window gave the row
+    uint32 supersededPackets = 0;
+    std::map<uint32, uint32> supersededFor;
+    std::vector<std::pair<uint32, uint32>> announcements;
+    uint32 lastBuyOrdinal = 0;
+    uint32 lastBuyCues = 0;
+    std::vector<uint32> lastBuyCueIds;
+    uint32 buysSilent = 0;
+    uint32 buysMulti = 0;
+    uint32 trainerWindows = 0;
+    uint32 trainerWindowRows = 0;
+    std::map<uint32, uint8> trainerWindowState;
+    std::map<uint32, uint32> trainerWindowAbility;
     uint32 whoResponses = 0;
     uint32 lootReceived = 0;
     std::array<uint32, 2> meleeAttacksByHand{};
@@ -251,11 +249,11 @@ struct Actor
     std::vector<SpellHealEvent> spellHeals;
     std::vector<SpellEnergizeEvent> spellEnergizes;
     Tree castFailures;
-    std::map<uint32, uint8> castFailureReason; // spell -> the reason its last attempt was refused
-    uint32 bankShows = 0;      // native bank windows this session has been sent
-    uint32 systemMessages = 0; // chat lines this session has been told
+    std::map<uint32, uint8> castFailureReason;
+    uint32 bankShows = 0;
+    uint32 systemMessages = 0;
     std::map<uint64, std::map<uint16, uint32>> unitValues;
-    uint32 lastQuestWindow = 0; // the last quest window this session sent, by opcode
+    uint32 lastQuestWindow = 0;
     std::unique_ptr<WorldSession> session;
     ObjectGuid guid;
     ActorStage stage = ActorStage::Account;
@@ -276,7 +274,7 @@ void ObserveSpellCasts(Actor& actor, WorldPacket const& packet)
     ObjectGuid itemOrCaster;
     SpellCastEvent event;
     response >> itemOrCaster.ReadAsPacked() >> event.caster.ReadAsPacked();
-    response.read_skip<uint8>(); // cast counter
+    response.read_skip<uint8>();
     response >> event.spell;
     actor.spellCasts.push_back(event);
 }
@@ -291,8 +289,6 @@ void ObserveSpellDamage(Actor& actor, WorldPacket const& packet)
     response >> event.target.ReadAsPacked() >> event.caster.ReadAsPacked() >> event.spell;
     if (packet.GetOpcode() == SMSG_SPELLNONMELEEDAMAGELOG)
     {
-        // Unit::SendSpellNonMeleeDamageLog: damage, overkill, school, absorb,
-        // resist, physical-log flag, unused flag, block, hit info.
         response >> event.damage;
         response.read_skip<uint32>();
         response.read_skip<uint8>();
@@ -313,10 +309,10 @@ void ObserveSpellDamage(Actor& actor, WorldPacket const& packet)
         if (aura != SPELL_AURA_PERIODIC_DAMAGE && aura != SPELL_AURA_PERIODIC_DAMAGE_PERCENT)
             return;
         response >> event.damage;
-        response.read_skip<uint32>(); // overkill
-        response.read_skip<uint32>(); // school
-        response.read_skip<uint32>(); // absorb
-        response.read_skip<uint32>(); // resist
+        response.read_skip<uint32>();
+        response.read_skip<uint32>();
+        response.read_skip<uint32>();
+        response.read_skip<uint32>();
         uint8 critical;
         response >> critical;
         event.critical = critical != 0;
@@ -342,7 +338,7 @@ void ObserveSpellHealing(Actor& actor, WorldPacket const& packet)
             return;
     }
     response >> event.heal >> event.overheal;
-    response.read_skip<uint32>(); // absorb; both log formats already exclude it from healing
+    response.read_skip<uint32>();
     uint8 critical;
     response >> critical;
     event.critical = critical != 0;
@@ -371,8 +367,6 @@ void ObserveSpellEnergize(Actor& actor, WorldPacket const& packet)
     actor.spellEnergizes.push_back(event);
 }
 
-// Observe ordinary values-only packets. Creation/movement blocks have a different variable
-// layout; ignore the rest of that packet and let subsequent values updates supply observations.
 void ObserveUnitValues(Actor& actor, WorldPacket const& packet)
 {
     if (packet.GetOpcode() != SMSG_UPDATE_OBJECT)
@@ -414,9 +408,6 @@ void ObserveUnitValues(Actor& actor, WorldPacket const& packet)
     }
 }
 
-// Sessions are owned here, outside the network session manager. Character creation,
-// enumeration, DB loading and spell/item use run through the existing session handlers.
-// No socket/authentication, client rendering or packet-delivery coverage is implied.
 class CoAGameplayTest final : public WorldScript
 {
 public:
@@ -487,19 +478,16 @@ public:
         }
     }
 
-    void OnUpdate(uint32 /*diff*/) override
+    void OnUpdate(uint32) override
     {
         if (!_enabled || _finished)
             return;
 
         try
         {
-            // The runner records the world DB after startup migrations, before scenario actions can write it.
             if (!_startFile.empty())
             {
                 Require(Elapsed(_started) < 600000, "Runner did not release the startup barrier");
-                // On Windows the atomic rename can be visible before the new file is readable.
-                // Keep waiting within the existing deadline; never release without a valid run ID.
                 std::ifstream startStream(_startFile);
                 if (!startStream.is_open())
                     return;
@@ -569,12 +557,9 @@ private:
     {
         if (actor.stage == ActorStage::Account)
         {
-            // AccountMgr queues its writes. Do not assume CreateAccount means the row is committed.
             uint32 accountId = AccountMgr::GetId(actor.account);
             if (!accountId)
                 return;
-            // "bot": true marks the session the way playerbots marks its own, so a scenario can
-            // check what the server does differently for a bot.
             actor.session = std::make_unique<WorldSession>(accountId, std::string(actor.account), 0, nullptr,
                 SEC_PLAYER, EXPANSION_WRATH_OF_THE_LICH_KING, 0, LOCALE_enUS, 0, false, false, 0,
                 actor.definition.get<bool>("bot", false));
@@ -607,9 +592,6 @@ private:
                     actor.castFailureReason[spell] = reason;
                 }
 
-                // The two halves of a refusal a module explains itself: the chat line it sends and
-                // the window it withholds. A click answered with neither is what a silent refusal
-                // looks like, so both are counted.
                 if (packet.GetOpcode() == SMSG_MESSAGECHAT)
                     ++actor.systemMessages;
                 if (packet.GetOpcode() == SMSG_SHOW_BANK)
@@ -633,11 +615,6 @@ private:
 
                 ++actor.packetOrdinal;
 
-                // The announcement the client draws the alert from: the book sends the row of
-                // the client's own spell attribute table for the spell, with the bit its learn
-                // handler tests. The row carries the table's row id first and the spell id
-                // second, which is what this reads. Recorded by ordinal so a purchase can be
-                // judged on whether its row arrived *before* the learn it belongs to.
                 if (packet.GetOpcode() == Spellbook::SMSG_PATCH_SPELL_CUSTOM_ATTR)
                 {
                     WorldPacket row(packet);
@@ -649,16 +626,22 @@ private:
                     actor.notifiedAt.emplace(marked, actor.packetOrdinal);
                 }
 
-                // Which window a click is answered with is the part the client would draw, and
-                // the part a click that answers with the wrong one leaves looping. Record it.
                 if (packet.GetOpcode() == SMSG_QUESTGIVER_OFFER_REWARD ||
                     packet.GetOpcode() == SMSG_QUESTGIVER_REQUEST_ITEMS ||
                     packet.GetOpcode() == SMSG_QUESTGIVER_QUEST_DETAILS)
                     actor.lastQuestWindow = packet.GetOpcode();
 
-                // SMSG_LEARNED_SPELL is what drives the client's "New Spell Learned!" alert
-                // and its sound, so a scenario can assert that acquiring an ability announced
-                // itself however it was powered.
+                if (packet.GetOpcode() == SMSG_SUPERCEDED_SPELL)
+                {
+                    ++actor.supersededPackets;
+                    WorldPacket swap(packet);
+                    uint32 previous = 0;
+                    uint32 replacement = 0;
+                    swap >> previous >> replacement;
+                    ++actor.supersededFor[replacement];
+                    actor.announcements.emplace_back(actor.packetOrdinal, replacement);
+                }
+
                 if (packet.GetOpcode() == SMSG_LEARNED_SPELL)
                 {
                     WorldPacket announcement(packet);
@@ -666,10 +649,9 @@ private:
                     announcement >> announced;
                     ++actor.learnedAlerts[announced];
                     actor.announced.insert(announced);
+                    actor.announcements.emplace_back(actor.packetOrdinal, announced);
                 }
 
-                // Which of the two answers a purchase got: the book module and the core both
-                // reply with this pair.
                 if (packet.GetOpcode() == SMSG_TRAINER_BUY_SUCCEEDED ||
                     packet.GetOpcode() == SMSG_TRAINER_BUY_FAILED)
                 {
@@ -681,29 +663,30 @@ private:
                     {
                         ++actor.buySucceeded[bought];
                         ++actor.buysGranted;
-                        // Nothing this session sent can announce a spell that was learned
-                        // before the row for it, so a push that arrived later (or never)
-                        // marked nothing at all.
                         auto const notified = actor.notifiedAt.find(bought);
                         if (notified == actor.notifiedAt.end() || notified->second > actor.packetOrdinal)
                             ++actor.buysNotNotified;
-                        // The grant is answered after the learn, so an announcement for this
-                        // spell that never arrived by now never will.
                         if (!actor.announced.count(bought))
                             ++actor.buysUnannounced;
-                        // Each row is bought once, so an announced count other than one is a
-                        // purchase the client was told about zero times or twice.
-                        if (actor.learnedAlerts[bought] != 1)
+                        if (actor.learnedAlerts[bought] > 1)
                             ++actor.buysMisannounced;
+                        actor.lastBuyCueIds.clear();
+                        for (std::pair<uint32, uint32> const& entry : actor.announcements)
+                            if (entry.first > actor.lastBuyOrdinal)
+                                actor.lastBuyCueIds.push_back(entry.second);
+
+                        uint32 const sinceBuy = uint32(actor.lastBuyCueIds.size());
+                        actor.lastBuyCues = sinceBuy;
+                        if (!sinceBuy)
+                            ++actor.buysSilent;
+                        else if (sinceBuy > 1)
+                            ++actor.buysMulti;
+                        actor.lastBuyOrdinal = actor.packetOrdinal;
                     }
                     else
                         ++actor.buyFailed[bought];
                 }
 
-                // A trainer window is the whole of what the client draws and gates Train on, so the
-                // last one this session was sent is recorded: how many rows it carried and the state
-                // byte each spell's row got. A row a later window no longer holds is therefore absent,
-                // which is how a test tells "the book stopped selling this" from "still on screen".
                 if (packet.GetOpcode() == SMSG_TRAINER_LIST)
                 {
                     WorldPacket window(packet);
@@ -714,6 +697,7 @@ private:
                     ++actor.trainerWindows;
                     actor.trainerWindowRows = rows > 0 ? uint32(rows) : 0;
                     actor.trainerWindowState.clear();
+                    actor.trainerWindowAbility.clear();
                     for (int32 i = 0; i < rows; ++i)
                     {
                         int32 rowSpell = 0;
@@ -730,7 +714,10 @@ private:
                         window >> rowSpell >> state >> price >> pointCost0 >> pointCost1 >> requiredLevel
                                >> skillLine >> skillRank >> ability1 >> ability2 >> ability3;
                         if (rowSpell > 0)
+                        {
                             actor.trainerWindowState[uint32(rowSpell)] = state;
+                            actor.trainerWindowAbility[uint32(rowSpell)] = ability1;
+                        }
                     }
                 }
 
@@ -760,13 +747,11 @@ private:
                 "Race/class must fit the character creation packet");
             create << actor.definition.get<std::string>("name", actor.name) << uint8(race) << uint8(playerClass);
             for (uint8 i = 0; i < 7; ++i)
-                create << uint8(0); // gender, skin, face, hair style/color, facial hair, outfit
+                create << uint8(0);
             actor.session->HandleCharCreateOpcode(create);
             actor.stage = ActorStage::Creating;
         }
 
-        // Maps update logged-in sessions. Before entering a map, pump the same public
-        // update path so asynchronous character creation and login callbacks can finish.
         if (!actor.session->GetPlayer() || !actor.session->GetPlayer()->IsInWorld())
         {
             MapSessionFilter filter(actor.session.get());
@@ -837,8 +822,6 @@ private:
                     "Fixture teleport failed");
         }
 
-        // A socketless test actor supplies the acknowledgements a client would send.
-        // Resolve it from its owning session while it is between maps.
         player = actor.session->GetPlayer();
         if (player && player->IsBeingTeleportedFar())
             actor.session->HandleMoveWorldportAck();
@@ -875,8 +858,6 @@ private:
         return creature;
     }
 
-    // The creature of that entry this player owns and has out. A summoned companion is not a
-    // scenario fixture, so quest steps address it by entry instead of by actor name.
     Creature* GetOwnedCreature(Player* player, uint32 entry)
     {
         std::list<Creature*> creatures;
@@ -889,8 +870,6 @@ private:
         return nullptr;
     }
 
-    /// The summoned giver a quest step is aimed at: the player's own first, then any summon of
-    /// that entry standing within reach - a ball another player put out serves whoever is at it.
     Creature* GetGiver(Player* player, uint32 entry)
     {
         if (Creature* owned = GetOwnedCreature(player, entry))
@@ -923,9 +902,6 @@ private:
                 Require(creature != nullptr, "Could not summon fixture creature: " + id);
                 _targets.emplace(id, Target{ creature->GetMapId(), creature->GetInstanceId(), creature->GetGUID() });
                 creature->SetPhaseMask(TestPhase, true);
-                // Creature level scaling rebuilds a creature through SelectLevel(), which discards the
-                // level and the maximum health set just below. A fixture keeps what its scenario
-                // declared unless that scenario is the one testing scaling.
                 if (definition.get<bool>("level_scaling", false))
                     LocalLevelScaling::AllowFixtureScaling(creature->GetGUID().GetRawValue());
                 creature->SetReactState(REACT_PASSIVE);
@@ -934,8 +910,6 @@ private:
                 creature->SetLevel(uint8(definition.get<uint32>("level", 80)));
                 creature->SetMaxHealth(definition.get<uint32>("health", 100000));
                 creature->SetHealth(creature->GetMaxHealth());
-                // Summoning runs line-of-sight AI before returning and can already engage nearby actors.
-                // End those initial references on both sides before beginning the passive fixture's steps.
                 creature->CombatStop(true, true);
                 creature->SetReactState(REACT_PASSIVE);
             }
@@ -1051,7 +1025,6 @@ private:
         {
             uint32 hand = step.get<uint32>("hand", BASE_ATTACK);
             Require(hand < MAX_ATTACK, "Invalid attack hand");
-            // The update field holds the hasted swing time; GetAttackTime divides haste back out.
             return unit->GetFloatValue(static_cast<uint16>(UNIT_FIELD_BASEATTACKTIME) + hand);
         }
         if (metric == "run_speed_rate")
@@ -1101,7 +1074,6 @@ private:
         }
         if (metric == "spell_damage_taken" || metric == "melee_damage_taken")
         {
-            // Any unit can be the victim; `target` is the attacker. A melee `spell` selects a weapon strike.
             Unit* attacker = GetUnit(step.get<std::string>("target"));
             SpellInfo const* info = spell ? sSpellMgr->GetSpellInfo(spell) : nullptr;
             Require(!spell || info != nullptr, "Unknown spell for incoming damage calculation");
@@ -1152,10 +1124,17 @@ private:
         if (metric == "knows_spell" || metric == "cooldown_ms" || metric == "spell_charges" ||
             metric == "global_cooldown_ms" || metric == "has_talent" ||
             metric == "spellbook_offers_spell" || metric == "spellbook_covers_spell" ||
-            metric == "trainer_window_state" || metric == "temporary_spell_replacement")
+            metric == "trainer_window_state" || metric == "trainer_window_ability" ||
+            metric == "temporary_spell_replacement")
             Require(sSpellMgr->GetSpellInfo(spell) != nullptr, "Unknown spell in metric");
         if (metric == "knows_spell")
             return player->HasSpell(spell);
+        if (metric == "action_button")
+        {
+            uint8 button = uint8(step.get<uint32>("button"));
+            ActionButton const* action = player->GetActionButton(button);
+            return action && action->GetType() == ACTION_BUTTON_SPELL ? action->GetAction() : 0;
+        }
         if (metric == "temporary_spell_replacement")
             return player->GetTemporarySpellReplacement(spell);
         if (metric == "spellbook_rows")
@@ -1194,6 +1173,26 @@ private:
             auto const found = alerts.find(spell);
             return found == alerts.end() ? 0.0 : double(found->second);
         }
+        if (metric == "spellbook_superseded_packets")
+            return double(_actors.at(step.get<std::string>("actor")).supersededPackets);
+        if (metric == "spellbook_silent_buys" || metric == "spellbook_multi_announced_buys")
+        {
+            Actor const& actor = _actors.at(step.get<std::string>("actor"));
+            return double(metric == "spellbook_silent_buys" ? actor.buysSilent : actor.buysMulti);
+        }
+        if (metric == "spellbook_superseded_for")
+        {
+            auto const& swaps = _actors.at(step.get<std::string>("actor")).supersededFor;
+            auto const found = swaps.find(spell);
+            return found == swaps.end() ? 0.0 : double(found->second);
+        }
+        if (metric == "spellbook_cues_in_last_buy")
+            return double(_actors.at(step.get<std::string>("actor")).lastBuyCues);
+        if (metric == "spellbook_last_buy_cued")
+        {
+            auto const& cued = _actors.at(step.get<std::string>("actor")).lastBuyCueIds;
+            return std::find(cued.begin(), cued.end(), spell) == cued.end() ? 0.0 : 1.0;
+        }
         if (metric == "trainer_list_packets")
             return double(_actors.at(step.get<std::string>("actor")).trainerWindows);
         if (metric == "trainer_window_rows")
@@ -1202,7 +1201,12 @@ private:
         {
             auto const& window = _actors.at(step.get<std::string>("actor")).trainerWindowState;
             auto const found = window.find(spell);
-            // Absent is its own answer: the row the book used to sell is gone rather than refused.
+            return found == window.end() ? -1.0 : double(found->second);
+        }
+        if (metric == "trainer_window_ability")
+        {
+            auto const& window = _actors.at(step.get<std::string>("actor")).trainerWindowAbility;
+            auto const found = window.find(spell);
             return found == window.end() ? -1.0 : double(found->second);
         }
         if (metric == "quest_rewarded")
@@ -1215,13 +1219,66 @@ private:
             return player->PlayerTalkClass->GetGossipMenu().GetMenuItemCount();
         if (metric == "loot_received")
             return _actors.at(step.get<std::string>("actor")).lootReceived;
-        if (metric == "loot_count" || metric == "loot_entry")
+        if (metric == "nearby_gameobject_count")
         {
-            Item* container = player->GetItemByGuid(player->GetLootGUID());
-            if (!container)
+            std::list<GameObject*> objects;
+            player->GetGameObjectListWithEntryInGrid(objects, step.get<uint32>("entry"), 20.0f);
+            objects.remove_if([player](GameObject* object)
+            {
+                return !object->IsInWorld() || !player->InSamePhase(object);
+            });
+            return objects.size();
+        }
+        if (metric == "loot_bloodforged")
+        {
+            Loot* window = nullptr;
+            ObjectGuid const lootGuid = player->GetLootGUID();
+            if (lootGuid.IsCreature())
+                if (Creature* creature = player->GetMap()->GetCreature(lootGuid))
+                    window = &creature->loot;
+            if (!window)
                 return 0;
             uint32 count = 0;
-            for (LootItem const& item : container->loot.items)
+            for (LootItem const& item : window->items)
+                if (ItemTemplate const* itemTemplate = sObjectMgr->GetItemTemplate(item.itemid))
+                    if (!item.is_looted && itemTemplate->Name1.rfind("Bloodforged", 0) == 0)
+                        ++count;
+            return count;
+        }
+        if (metric == "nearby_creature_count")
+        {
+            std::list<Creature*> creatures;
+            player->GetCreatureListWithEntryInGrid(creatures, step.get<uint32>("entry"), 60.0f);
+            return std::count_if(creatures.begin(), creatures.end(),
+                [](Creature* creature) { return creature->IsInWorld() && creature->IsAlive(); });
+        }
+        if (metric == "carried_money")
+            return player->GetMoney();
+        if (metric == "loot_count" || metric == "loot_entry" || metric == "loot_gold")
+        {
+            Loot* window = nullptr;
+            ObjectGuid const lootGuid = player->GetLootGUID();
+            if (lootGuid.IsItem())
+            {
+                if (Item* container = player->GetItemByGuid(lootGuid))
+                    window = &container->loot;
+            }
+            else if (lootGuid.IsGameObject())
+            {
+                if (GameObject* object = player->GetMap()->GetGameObject(lootGuid))
+                    window = &object->loot;
+            }
+            else if (lootGuid.IsCreature())
+            {
+                if (Creature* creature = player->GetMap()->GetCreature(lootGuid))
+                    window = &creature->loot;
+            }
+            if (!window)
+                return 0;
+            if (metric == "loot_gold")
+                return window->gold;
+            uint32 count = 0;
+            for (LootItem const& item : window->items)
                 if (!item.is_looted)
                 {
                     if (metric == "loot_entry")
@@ -1382,7 +1439,6 @@ private:
         }
         if (metric.rfind("script_", 0) == 0)
         {
-            // Module damage-taken hooks with a fixed base of 1000 and `target` as the attacker.
             Unit* attacker = GetUnit(step.get<std::string>("target"));
             SpellInfo const* info = sSpellMgr->GetSpellInfo(spell);
             if (metric == "script_melee_damage_taken")
@@ -1400,7 +1456,6 @@ private:
             }
             if (metric == "script_heal_received")
             {
-                // Same (target, healer) order as the periodic heal path in AuraEffect::HandlePeriodicHealAurasTick.
                 uint32 heal = 1000;
                 sScriptMgr->ModifyHealReceived(player, attacker, heal, info);
                 return heal;
@@ -1433,7 +1488,6 @@ private:
         {
             SpellInfo const* info = sSpellMgr->GetSpellInfo(spell);
             Require(info != nullptr, "Unknown spell in metric");
-            // Native modifier consumers without submitting a cast; the probe applies no charges.
             if (metric == "spell_modifier")
             {
                 uint32 op = step.get<uint32>("op");
@@ -1540,10 +1594,17 @@ private:
                 caster = GetUnit(*id)->GetGUID();
             std::list<Creature*> creatures;
             player->GetCreatureListWithEntryInGrid(creatures, entry, 100.0f);
-            return std::count_if(creatures.begin(), creatures.end(), [player, spell, caster](Creature* creature)
+            float const minDistance = step.get<float>("min_distance", 0.0f);
+            bool const ownerDisplay = step.get<bool>("owner_display", false);
+            return std::count_if(creatures.begin(), creatures.end(),
+                [player, spell, caster, minDistance, ownerDisplay](Creature* creature)
             {
-                return creature->IsAlive() && creature->GetOwnerGUID() == player->GetGUID()
-                    && player->InSamePhase(creature) && (!spell || creature->GetAura(spell, caster));
+                return creature->IsAlive() && (creature->GetOwnerGUID() == player->GetGUID() ||
+                        creature->GetCreatorGUID() == player->GetGUID() ||
+                        (creature->ToTempSummon() && creature->ToTempSummon()->GetSummonerGUID() == player->GetGUID()))
+                    && player->InSamePhase(creature) && (!spell || creature->GetAura(spell, caster))
+                    && player->GetExactDist2d(creature) >= minDistance
+                    && (!ownerDisplay || creature->GetDisplayId() == player->GetDisplayId());
             });
         }
         if (metric == "bank_shows")
@@ -1560,9 +1621,6 @@ private:
             metric == "pet_max_health" || metric == "pet_attack_power" || metric == "pet_run_speed_rate" ||
             metric == "pet_is_banker" || metric == "pet_display" || metric == "pet_scale")
         {
-            // A banker companion is a minipet, which is not a guardian pet: the guardian slot
-            // alone would report nothing for a summon that worked. Resolve what the character has
-            // out, guardian first, then the companion slot the summon path keeps.
             Creature* pet = player->GetGuardianPet();
             if (!pet)
                 pet = player->GetCompanionPet();
@@ -1570,8 +1628,6 @@ private:
                 pet = ObjectAccessor::GetCreatureOrPetOrVehicle(*player, player->GetCritterGUID());
             if (metric == "pet_entry")
                 return pet ? pet->GetEntry() : 0;
-            // What a summoned banker is judged on: the flag the core's own bank handler asks the
-            // unit for, plus the display and the scale the client draws it at.
             if (metric == "pet_is_banker")
                 return pet && pet->HasNpcFlag(UNIT_NPC_FLAG_BANKER);
             if (metric == "pet_display")
@@ -1631,13 +1687,11 @@ private:
             uint32 quest = step.get<uint32>("quest");
             Quest const* questTemplate = sObjectMgr->GetQuestTemplate(quest);
             Require(questTemplate != nullptr, "Unknown quest in metric");
-            // Takeable is the game's own answer, prerequisites and all; status is what the log holds.
             return metric == "quest_status" ? double(player->GetQuestStatus(quest))
                 : double(player->CanTakeQuest(questTemplate, false));
         }
         if (metric == "quest_objective_count")
         {
-            // Progress on one objective (zero-based `index`, default 0) of a quest in the log.
             uint16 slot = player->FindQuestSlot(step.get<uint32>("quest"));
             Require(slot < MAX_QUEST_LOG_SIZE, "Quest is not in the quest log");
             uint32 index = step.get<uint32>("index", 0);
@@ -1646,7 +1700,6 @@ private:
         }
         if (metric == "dialog_status")
         {
-            // The mark the client draws over a quest giver, as the server would send it.
             uint32 entry = step.get<uint32>("entry");
             Require(sObjectMgr->GetCreatureTemplate(entry) != nullptr, "Unknown creature entry in metric");
             Creature* giver = GetGiver(player, entry);
@@ -1654,7 +1707,6 @@ private:
         }
         if (metric == "ball_offer_count" || metric == "ball_offers_quest")
         {
-            // The list the wisdomball's gossip is drawn from, for the map the player stands in.
             Require(AscensionWisdomball::UsableBall(player) != nullptr, "No wisdomball is within reach of the player");
             std::vector<uint32> const offered = AscensionWisdomball::OfferedQuests(player);
             if (metric == "ball_offer_count")
@@ -1666,8 +1718,6 @@ private:
         if (metric == "ball_carried_count" || metric == "ball_carried_quest"
             || metric == "ball_turn_in_count" || metric == "ball_turn_in_quest")
         {
-            // The other half of that list: the dungeon quests the character is carrying, which
-            // the frame shows with the "?" wherever the ball is, and the ones ready to hand in.
             Require(AscensionWisdomball::UsableBall(player) != nullptr, "No wisdomball is within reach of the player");
             bool const handIn = metric.rfind("ball_turn_in", 0) == 0;
             std::vector<uint32> const listed = handIn ? AscensionWisdomball::TurnInQuests(player)
@@ -1680,8 +1730,6 @@ private:
         }
         if (metric == "gossip_text")
         {
-            // The frame's greeting is an npc_text row the server has to be able to send, so a
-            // module's own greeting is asserted here rather than only eyeballed in game.
             uint32 id = step.get<uint32>("id");
             return sObjectMgr->GetGossipText(id) != nullptr ? 1.0 : 0.0;
         }
@@ -1711,8 +1759,6 @@ private:
             bool const before = LocalLevelScaling::ScalingChoiceEnabled(player);
             WorldSession* session = player->GetSession();
             uint32 value = step.get<uint32>("value");
-            // Exercise the early hook on a worker, as WorldSocket does. Joining here prevents
-            // concurrent map updates in the fixture, so an immediate mutation is deterministic.
             bool const consumed = std::async(std::launch::async, [session, value]
             {
                 WorldPacket request(LevelScalingOpcode, sizeof(uint32));
@@ -1799,12 +1845,13 @@ private:
             return;
         }
         Player* player = GetPlayer(id);
+        if (auto const found = _actors.find(id); found != _actors.end())
+            found->second.lastBuyOrdinal = found->second.packetOrdinal;
         uint32 spell = step.get<uint32>("spell", 0);
         if (action == "learn" || action == "unlearn" || action == "cast" || action == "cast_charm")
             Require(sSpellMgr->GetSpellInfo(spell) != nullptr, "Unknown spell: " + std::to_string(spell));
         if (action == "set_moving")
         {
-            // Fixture state for native cast admission and interruption checks.
             if (step.get<bool>("enabled"))
                 player->AddUnitMovementFlag(MOVEMENTFLAG_FORWARD);
             else
@@ -1867,8 +1914,6 @@ private:
                             Require(player->AddItem(quest->RequiredItemId[index], quest->RequiredItemCount[index] - held),
                                 "Cannot grant quest objective item");
                     }
-                // Fixture setup skips objective gameplay unless `complete` is false; reward eligibility and delivery
-                // remain native.
                 if (step.get<bool>("complete", true))
                     player->CompleteQuest(quest->GetQuestId());
             }
@@ -1890,9 +1935,80 @@ private:
             Require(item != nullptr, "Item must be granted before opening");
             WorldPacket request(CMSG_OPEN_ITEM, 2);
             request << item->GetBagSlot() << item->GetSlot();
-            // WorldSession::Update offers every packet to the packet hooks before its handler.
             if (sScriptMgr->CanPacketReceive(player->GetSession(), request))
                 player->GetSession()->HandleOpenItemOpcode(request);
+        }
+        else if (action == "set_phase")
+            player->SetPhaseMask(step.get<uint32>("value", TestPhase), true);
+        else if (action == "set_money")
+            player->SetMoney(step.get<uint32>("value"));
+        else if (action == "use_nearby_gameobject")
+        {
+            std::list<GameObject*> objects;
+            player->GetGameObjectListWithEntryInGrid(objects, step.get<uint32>("entry"), 20.0f);
+            objects.remove_if([player](GameObject* object)
+            {
+                return !object->IsInWorld() || !player->InSamePhase(object);
+            });
+            Require(objects.size() == 1, "Nearby gameobject use needs exactly one object");
+            WorldPacket packet(CMSG_GAMEOBJ_USE, 8);
+            packet << objects.front()->GetGUID();
+            if (sScriptMgr->CanPacketReceive(player->GetSession(), packet))
+                player->GetSession()->HandleGameObjectUseOpcode(packet);
+        }
+        else if (action == "attack_nearby" || action == "loot_nearby")
+        {
+            std::list<Creature*> creatures;
+            player->GetCreatureListWithEntryInGrid(creatures, step.get<uint32>("entry"), 40.0f);
+            size_t found = creatures.size();
+            creatures.remove_if([player, &action](Creature* creature)
+            {
+                return !creature->IsInWorld() || (action == "attack_nearby") != creature->IsAlive();
+            });
+            Require(!creatures.empty(), "No matching nearby creature among " + std::to_string(found));
+            WorldPacket packet(action == "attack_nearby" ? CMSG_ATTACKSWING : CMSG_LOOT, 8);
+            packet << creatures.front()->GetGUID();
+            if (action == "attack_nearby")
+            {
+                Require(player->IsValidAttackTarget(creatures.front()), "Invalid melee attack target");
+                if (step.get<bool>("kill", false))
+                {
+                    Unit::DealDamage(player, creatures.front(), creatures.front()->GetMaxHealth() * 100u, nullptr, DIRECT_DAMAGE,
+                        SPELL_SCHOOL_MASK_NORMAL);
+                    Require(!creatures.front()->IsAlive(),
+                        "Killing blow did not kill, health left " + std::to_string(creatures.front()->GetHealth()));
+                }
+                else
+                    player->GetSession()->HandleAttackSwingOpcode(packet);
+            }
+            else
+            {
+                player->UpdatePosition(creatures.front()->GetPositionX(), creatures.front()->GetPositionY(),
+                    creatures.front()->GetPositionZ(), player->GetOrientation(), true);
+                if (sScriptMgr->CanPacketReceive(player->GetSession(), packet))
+                    player->GetSession()->HandleLootOpcode(packet);
+            }
+        }
+        else if (action == "loot_creature")
+        {
+            Unit* target = GetUnit(step.get<std::string>("target"));
+            WorldPacket packet(CMSG_LOOT, 8);
+            packet << target->GetGUID();
+            if (sScriptMgr->CanPacketReceive(player->GetSession(), packet))
+                player->GetSession()->HandleLootOpcode(packet);
+        }
+        else if (action == "loot_slot")
+        {
+            WorldPacket packet(CMSG_AUTOSTORE_LOOT_ITEM, 1);
+            packet << uint8(step.get<uint32>("slot", 0));
+            if (sScriptMgr->CanPacketReceive(player->GetSession(), packet))
+                player->GetSession()->HandleAutostoreLootItemOpcode(packet);
+        }
+        else if (action == "loot_money")
+        {
+            WorldPacket packet(CMSG_LOOT_MONEY, 0);
+            if (sScriptMgr->CanPacketReceive(player->GetSession(), packet))
+                player->GetSession()->HandleLootMoneyOpcode(packet);
         }
         else if (action == "close_loot")
         {
@@ -1912,7 +2028,6 @@ private:
             WorldPacket request(CMSG_AUTOSTORE_LOOT_ITEM, 1);
             request << uint8(0);
             player->GetSession()->HandleAutostoreLootItemOpcode(request);
-            // Collecting the final reward can destroy the container; retain only copied scalar values.
             uint32 after = player->GetItemCount(entry);
             Require(after == before + expected, "Loot did not reach the player's inventory");
             _actors.at(id).lootReceived = after - before;
@@ -1921,26 +2036,17 @@ private:
         }
         else if (action == "area_trigger")
         {
-            // The client's own packet on walking into a trigger. It is the only way a character
-            // becomes rested here - the inn triggers are what set PLAYER_FLAGS_RESTING - and the
-            // ruleset selection spells refuse to apply outside a rested area.
             WorldPacket packet(CMSG_AREATRIGGER, 4);
             packet << step.get<uint32>("id");
             player->GetSession()->HandleAreaTriggerOpcode(packet);
         }
         else if (action == "banker_activate")
         {
-            // The client's own click on a banker: CMSG_BANKER_ACTIVATE carrying the unit's GUID.
-            // Aimed at the summoned companion by default, so the whole path a player's right click
-            // takes is exercised - the flag the client offers it on, the core's interaction check
-            // and the native bank window that answers.
             ObjectGuid guid;
             if (auto target = step.get_optional<std::string>("target"))
                 guid = GetUnit(*target)->GetGUID();
             else if (auto owner = step.get_optional<std::string>("owner"))
             {
-                // Somebody else's summoned creature: the click a character makes on a companion
-                // that is not theirs, which is the script that owns that companion to answer.
                 Creature* owned = GetOwnedCreature(GetPlayer(*owner), step.get<uint32>("entry"));
                 Require(owned != nullptr, "That actor has no creature of that entry out");
                 guid = owned->GetGUID();
@@ -1955,14 +2061,8 @@ private:
                 Require(companion != nullptr, "Banker activate needs a target or a summoned companion");
                 guid = companion->GetGUID();
             }
-            // A click reaches the core's own checks only from in reach, so the actor walks up to
-            // whatever it is about to click - the one thing a player does before clicking it. A
-            // companion can be left behind by a scenario teleport, and that is a fixture artifact
-            // rather than the behaviour under test.
             if (Creature* clicked = ObjectAccessor::GetCreatureOrPetOrVehicle(*player, guid))
                 if (!clicked->IsWithinDistInMap(player, INTERACTION_DISTANCE))
-                    // Placed, not teleported: a same-map teleport only lands when the client
-                    // acknowledges it, and this click is sent in the same tick.
                     player->UpdatePosition(clicked->GetPositionX(), clicked->GetPositionY(),
                                            clicked->GetPositionZ(), player->GetOrientation(), true);
 
@@ -1975,7 +2075,6 @@ private:
             ObjectGuid guid = step.get_optional<std::string>("target") ?
                 GetUnit(step.get<std::string>("target"))->GetGUID() : player->GetCritterGUID();
             Require(!guid.IsEmpty(), "Gossip needs a target or summoned companion");
-            // Clear the previous menu so a rejected hello cannot appear to succeed.
             player->PlayerTalkClass->ClearMenus();
             WorldPacket packet(CMSG_GOSSIP_HELLO, 8);
             packet << guid;
@@ -1990,7 +2089,6 @@ private:
         }
         else if (action == "who")
         {
-            // Refresh the production cache now instead of depending on its periodic world timer.
             sWhoListCacheMgr->Update();
             WorldPacket request(CMSG_WHO, 32);
             std::string name;
@@ -1998,7 +2096,7 @@ private:
                 name = _actors.at(*target).name;
             request << uint32(1) << uint32(255) << name << std::string();
             request << step.get<uint32>("race_mask", UINT32_MAX) << step.get<uint32>("class_mask", UINT32_MAX);
-            request << uint32(0) << uint32(0); // no zone or free-text filters
+            request << uint32(0) << uint32(0);
             uint32 before = _actors.at(step.get<std::string>("actor")).whoResponses;
             player->GetSession()->HandleWhoOpcode(request);
             Require(_actors.at(step.get<std::string>("actor")).whoResponses == before + 1,
@@ -2047,11 +2145,22 @@ private:
         }
         else if (action == "money")
         {
-            // Fixture setup: a priced trainer row cannot be bought on the realm's starting purse.
             int32 const copper = step.get<int32>("copper");
             Require(copper > 0, "Money fixture needs a positive copper amount");
             player->ModifyMoney(copper);
             Require(player->GetMoney() >= uint32(copper), "Money fixture failed");
+        }
+        else if (action == "grant_resource")
+        {
+            int32 amount = int32(step.get<int32>("amount", 1));
+            Require(HandleAscensionReaperResource(player, spell, amount),
+                "Resource spell does not belong to this class");
+        }
+        else if (action == "set_action_button")
+        {
+            uint8 button = uint8(step.get<uint32>("button"));
+            Require(player->addActionButton(button, spell, ACTION_BUTTON_SPELL) != nullptr,
+                "Action button could not be set");
         }
         else if (action == "learn")
         {
@@ -2063,9 +2172,6 @@ private:
                 player->GetActiveSpecMask(), false);
         else if (action == "trainer_buy")
         {
-            // Replays the client's purchase through the same gate WorldSession::Update uses: the
-            // book module's CanPacketReceive consumes it, and only an unconsumed packet reaches
-            // the core's handler.
             Unit* trainer = step.get_optional<std::string>("target")
                 ? GetUnit(step.get<std::string>("target")) : nullptr;
             ObjectGuid guid = trainer ? trainer->GetGUID() : player->GetCritterGUID();
@@ -2087,19 +2193,16 @@ private:
             uint32 rank = step.get<uint32>("rank");
             auto* talent = sTalentStore.LookupEntry(step.get<uint32>("talent"));
             Require(talent && rank < MAX_TALENT_RANK && talent->RankID[rank], "Invalid talent/rank");
-            player->LearnTalent(talent->TalentID, rank); // normal points and prerequisite checks
+            player->LearnTalent(talent->TalentID, rank);
             Require(player->HasTalent(talent->RankID[rank], player->GetActiveSpec()), "Talent learning rejected");
         }
         else if (action == "reset_talents")
         {
-            player->resetTalents(true); // fixture reset through normal removal, without a trainer fee
+            player->resetTalents(true);
             Require(player->GetFreeTalentPoints() == player->CalculateTalentsPoints(), "Talent reset rejected");
         }
         else if (action == "cast" || action == "cast_charm" || action == "use_item")
         {
-            // A refusal recorded earlier in this session belongs to an earlier attempt at the same
-            // spell. Forget it here, so `cast_failure` answers for the cast just submitted instead
-            // of reporting a refusal the character has since been allowed past.
             _actors.at(step.get<std::string>("actor")).castFailureReason.erase(spell);
             SpellCastTargets targets;
             Unit* caster = action == "cast_charm" ? player->GetCharm() : player;
@@ -2247,9 +2350,6 @@ private:
             Creature* giver = GetGiver(player, step.get<uint32>("entry"));
             Require(giver != nullptr, "No giver of that entry is within reach of the player");
 
-            // The server's packet loop asks the receive hook first and only reaches the opcode
-            // handler when nothing consumed the packet. Dispatching the same way, with the same
-            // hook, is what makes these steps exercise the giver's own answer.
             if (action == "quest_turn_in")
             {
                 WorldPacket request(CMSG_QUESTGIVER_REQUEST_REWARD, 16);
@@ -2260,9 +2360,6 @@ private:
                 if (openToCore)
                     player->GetSession()->HandleQuestgiverRequestRewardOpcode(request);
 
-                // Claiming the reward has to open the reward window. Answering it with the
-                // progress page instead is a loop: that page's button sends this same opcode, so
-                // the player can never hand the quest in.
                 if (!openToCore)
                 {
                     uint32 const window = _actors.at(id).lastQuestWindow;
@@ -2299,9 +2396,6 @@ private:
             Creature* giver = GetGiver(player, step.get<uint32>("entry"));
             Require(giver != nullptr, "No giver of that entry is within reach of the player");
 
-            // A click on a name the ball only offers arrives as this packet. The window it
-            // answers with is the client's to draw, so what is asserted here is that the ball's
-            // own script answered it: the core would refuse it, the ball owns no quest relations.
             WorldPacket packet(CMSG_QUESTGIVER_QUERY_QUEST, 16);
             packet << giver->GetGUID() << quest << uint8(0);
             bool const openToCore = sScriptMgr->CanPacketReceive(player->GetSession(), packet);
@@ -2310,9 +2404,6 @@ private:
         }
         else if (action == "quest_click")
         {
-            // The opcode the client really sends when a name in the frame's active half - a quest
-            // the character already carries - is clicked. It is not the query above, and the core
-            // drops it for the ball, so this is the path an in-game click on such a name takes.
             uint32 quest = step.get<uint32>("quest");
             Require(sObjectMgr->GetQuestTemplate(quest) != nullptr, "Unknown quest");
 
@@ -2326,9 +2417,6 @@ private:
             record.put("click_handled_by_script", !clickToCore);
             Require(!clickToCore, "A click on a carried name reached the core instead of the giver's script");
 
-            // A carried name answers with one of the two carried windows - the progress page while
-            // it is unfinished or short of items, the reward window once it can be paid out -
-            // never with nothing at all, which is what a click that reaches the core does.
             uint32 const window = _actors.at(id).lastQuestWindow;
             record.put("window_after_click", window == SMSG_QUESTGIVER_OFFER_REWARD ? "SMSG_QUESTGIVER_OFFER_REWARD"
                 : window == SMSG_QUESTGIVER_REQUEST_ITEMS ? "SMSG_QUESTGIVER_REQUEST_ITEMS" : "no window");
@@ -2339,7 +2427,7 @@ private:
         {
             uint32 quest = step.get<uint32>("quest");
             Require(sObjectMgr->GetQuestTemplate(quest) != nullptr, "Unknown quest");
-            player->CompleteQuest(quest); // fixture: finish the objectives so a hand-in can be tested
+            player->CompleteQuest(quest);
             record.put("result", "quest marked complete as a fixture");
         }
         else
@@ -2370,7 +2458,6 @@ private:
             }
         if (!failures.empty())
             _report.add_child("cast_failures", failures);
-        // Normal logout tears down auras, summons, map membership and script state before maps unload.
         for (auto const& [id, target] : _targets)
             if (Map* map = sMapMgr->FindMap(target.map, target.instance))
                 if (Creature* creature = map->GetCreature(target.guid))
@@ -2423,15 +2510,12 @@ private:
     QueryCallbackProcessor _queries;
 };
 
-// Where a proc becomes observable: Spell::cast, with the aura Spell::prepare recorded as the
-// caster of this cast still attached. Aura 42 procs reach it through
-// AuraEffect::HandleProcTriggerSpellAuraProc, whose trigger caster is the unit the aura sits on.
 class CoAGameplayTestProcCounter final : public AllSpellScript
 {
 public:
     CoAGameplayTestProcCounter() : AllSpellScript("CoAGameplayTestProcCounter", { ALLSPELLHOOK_ON_CAST }) { }
 
-    void OnSpellCast(Spell* spell, Unit* caster, SpellInfo const* info, bool /*skipCheck*/) override
+    void OnSpellCast(Spell* spell, Unit* caster, SpellInfo const* info, bool) override
     {
         if (!caster || !spell)
             return;
