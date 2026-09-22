@@ -235,6 +235,7 @@ void AddSC_AscensionStormbringerRunemasterTalentProcs();
 void AddSC_AscensionKnightOfXorothTalentProcs();
 void AddSC_AscensionBarbarianTalentProcs();
 void AddSC_AscensionNecromancerTalentProcs();
+void AddSC_AscensionSpellListTalentProcs();
 void AddSC_AscensionPersonalBank();
 void AddSC_AscensionWisdomball();
 void AddSC_AscensionBloodmageTalents();
@@ -473,6 +474,7 @@ void Addmod_ascension_compatScripts()
     AddSC_AscensionKnightOfXorothTalentProcs();
     AddSC_AscensionBarbarianTalentProcs();
     AddSC_AscensionNecromancerTalentProcs();
+    AddSC_AscensionSpellListTalentProcs();
     AddSC_AscensionPersonalBank();
     AddSC_AscensionWisdomball();
     AddSC_AscensionBloodmageTalents();
