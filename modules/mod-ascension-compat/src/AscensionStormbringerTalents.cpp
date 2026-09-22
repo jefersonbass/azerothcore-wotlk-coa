@@ -41,6 +41,8 @@ enum StormbringerTalentSpells : uint32
     SPELL_SHOCK_STATIC_GRANT = 500039,
     SPELL_TORRENTIAL_WRATH = 503352,
     SPELL_CONDUCTION = 567560,
+    SPELL_WRATH_OF_AL_AKIR = 300834,
+    SPELL_WRATH_OF_AL_AKIR_TRIGGER = 300835,
     SPELL_UNDERTOW = 705666,
     SPELL_UNDERTOW_RANK_2 = 707796,
     SPELL_DROWN_HIT = 806408,
@@ -129,6 +131,8 @@ public:
                 return;
             uint8 const stacks = staticAura->GetStackAmount();
             staticAura->Remove();
+            if (player->HasAura(SPELL_WRATH_OF_AL_AKIR))
+                player->CastSpell(player, SPELL_WRATH_OF_AL_AKIR_TRIGGER, true);
             for (uint8 i = 0; i < stacks; ++i)
                 player->CastSpell(spell->m_targets.GetUnitTarget(), SPELL_CONDUCTION, true);
         }
@@ -463,6 +467,36 @@ class aura_ascension_stormbringer_dark_skies : public AuraScript
             EFFECT_0, SPELL_AURA_PROC_TRIGGER_SPELL);
     }
 };
+
+constexpr uint32 SPELL_PULSE_CONVERSION = 707619;
+constexpr uint32 SPELL_PULSE_CONVERSION_HEAL = 504830;
+
+class spell_ascension_stormbringer_pulse_conversion : public SpellScript
+{
+    PrepareSpellScript(spell_ascension_stormbringer_pulse_conversion);
+
+    void HandleDispel(SpellEffIndex effIndex)
+    {
+        Unit* caster = GetCaster();
+        Unit* target = GetHitUnit();
+        if (!caster || !target || !caster->HasAura(SPELL_PULSE_CONVERSION))
+            return;
+
+        DispelChargesList dispelList;
+        target->GetDispellableAuraList(caster,
+            1 << GetSpellInfo()->Effects[effIndex].MiscValue, dispelList, GetSpellInfo());
+        if (dispelList.empty())
+            return;
+
+        caster->CastSpell(caster, SPELL_PULSE_CONVERSION_HEAL, true);
+    }
+
+    void Register() override
+    {
+        OnEffectHitTarget += SpellEffectFn(spell_ascension_stormbringer_pulse_conversion::HandleDispel,
+            EFFECT_0, SPELL_EFFECT_DISPEL);
+    }
+};
 }
 
 void AddSC_AscensionStormbringerTalents()
@@ -473,4 +507,5 @@ void AddSC_AscensionStormbringerTalents()
     RegisterSpellScript(aura_ascension_electrical_charge);
     RegisterSpellScript(aura_ascension_charged_conduit);
     RegisterSpellScript(aura_ascension_stormbringer_dark_skies);
+    RegisterSpellScript(spell_ascension_stormbringer_pulse_conversion);
 }
