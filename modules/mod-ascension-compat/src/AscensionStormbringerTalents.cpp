@@ -21,6 +21,8 @@ enum StormbringerTalentSpells : uint32
     SPELL_SHOCK = 804020,
     SPELL_SHOCK_DOT = 560336,
     SPELL_PERPETUAL_SHOCK = 570054,
+    SPELL_STORM_SOUL = 300591,
+    SPELL_PERPETUAL_SHOCK_TALENT = 300625,
     SPELL_CALL_LIGHTNING = 500040,
     SPELL_THUNDER_WARD = 800098,
     SPELL_STATIC = 803102,
@@ -261,6 +263,8 @@ public:
         }
         if (info->Id == SPELL_PERPETUAL_SHOCK)
             info->Effects[EFFECT_1].Effect = 0;
+        if (info->Id == SPELL_STORM_SOUL || info->Id == SPELL_PERPETUAL_SHOCK_TALENT)
+            info->Attributes |= SPELL_ATTR0_PASSIVE;
         if (info->Id == SPELL_FLUX_ARC)
         {
             // Issue 665: the talent's authored aura 354 has no engine handler
