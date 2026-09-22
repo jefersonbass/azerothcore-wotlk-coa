@@ -333,6 +333,30 @@ class aura_ascension_reaper_blood_frenzy : public AuraScript
     }
 };
 
+constexpr uint32 SPELL_ANIMA_AMBUSHER = 705424;
+constexpr uint32 SPELL_ANIMA_AMBUSH = 705425;
+constexpr uint32 SPELL_SPECTRE_STRIDE_HIT = 803742;
+
+class reaper_talent_casts : public AllSpellScript
+{
+public:
+    reaper_talent_casts() : AllSpellScript("reaper_talent_casts",
+        {ALLSPELLHOOK_ON_HIT_RESULT}) { }
+
+    void OnSpellHitResult(Spell* spell, Unit* target, uint8 miss, uint32 damage, uint32, bool) override
+    {
+        Player* player = spell->GetCaster() ? spell->GetCaster()->ToPlayer() : nullptr;
+        if (!player || player->getClass() != CLASS_REAPER || !target || miss != SPELL_MISS_NONE ||
+            !damage || spell->GetSpellInfo()->Id != SPELL_SPECTRE_STRIDE_HIT ||
+            !player->HasAura(SPELL_ANIMA_AMBUSHER) || spell->GetScriptValue(SPELL_ANIMA_AMBUSHER))
+            return;
+
+        spell->SetScriptValue(SPELL_ANIMA_AMBUSHER, 1);
+        player->CastCustomSpell(SPELL_ANIMA_AMBUSH, SPELLVALUE_BASE_POINT0,
+            int32(damage * 125 / 100), target, true);
+    }
+};
+
 class reaper_talent_events : public UnitScript
 {
 public:
@@ -437,5 +461,6 @@ void AddSC_AscensionReaperTalents()
     RegisterSpellScript(spell_ascension_reaper_limbo);
     RegisterSpellScript(aura_ascension_reaper_blood_frenzy);
     RegisterSpellScript(aura_ascension_reaper_ghastly_form);
+    new reaper_talent_casts();
     new reaper_talent_events();
 }
