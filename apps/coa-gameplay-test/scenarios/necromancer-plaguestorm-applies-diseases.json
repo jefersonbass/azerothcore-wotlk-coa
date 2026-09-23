@@ -1,0 +1,50 @@
+{
+  "schema": 1,
+  "name": "Plaguestorm applies its four diseases (#3243)",
+  "contract": "Plaguestorm 801939 reads 'Instantly applies the Flesh to Worms, Harvest Plague, Spectral Decay and Black Death Diseases to an enemy'. Its effects are DUMMY (type 3), so the engine ignores the record's aura and trigger fields and nothing applied the diseases - the handler in AscensionNecromancerAbilities.cpp now casts the four: Flesh to Worms 500338 (family 29, Dispel 3 DISPEL_DISEASE), Harvest Plague 500968 (family 29, Dispel 3), Spectral Decay 570044 (family 29, Dispel 3) and Black Death 806091 (the Necromancer disease whose dispel clause reads 'When Black Plague is dispelled or expires'). All four are listed by the same spell name in the original reference data, which is why they are the ones chosen. The scenario decides it: one cast must leave all four auras on the enemy.",
+  "timeout_ms": 90000,
+  "players": [
+    {
+      "id": "necro",
+      "race": 1,
+      "class": 23,
+      "level": 60,
+      "spell_hit_rating": 10000
+    }
+  ],
+  "creatures": [
+    {
+      "id": "target",
+      "owner": "necro",
+      "entry": 36,
+      "level": 60,
+      "health": 300000,
+      "distance": 20
+    }
+  ],
+  "steps": [
+    { "action": "wait", "label": "Let the fixtures settle", "ms": 5000 },
+    { "action": "learn", "actor": "necro", "spell": 801939 },
+    {
+      "action": "assert", "label": "Plaguestorm is known",
+      "actor": "necro", "metric": "knows_spell", "spell": 801939, "equals": 1
+    },
+    { "action": "cast", "label": "Plaguestorm the enemy", "actor": "necro", "spell": 801939, "target": "target" },
+    {
+      "action": "assert", "label": "Flesh to Worms is applied",
+      "actor": "target", "metric": "aura", "spell": 500338, "caster": "necro", "min": 1, "within_ms": 5000
+    },
+    {
+      "action": "assert", "label": "Harvest Plague is applied",
+      "actor": "target", "metric": "aura", "spell": 500968, "caster": "necro", "min": 1, "within_ms": 5000
+    },
+    {
+      "action": "assert", "label": "Spectral Decay is applied",
+      "actor": "target", "metric": "aura", "spell": 570044, "caster": "necro", "min": 1, "within_ms": 5000
+    },
+    {
+      "action": "assert", "label": "Black Death is applied",
+      "actor": "target", "metric": "aura", "spell": 806091, "caster": "necro", "min": 1, "within_ms": 5000
+    }
+  ]
+}
