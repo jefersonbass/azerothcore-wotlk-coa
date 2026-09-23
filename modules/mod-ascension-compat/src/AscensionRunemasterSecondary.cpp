@@ -27,6 +27,8 @@ enum RunemasterSecondarySpells : uint32
     SPELL_WATER_AMOUNT = 802645,
     SPELL_PRIMORDIAL_BLAST = 800732,
     SPELL_ELEMENTAL_MASTERY = 806711,
+    SPELL_ETERNAL_MAGIC = 806698,
+    SPELL_ETERNAL_BURST = 800192,
     SPELL_RUNIC_BRAND = 712299,
     SPELL_POWER_OVERWHELMING = 707876,
     SPELL_SMOLDER = 801087,
@@ -183,6 +185,8 @@ public:
                 }
             }
         }
+        if (root == SPELL_PRIMORDIAL_BLAST && player->HasAura(SPELL_ETERNAL_MAGIC))
+            player->CastSpell(player, SPELL_ETERNAL_BURST, true);
         if ((root == SPELL_RUNEBLADE || root == SPELL_WARPDAGGER) &&
             player->HasAura(SPELL_SPELLFIRE_RUNES, player->GetGUID()))
         {
