@@ -58,6 +58,10 @@ constexpr uint32 SPELL_RANGER_ADVANTAGE_STACKS = 804329;
 constexpr uint32 SPELL_RANGER_PHOENIX_PLUMES_FOCUS = 520784;
 constexpr uint32 SPELL_RANGER_PHOENIX_PLUMES_FALCON = 520558;
 constexpr uint8 RANGER_PHOENIX_PLUMES_STACKS = 5;
+constexpr uint32 SPELL_RANGER_WARDANCER = 705096;
+constexpr uint32 SPELL_RANGER_BACKSTEP = 800684;
+constexpr uint32 SPELL_RANGER_BACKSTEP_ALT = 800685;
+constexpr uint32 SPELL_RANGER_WARDANCER_MOD = 705097;
 
 class ranger_secondary_hits : public AllSpellScript
 {
@@ -83,6 +87,10 @@ public:
                     player->CastSpell(player, SPELL_RANGER_PHOENIX_PLUMES_FALCON, true);
                 }
         }
+
+        if (player->HasAura(SPELL_RANGER_WARDANCER) &&
+            (info->Id == SPELL_RANGER_BACKSTEP || info->Id == SPELL_RANGER_BACKSTEP_ALT))
+            player->CastSpell(player, SPELL_RANGER_WARDANCER_MOD, true);
         // Issue 860: Sly makes Woodland Adept (chain head 555728) and Elude
         // (chain head 800701) trigger a 10% reduced cooldown per Advantage
         // stack active when cast. The talent's native mod (op 12 =

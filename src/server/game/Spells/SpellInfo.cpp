@@ -1540,6 +1540,22 @@ bool SpellInfo::IsAffectedBySpellMod(SpellModifier const* mod) const
             return false; // Four ticks are fixed; Makeshift modifiers must not add or remove ticks.
     }
 
+    if (SpellFamilyName == 27 && affectSpell->SpellFamilyName == 27)
+    {
+        // Wardancer's modifier names the Ranger Horns, none of which carries a flag the
+        // copied mask can intersect. Route it by the five Horn roots so it reaches them
+        // and nothing else; every other Ranger spell falls through to the normal checks.
+        uint32 root = sSpellMgr->GetFirstSpellInChain(Id);
+        switch (mod->spellId)
+        {
+            case 705097:
+                return root == 800086 || root == 800087 || root == 800088 || root == 806359 ||
+                    root == 806360;
+            default:
+                break;
+        }
+    }
+
     if (SpellFamilyName == 29 && affectSpell->SpellFamilyName == 29)
     {
         // Rancid Air, Unrelenting Swarm and Gangrene name Putrefy, Crypt Scarabs and
