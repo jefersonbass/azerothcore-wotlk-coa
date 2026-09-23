@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "name": "Plaguestorm applies its four diseases (#3243)",
-  "contract": "Plaguestorm 801939 reads 'Instantly applies the Flesh to Worms, Harvest Plague, Spectral Decay and Black Death Diseases to an enemy'. Its effects are DUMMY (type 3), so the engine ignores the record's aura and trigger fields and nothing applied the diseases - the handler in AscensionNecromancerAbilities.cpp now casts the four: Flesh to Worms 500338 (family 29, Dispel 3 DISPEL_DISEASE), Harvest Plague 500968 (family 29, Dispel 3), Spectral Decay 570044 (family 29, Dispel 3) and Black Death 806091 (the Necromancer disease whose dispel clause reads 'When Black Plague is dispelled or expires'). All four are listed by the same spell name in the original reference data, which is why they are the ones chosen. The scenario decides it: one cast must leave all four auras on the enemy.",
+  "contract": "Plaguestorm 801939 reads 'Instantly applies the Flesh to Worms, Harvest Plague, Spectral Decay and Black Death Diseases to an enemy'. Its effects are DUMMY (type 3), so the engine ignores the record's aura and trigger fields and nothing applied the diseases - the handler in AscensionNecromancerAbilities.cpp now casts the four: Flesh to Worms 500338 (family 29, Dispel 3 DISPEL_DISEASE), Harvest Plague 500968 (family 29, Dispel 3), Spectral Decay 570044 (family 29, Dispel 3) and Plague of Undeath 801945, the Necromancer disease that the 'Black Death' spreader 806092 triggers (family 29, Dispel 3, aura 3, 18 s). The Black Death ids are ruled out by measurement: 806091 is class None and carries no effects at all (a placeholder), and 64153 Black Plague is class None too. The scenario decides it: one cast must leave all four auras on the enemy.",
   "timeout_ms": 90000,
   "players": [
     {
@@ -43,8 +43,8 @@
       "actor": "target", "metric": "aura", "spell": 570044, "caster": "necro", "min": 1, "within_ms": 5000
     },
     {
-      "action": "assert", "label": "Black Death is applied",
-      "actor": "target", "metric": "aura", "spell": 806091, "caster": "necro", "min": 1, "within_ms": 5000
+      "action": "assert", "label": "Plague of Undeath is applied",
+      "actor": "target", "metric": "aura", "spell": 801945, "caster": "necro", "min": 1, "within_ms": 5000
     }
   ]
 }
