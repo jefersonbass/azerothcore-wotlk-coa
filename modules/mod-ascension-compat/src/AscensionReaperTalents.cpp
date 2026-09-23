@@ -469,8 +469,28 @@ void ApplyAscensionReaperSoulInfusionSpent(Player* player)
     CastTalentTrigger(player, SPELL_ESSENCE_INVIGORATION, SPELL_ESSENCE_INVIGORATION_HEAL);
 }
 
+class aura_ascension_counterscythe : public AuraScript
+{
+    PrepareAuraScript(aura_ascension_counterscythe);
+
+    void CountParry(AuraEffect const*, ProcEventInfo&)
+    {
+        if (++_parries >= 10)
+            Remove(AURA_REMOVE_BY_DEFAULT);
+    }
+
+    void Register() override
+    {
+        OnEffectProc += AuraEffectProcFn(aura_ascension_counterscythe::CountParry, EFFECT_1, SPELL_AURA_PROC_TRIGGER_SPELL);
+    }
+
+private:
+    uint32 _parries = 0;
+};
+
 void AddSC_AscensionReaperTalents()
 {
+    RegisterSpellScript(aura_ascension_counterscythe);
     RegisterSpellScript(spell_ascension_soul_capture);
     RegisterSpellScript(aura_ascension_harvester);
     RegisterSpellScript(aura_ascension_jailers_call);
