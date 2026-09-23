@@ -16,6 +16,7 @@
 namespace AscensionNecromancer
 {
 constexpr int32 RANCID_AIR_RUNIC_POWER = 5;
+constexpr float NECROTIC_ARMOR_MULTIPLIER = 0.9f;
 
 bool RayOfRot(uint32 id)
 {
@@ -461,6 +462,22 @@ class spell_ascension_necromancer_ability : public SpellScript
     }
 };
 
+class necromancer_necrotic_armor : public UnitScript
+{
+  public:
+    necromancer_necrotic_armor() : UnitScript("necromancer_necrotic_armor", true, {UNITHOOK_MODIFY_PERIODIC_DAMAGE_AURAS_TICK}) { }
+
+    void ModifyPeriodicDamageAurasTick(Unit* target, Unit*, uint32& damage, SpellInfo const* info) override
+    {
+        if (!target || !damage || !info || !target->HasAura(806386))
+            return;
+        if (!info->HasAura(SPELL_AURA_PERIODIC_DAMAGE) && !info->HasAura(SPELL_AURA_PERIODIC_DAMAGE_PERCENT) &&
+            !info->HasAura(SPELL_AURA_PERIODIC_LEECH))
+            return;
+        damage = uint32(damage * NECROTIC_ARMOR_MULTIPLIER);
+    }
+};
+
 class necromancer_plague_drinker : public UnitScript
 {
   public:
@@ -496,5 +513,6 @@ void AddAscensionNecromancerAbilityScripts()
     new necromancer_casts();
     new necromancer_lich_bolt();
     new necromancer_plague_drinker();
+    new necromancer_necrotic_armor();
     RegisterSpellScript(spell_ascension_necromancer_ability);
 }
