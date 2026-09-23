@@ -304,6 +304,8 @@ public:
             info->Attributes |= SPELL_ATTR0_PASSIVE;
             info->Effects[EFFECT_0].SpellClassMask = flag96(0, 0, 0x30);
         }
+        if (info->Id == 804591)
+            info->Attributes |= SPELL_ATTR0_PASSIVE;
         if (info->Id == SPELL_TITANSTORM)
         {
             // Issue 686: Titanstorm's proc aura is the authored half: effect 0
