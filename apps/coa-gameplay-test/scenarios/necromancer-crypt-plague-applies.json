@@ -1,0 +1,47 @@
+{
+  "schema": 1,
+  "name": "Crypt Plague applies from Crypt Swarm (#1856, #4540)",
+  "contract": "Crypt Plague 500117 reads 'Your Lichfrost and Crypt Swarm now apply Crypt Plague' and ships ProcFlags 0 with an aura 42 on TriggerSpell 570132, the 'Add 1 Crypt Plague' applier that lands 570131 (family 29, Dispel 3 DISPEL_DISEASE, aura 3 periodic damage). SpellMgr::LoadSpellProcs skips a record with no DBC proc flags, so no fallback entry was generated and Aura::GetProcEffectMask returned 0: the gate never fired, which is what both reports describe. The spell list lives in AscensionNecromancerTalentProcs.h because the two abilities share no family bit (Crypt Swarm's ranks disagree among themselves and Lichfrost is SpellFamilyFlags[2] bit 27). The scenario decides it: a Necromancer carrying the talent who lands Crypt Swarm 500965 on an enemy must leave Crypt Plague 570131 on it.",
+  "timeout_ms": 90000,
+  "players": [
+    {
+      "id": "necro",
+      "race": 1,
+      "class": 23,
+      "level": 60,
+      "spell_hit_rating": 10000
+    }
+  ],
+  "creatures": [
+    {
+      "id": "target",
+      "owner": "necro",
+      "entry": 36,
+      "level": 60,
+      "health": 200000,
+      "distance": 20
+    }
+  ],
+  "steps": [
+    { "action": "wait", "label": "Let the fixtures settle", "ms": 5000 },
+    { "action": "learn", "actor": "necro", "spell": 500117 },
+    { "action": "learn", "actor": "necro", "spell": 500965 },
+    {
+      "action": "assert", "label": "The Crypt Plague talent is known",
+      "actor": "necro", "metric": "knows_spell", "spell": 500117, "equals": 1
+    },
+    {
+      "action": "assert", "label": "The talent aura is on the Necromancer",
+      "actor": "necro", "metric": "aura", "spell": 500117, "equals": 1, "within_ms": 3000
+    },
+    { "action": "cast", "label": "Crypt Swarm the target", "actor": "necro", "spell": 500965, "target": "target" },
+    {
+      "action": "assert", "label": "Crypt Swarm reaches the target",
+      "actor": "target", "metric": "aura", "spell": 500965, "caster": "necro", "min": 1, "within_ms": 5000
+    },
+    {
+      "action": "assert", "label": "The talent applied Crypt Plague to the target",
+      "actor": "target", "metric": "aura", "spell": 570131, "caster": "necro", "min": 1, "within_ms": 5000
+    }
+  ]
+}
