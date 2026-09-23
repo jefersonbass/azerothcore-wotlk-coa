@@ -374,6 +374,10 @@ class spell_ascension_necromancer_ability : public SpellScript
                 Cast(player, target, disease);
         if ((id == 561125 || id == 9666680) && player->HasAura(704726))
             player->EnergizeBySpell(player, 704726, RANCID_AIR_RUNIC_POWER, POWER_RUNIC_POWER);
+        if (id == 805143)
+            for (Creature* minion : Minions(player, true))
+                if (player->IsWithinDistInMap(minion, info->Effects[EFFECT_0].CalcRadius(player)))
+                    Cast(player, minion, 801530);
         if (id == 801938 || id == 803781)
             Virulency(player, target);
         if (Named(GetSpellInfo(), 533236))
