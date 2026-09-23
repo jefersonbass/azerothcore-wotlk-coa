@@ -78,11 +78,24 @@ void GenerateGlyph(Unit* caster)
     if (!caster->HasAura(SPELL_FROST_GLYPH_PASSIVE))
         return;
 
-    uint32 glyph = SPELL_FROST_GLYPH;
-    if (caster->HasAura(SPELL_ARCANE_GLYPH_PASSIVE) && caster->HasAura(SPELL_FLAME_GLYPH, caster->GetGUID()))
-        glyph = SPELL_ARCANE_GLYPH;
-    else if (caster->HasAura(SPELL_FLAME_GLYPH_PASSIVE) && caster->HasAura(SPELL_FROST_GLYPH, caster->GetGUID()))
-        glyph = SPELL_FLAME_GLYPH;
+    std::array<uint32, 3> const glyphs = {SPELL_FROST_GLYPH, SPELL_FLAME_GLYPH, SPELL_ARCANE_GLYPH};
+    std::array<uint32, 3> const passives = {SPELL_FROST_GLYPH_PASSIVE, SPELL_FLAME_GLYPH_PASSIVE,
+                                            SPELL_ARCANE_GLYPH_PASSIVE};
+
+    uint32 glyph = 0;
+    for (std::size_t i = 0; i < glyphs.size() && !glyph; ++i)
+        if (caster->HasAura(passives[i]) && !caster->HasAura(glyphs[i], caster->GetGUID()))
+            glyph = glyphs[i];
+
+    if (!glyph)
+    {
+        Aura* shortest = nullptr;
+        for (uint32 id : glyphs)
+            if (Aura* aura = caster->GetAura(id, caster->GetGUID()))
+                if (!shortest || aura->GetDuration() < shortest->GetDuration())
+                    shortest = aura;
+        glyph = shortest ? shortest->GetId() : SPELL_FROST_GLYPH;
+    }
 
     caster->CastSpell(caster, glyph, TRIGGERED_FULL_MASK);
 }
