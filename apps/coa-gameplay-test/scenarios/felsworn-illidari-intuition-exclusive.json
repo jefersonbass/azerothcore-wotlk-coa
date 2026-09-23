@@ -1,0 +1,37 @@
+{
+  "schema": 1,
+  "name": "One Illidari Intuition per caster on each recipient (#4718)",
+  "contract": "Illidari Intuition 800212 (aura 29, Agility, TARGET_UNIT_TARGET_ALLY) and Greater Illidari Intuition 680308 (aura 29, Agility, TARGET_UNIT_CASTER_AREA_RAID) are separate spells and no spell_group listed them, so Aura::CanStackWith let the single-target and the raid version of the same buff stay on one recipient. 800212 is the first rank of the chain in spell_ranks (800212 -> 501326 -> 501327 -> 501328 -> 501329), so it stands for every rank. They share spell group 1141 with stack rule 2 (SPELL_GROUP_STACK_RULE_EXCLUSIVE_FROM_SAME_CASTER): the newest replaces the caster's previous one, while a second Felsworn's still coexists - the same shape as the Templar Gift group.",
+  "timeout_ms": 90000,
+  "players": [
+    { "id": "fel", "race": 1, "class": 14, "level": 60 },
+    { "id": "fel2", "race": 1, "class": 14, "level": 60 }
+  ],
+  "steps": [
+    { "action": "wait", "label": "Let level scaling settle", "ms": 5000 },
+    { "action": "group", "actor": "fel", "target": "fel2" },
+    { "action": "learn", "actor": "fel", "spell": 800212 },
+    { "action": "learn", "actor": "fel", "spell": 680308 },
+    { "action": "learn", "actor": "fel2", "spell": 800212 },
+    { "action": "cast", "label": "Illidari Intuition on the ally", "actor": "fel", "spell": 800212, "target": "fel2" },
+    {
+      "action": "assert", "label": "Illidari Intuition is applied",
+      "actor": "fel2", "metric": "aura", "spell": 800212, "caster": "fel", "equals": 1, "within_ms": 3000
+    },
+    { "action": "wait", "label": "Let the global cooldown pass", "ms": 2500 },
+    { "action": "cast", "label": "Greater Illidari Intuition from the same caster", "actor": "fel", "spell": 680308 },
+    {
+      "action": "assert", "label": "Greater Illidari Intuition reaches the ally",
+      "actor": "fel2", "metric": "aura", "spell": 680308, "caster": "fel", "equals": 1, "within_ms": 3000
+    },
+    {
+      "action": "assert", "label": "It replaced the same caster's Illidari Intuition",
+      "actor": "fel2", "metric": "aura", "spell": 800212, "caster": "fel", "equals": 0
+    },
+    { "action": "cast", "label": "A second Felsworn gives Illidari Intuition", "actor": "fel2", "spell": 800212, "target": "fel" },
+    {
+      "action": "assert", "label": "The other caster's Illidari Intuition coexists (rule 2, not rule 1)",
+      "actor": "fel", "metric": "aura", "spell": 800212, "caster": "fel2", "equals": 1, "within_ms": 3000
+    }
+  ]
+}
