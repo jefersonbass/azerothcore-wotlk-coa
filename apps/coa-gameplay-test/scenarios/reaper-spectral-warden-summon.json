@@ -1,0 +1,60 @@
+{
+  "schema": 1,
+  "name": "Spectral Warden summons its guardian (#3725)",
+  "contract": "Spectral Warden (805716) is a SPELL_EFFECT_SUMMON whose MiscValue names creature 100481. The creature was absent from the world database, so the guardian summon resolved to nothing and the ability left no guardian behind. With the creature restored, casting the ability has to leave exactly one Spectral Warden owned by the caster, and none before it is cast.",
+  "timeout_ms": 60000,
+  "players": [
+    {
+      "id": "r",
+      "race": 10,
+      "class": 30,
+      "level": 80
+    }
+  ],
+  "steps": [
+    {
+      "action": "wait",
+      "label": "Let the world settle",
+      "ms": 3000
+    },
+    {
+      "action": "learn",
+      "actor": "r",
+      "spell": 805716
+    },
+    {
+      "action": "assert",
+      "label": "SETUP: no Spectral Warden is owned before the summon",
+      "actor": "r",
+      "metric": "owned_creature_count",
+      "entry": 100481,
+      "equals": 0
+    },
+    {
+      "action": "grant_resource",
+      "label": "Pay the ability's Runic Power cost",
+      "actor": "r",
+      "spell": 805716,
+      "amount": 100
+    },
+    {
+      "action": "cast",
+      "label": "Summon the Spectral Warden",
+      "actor": "r",
+      "spell": 805716
+    },
+    {
+      "action": "wait",
+      "label": "Let the summon land",
+      "ms": 1500
+    },
+    {
+      "action": "assert",
+      "label": "the Spectral Warden is summoned",
+      "actor": "r",
+      "metric": "owned_creature_count",
+      "entry": 100481,
+      "equals": 1
+    }
+  ]
+}
