@@ -143,6 +143,11 @@ void ApplyAscensionRangerTalentContracts(SpellInfo* info)
         info->Effects[EFFECT_0].TargetA = SpellImplicitTargetInfo(TARGET_UNIT_TARGET_ENEMY);
         info->Effects[EFFECT_0].TargetB = SpellImplicitTargetInfo();
     }
+
+    for (uint32 talentMissingThePassiveFlag : {804942u, 704544u, 800089u, 300702u, 300703u, 705069u,
+                                               800243u})
+        if (info->Id == talentMissingThePassiveFlag)
+            info->Attributes |= SPELL_ATTR0_PASSIVE;
 }
 
 class ranger_pierced_crits : public AllSpellScript
