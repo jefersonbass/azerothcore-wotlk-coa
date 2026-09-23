@@ -1,0 +1,913 @@
+/* Copyright (C) 2016+ AzerothCore, GNU AGPL v3. */
+#include "CellImpl.h"
+#include "DBCStores.h"
+#include "GridNotifiers.h"
+#include "GridNotifiersImpl.h"
+#include "Pet.h"
+#include "AscensionCustomResourceData.h"
+#include "Log.h"
+#include "Player.h"
+#include "ScriptMgr.h"
+#include "Spell.h"
+#include "SpellAuraEffects.h"
+#include "SpellAuras.h"
+#include "SpellInfo.h"
+#include "SpellMgr.h"
+#include "SpellScript.h"
+#include <algorithm>
+#include <limits>
+#include <list>
+#include <vector>
+
+namespace
+{
+enum StormbringerTalentSpells : uint32
+{
+    SPELL_CLOUDBURST = 801838,
+    SPELL_CLOUDBURST_KNOCKBACK = 802385,
+    SPELL_SHOCK = 804020,
+    SPELL_SHOCK_DOT = 560336,
+    SPELL_SHOCK_HIDDEN_PASSIVE = 707058,
+    SPELL_PERPETUAL_SHOCK = 570054,
+    SPELL_STORM_SOUL = 300591,
+    SPELL_PERPETUAL_SHOCK_TALENT = 300625,
+    SPELL_DARK_SKIES_BUFF = 680855,
+    SPELL_INVOKING_STORMS_RANK_1 = 705667,
+    SPELL_INVOKING_STORMS_RANK_2 = 707793,
+    SPELL_CALL_LIGHTNING = 500040,
+    SPELL_THUNDER_WARD = 800098,
+    SPELL_STATIC = 803102,
+    SPELL_GENERATE_STATIC_20 = 804086,
+    SPELL_BAROMETRIC_SLOW = 803566,
+    SPELL_ELECTRICAL_CHARGE = 800299,
+    SPELL_CHARGED_CONDUIT = 803790,
+    SPELL_GALE = 804036,
+    SPELL_ENVELOPING_WINDS = 707546,
+    SPELL_AEROMANCY = 705708,
+    SPELL_ELEMENTAL_UPDRAFT = 807717,
+    SPELL_UPDRAFT = 570161,
+    SPELL_STORM_ASCENDANCE = 681110,
+    SPELL_TEMPEST_SOVEREIGN = 560020,
+    SPELL_SHOCK_STATIC_GRANT = 500039,
+    SPELL_TORRENTIAL_WRATH = 503352,
+    SPELL_CONDUCTION = 567560,
+    SPELL_WRATH_OF_AL_AKIR = 300834,
+    SPELL_WRATH_OF_AL_AKIR_TRIGGER = 300835,
+    SPELL_UNDERTOW = 705666,
+    SPELL_UNDERTOW_RANK_2 = 707796,
+    SPELL_DROWN_HIT = 806408,
+    SPELL_ELECTROCUTIONER_PASSIVE = 500068,
+    SPELL_ELECTROCUTIONER_TALENT = 92096,
+    SPELL_ELECTROCUTIONER = 804592,
+    SPELL_VOLTAIC_MASTERY = 706661,
+    SPELL_CONDUCTIVE = 567559,
+    SPELL_DELUGE = 806400,
+    SPELL_DELUGE_BONUS = 806399,
+    SPELL_TITANSTORM = 801869,
+    SPELL_TITANSTORM_COOLDOWN = 801854,
+    SPELL_FLUX_ARC = 705643,
+    SPELL_FLUX_ARC_MARK = 705644,
+    SPELL_FORKED_LIGHTNING = 355289,
+    SPELL_ARM_OF_THORIM = 801847
+};
+
+float const FLUX_ARC_SPLASH_RADIUS = 10.0f;
+uint32 ElectrocutionerChance(Player const* player)
+    SPELL_CRITICAL_CIRCUIT = 807314,
+    SPELL_REFUND_STATIC_10 = 804084,
+    SPELL_CONJURATION_MASTERY = 300595,
+    SPELL_PREDICTABLE_WEATHER_WINDOW = 807481,
+    SPELL_LIGHTNING_ROD = 300609,
+    SPELL_LIGHTNING_ROD_SPREAD = 300928,
+    SPELL_VOLT = 500928,
+    SPELL_NEVER_STRIKES_TWICE = 804828,
+    SPELL_ELECTROCUTE = 801844,
+    SPELL_STORMBREAKER = 705669,
+    SPELL_PULSE_CONVERSION = 707619,
+    SPELL_PULSE_CONVERSION_HEAL = 504830,
+    SPELL_STORM_BARRIER = 707204,
+    SPELL_LIGHTNING_CAGE_BARRIER = 560032,
+    SPELL_THORIMS_GIFT = 570173,
+    SPELL_THORIMS_GIFT_PATCH = 570174,
+    SPELL_HURRICANES_BUFF = 570129,
+    SPELL_UNBOUND_ELEMENTALIST = 705702
+};
+
+constexpr int32 ASCENSION_SPELLMOD_BONUS_MULTIPLIER = 41;
+constexpr uint32 CONJURE_STORM_FAMILY_FLAG_TWO = 16;
+
+bool IsConjureStorm(SpellInfo const* info)
+{
+    return info && info->SpellFamilyName == 22 && (info->SpellFamilyFlags[2] & CONJURE_STORM_FAMILY_FLAG_TWO);
+}
+
+bool SpendsStatic(uint32 spellId)
+{
+    for (AscensionCompatData::ResourceCostRule const& rule : AscensionCompatData::ResourceCostRules)
+        if (rule.ClassId == CLASS_STORMBRINGER && rule.ResourceSpellId == SPELL_STATIC &&
+            spellId >= rule.FirstSpellId && spellId <= rule.LastSpellId)
+            return rule.Consumption != AscensionCompatData::ResourceConsumption::None;
+    return false;
+}
+
+uint32 TalentProcChance(uint32 talent)
+{
+    SpellInfo const* info = sSpellMgr->GetSpellInfo(talent);
+    return info ? info->ProcChance : 0;
+}
+
+void ReduceRankCooldowns(Player* player, uint32 firstRank, int32 delta)
+{
+    if (!player || delta >= 0)
+        return;
+    std::vector<uint32> cooldowns;
+    for (auto const& entry : player->GetSpellCooldownMap())
+        if (sSpellMgr->GetFirstSpellInChain(entry.first) == firstRank)
+            cooldowns.push_back(entry.first);
+    for (uint32 spell : cooldowns)
+    {
+        uint32 remaining = player->GetSpellCooldownDelay(spell);
+        if (uint64(-int64(delta)) >= remaining)
+            player->RemoveSpellCooldown(spell, true);
+        else
+            player->ModifySpellCooldown(spell, delta);
+    }
+}
+
+void ApplyUnboundElementalistContract(SpellInfo* info)
+{
+    SpellEffectInfo& owner = info->Effects[EFFECT_0];
+    SpellEffectInfo const& elemental = info->Effects[EFFECT_1];
+    if (owner.Effect != SPELL_EFFECT_APPLY_AURA || owner.ApplyAuraName != SPELL_AURA_ADD_PCT_MODIFIER ||
+        owner.MiscValue != SPELLMOD_ALL_EFFECTS || owner.BasePoints != -1 || owner.DieSides != 1 ||
+        owner.SpellClassMask != flag96(16, 0, 0) || elemental.ApplyAuraName != owner.ApplyAuraName ||
+        elemental.MiscValue != owner.MiscValue || elemental.SpellClassMask != owner.SpellClassMask ||
+        elemental.DieSides != owner.DieSides || elemental.BasePoints <= 0)
+    {
+        LOG_ERROR("coa", "Skipped unexpected Unbound Elementalist record {}", info->Id);
+        return;
+    }
+
+    owner.BasePoints = elemental.BasePoints;
+}
+
+uint32 StaticScaledChance(Player const* player, uint32 talent)
+{
+    Aura const* staticAura = player->GetAura(SPELL_STATIC);
+    return TalentProcChance(talent) + (staticAura ? staticAura->GetStackAmount() / 5 : 0);
+}
+
+std::list<Unit*> NearbyUnits(Unit* center, float range)
+{
+    std::list<Unit*> result;
+    if (!center || !center->IsInWorld())
+        return result;
+    Acore::AnyUnitInObjectRangeCheck check(center, range);
+    Acore::UnitListSearcher<Acore::AnyUnitInObjectRangeCheck> search(center, result, check);
+    Cell::VisitObjects(center, search, range);
+    result.remove_if([center](Unit* unit) { return !unit->IsAlive() || !center->InSamePhase(unit); });
+    result.sort([](Unit* a, Unit* b) { return a->GetGUID() < b->GetGUID(); });
+    return result;
+}
+
+void SpreadVolt(Player* player, Unit* source, uint32 count, float radius)
+{
+    Aura* origin = source ? source->GetAuraOfRankedSpell(SPELL_VOLT, player->GetGUID()) : nullptr;
+    if (!origin || !count)
+        return;
+    for (Unit* target : NearbyUnits(source, radius))
+    {
+        if (target == source || !player->IsValidAttackTarget(target) || !player->IsWithinLOSInMap(target))
+            continue;
+        if (Aura* old = target->GetAura(origin->GetId(), player->GetGUID());
+            old && old->GetDuration() >= origin->GetDuration())
+            continue;
+        Aura* copy = player->AddAura(origin->GetId(), target);
+        if (!copy)
+            continue;
+        copy->SetStackAmount(origin->GetStackAmount());
+        copy->SetMaxDuration(origin->GetMaxDuration());
+        copy->SetDuration(origin->GetDuration());
+        for (uint8 i = 0; i < MAX_SPELL_EFFECTS; ++i)
+            if (AuraEffect* effect = origin->GetEffect(i))
+                if (AuraEffect* next = copy->GetEffect(i))
+                {
+                    next->ChangeAmount(effect->GetAmount());
+                    next->SetCritChance(effect->GetCritChance());
+                    next->SetPctMods(effect->GetPctMods());
+                    next->SetPeriodicTimer(effect->GetPeriodicTimer());
+                }
+        if (!--count)
+            break;
+    }
+}
+
+class stormbringer_talent_casts : public AllSpellScript
+{
+public:
+    stormbringer_talent_casts() : AllSpellScript("stormbringer_talent_casts",
+        {ALLSPELLHOOK_ON_CAST, ALLSPELLHOOK_ON_HIT_RESULT, ALLSPELLHOOK_ON_CRIT_CHANCE}) { }
+
+    void OnSpellCast(Spell* spell, Unit* caster, SpellInfo const* info, bool) override
+    {
+        Player* player = caster ? caster->ToPlayer() : nullptr;
+        if (player && player->getClass() == CLASS_STORMBRINGER && info->SpellFamilyName == 22 &&
+            info->Id == SPELL_CLOUDBURST && !spell->IsTriggered())
+            player->CastSpell(player, SPELL_CLOUDBURST_KNOCKBACK, true);
+        // Enveloping Winds (707546): casting Gale makes the Air Elemental cast Gale
+        // as well. The passive's Dummy aura is inert; the armor emanation is native
+        // through its periodic trigger into the raid area aura.
+        if (player && player->getClass() == CLASS_STORMBRINGER && info->SpellFamilyName == 22 &&
+            !spell->IsTriggered() && player->HasAura(SPELL_ENVELOPING_WINDS) &&
+            sSpellMgr->GetFirstSpellInChain(info->Id) == SPELL_GALE)
+            if (Pet* pet = player->GetPet(); pet && pet->IsAlive() && pet->IsInWorld())
+                if (Unit* victim = pet->GetVictim())
+                    pet->CastSpell(victim, info->Id, true);
+        // Aeromancy (705708): casting Updraft makes the Air Elemental cast its
+        // own Updraft beneath the caster; the +25% damage half is native
+        // through the aura's family mask.
+        if (player && player->getClass() == CLASS_STORMBRINGER && info->SpellFamilyName == 22 &&
+            !spell->IsTriggered() && player->HasAura(SPELL_AEROMANCY) &&
+            sSpellMgr->GetFirstSpellInChain(info->Id) == SPELL_UPDRAFT)
+            if (Pet* pet = player->GetPet(); pet && pet->IsAlive() && pet->IsInWorld())
+                pet->CastSpell(player, SPELL_ELEMENTAL_UPDRAFT, true);
+        // Storm Ascendance (681110): damaging spells generate 10 extra Static,
+        // at most once per second, while the transform lasts.
+        if (player && player->getClass() == CLASS_STORMBRINGER && info->SpellFamilyName == 22 &&
+            !spell->IsTriggered() && player->HasAura(SPELL_STORM_ASCENDANCE) &&
+            info->DmgClass != SPELL_DAMAGE_CLASS_NONE && info->DmgClass != SPELL_DAMAGE_CLASS_MELEE)
+        {
+            uint32 now = getMSTime();
+            if (now - spell->GetScriptValue(SPELL_STORM_ASCENDANCE) >= 1000)
+            {
+                spell->SetScriptValue(SPELL_STORM_ASCENDANCE, now);
+                player->CastSpell(player, SPELL_GENERATE_STATIC_20, true);
+                player->CastSpell(player, SPELL_GENERATE_STATIC_20, true);
+            }
+        }
+        // Tempest Sovereign (560020): Shock and Call Lightning gain 25 Static, and
+        // Torrential Wrath consumes all Static, triggering Conduction per stack.
+        if (!player || player->getClass() != CLASS_STORMBRINGER || info->SpellFamilyName != 22 ||
+            spell->IsTriggered() || !player->HasAura(SPELL_TEMPEST_SOVEREIGN))
+            return;
+        uint32 const root = sSpellMgr->GetFirstSpellInChain(info->Id);
+        if (root == SPELL_SHOCK || root == SPELL_SHOCK_STATIC_GRANT || root == SPELL_CALL_LIGHTNING)
+        {
+            if (Aura* staticAura = player->GetAura(SPELL_STATIC))
+                staticAura->ModStackAmount(25);
+            return;
+        }
+        if (root == SPELL_TORRENTIAL_WRATH)
+        {
+            Aura* staticAura = player->GetAura(SPELL_STATIC);
+            if (!staticAura)
+                return;
+            uint8 const stacks = staticAura->GetStackAmount();
+            staticAura->Remove();
+            if (player->HasAura(SPELL_WRATH_OF_AL_AKIR))
+                player->CastSpell(player, SPELL_WRATH_OF_AL_AKIR_TRIGGER, true);
+            for (uint8 i = 0; i < stacks; ++i)
+                player->CastSpell(spell->m_targets.GetUnitTarget(), SPELL_CONDUCTION, true);
+        }
+    }
+
+    void OnSpellCritChance(Spell* spell, Unit* target, float& chance) override
+    {
+        // Undertow: Drown's burst component crits more often, 25% at rank 1
+        // (705666) and 50% at rank 2 (707796). The authored bonus lives on
+        // the talent's crit effect, so it is read from the aura, not hardcoded.
+        Player* player = spell->GetCaster() ? spell->GetCaster()->ToPlayer() : nullptr;
+        SpellInfo const* info = spell->GetSpellInfo();
+        if (!player || info->Id != SPELL_DROWN_HIT)
+            return;
+        for (uint32 undertow : {SPELL_UNDERTOW, SPELL_UNDERTOW_RANK_2})
+            if (AuraEffect const* crit = player->GetAuraEffect(undertow, EFFECT_1))
+            {
+                chance += float(crit->GetAmount());
+                return;
+            }
+
+        if (player && player->getClass() == CLASS_STORMBRINGER && IsConjureStorm(info) &&
+            !spell->IsTriggered() && player->HasSpell(SPELL_CONJURATION_MASTERY))
+            player->CastSpell(player, SPELL_REFUND_STATIC_10, true);
+    }
+
+    void OnSpellHitResult(Spell* spell, Unit* target, uint8 miss, uint32 damage, uint32, bool critical) override
+    {
+        Player* player = spell->GetCaster()->ToPlayer();
+        SpellInfo const* info = spell->GetSpellInfo();
+        if (!player || player->getClass() != CLASS_STORMBRINGER || info->SpellFamilyName != 22 ||
+            !target || target == player || player->IsFriendlyTo(target) || miss != SPELL_MISS_NONE)
+            return;
+
+        if (damage && !spell->IsTriggered() &&
+            (player->HasSpell(SPELL_ELECTROCUTIONER_PASSIVE) || player->HasSpell(SPELL_ELECTROCUTIONER_TALENT)) &&
+            roll_chance_i(StaticScaledChance(player, SPELL_ELECTROCUTIONER_TALENT)))
+            player->CastSpell(player, SPELL_ELECTROCUTIONER, true);
+
+        if (critical && damage && !spell->IsTriggered() && player->HasAura(SPELL_CRITICAL_CIRCUIT) &&
+            SpendsStatic(info->Id) && !spell->GetScriptValue(SPELL_CRITICAL_CIRCUIT))
+        {
+            spell->SetScriptValue(SPELL_CRITICAL_CIRCUIT, 1);
+            player->CastSpell(player, SPELL_REFUND_STATIC_10, true);
+        }
+
+        if (damage && !spell->IsTriggered() && player->HasSpell(SPELL_LIGHTNING_ROD) &&
+            sSpellMgr->GetFirstSpellInChain(info->Id) == SPELL_FORKED_LIGHTNING &&
+            roll_chance_i(StaticScaledChance(player, SPELL_LIGHTNING_ROD)))
+        {
+            if (SpellInfo const* spread = sSpellMgr->GetSpellInfo(SPELL_LIGHTNING_ROD_SPREAD))
+                SpreadVolt(player, target, spread->MaxAffectedTargets,
+                    spread->Effects[EFFECT_0].CalcRadius(player));
+        }
+
+        if (damage && !spell->IsTriggered() && player->HasSpell(SPELL_NEVER_STRIKES_TWICE) &&
+            sSpellMgr->GetFirstSpellInChain(info->Id) == SPELL_ELECTROCUTE &&
+            roll_chance_i(TalentProcChance(SPELL_NEVER_STRIKES_TWICE)))
+            player->CastSpell(target, info->Id, true);
+
+        bool repeat =info->Id == SPELL_PERPETUAL_SHOCK;
+        if (!repeat && (spell->IsTriggered() || sSpellMgr->GetFirstSpellInChain(info->Id) != SPELL_SHOCK))
+            return;
+
+        SpellInfo const* periodicShare = sSpellMgr->GetSpellInfo(SPELL_SHOCK_HIDDEN_PASSIVE);
+        if (damage && periodicShare && !spell->GetScriptValue(SPELL_SHOCK_DOT))
+        {
+            spell->SetScriptValue(SPELL_SHOCK_DOT, 1);
+            int32 const share = player->CalculateSpellDamage(target, periodicShare, EFFECT_0);
+            player->CastCustomSpell(SPELL_SHOCK_DOT, SPELLVALUE_BASE_POINT0, int32(damage) * share / 100,
+                target, true);
+        }
+        if (player->HasSpell(SPELL_CALL_LIGHTNING) && !player->HasAura(SPELL_THUNDER_WARD) &&
+            !spell->GetScriptValue(SPELL_STATIC))
+        {
+            spell->SetScriptValue(SPELL_STATIC, 1);
+            player->CastSpell(player, SPELL_GENERATE_STATIC_20, true);
+        }
+        // Issue 819: Voltaic Mastery increases Deluge damage by 5% per
+        // Conductive stack. The talent's native flat-mod auras carry empty
+        // masks and no stack scaling, so deal the bonus here: on any
+        // successful Deluge hit (chain head 806400, family-22 flag 0x8000),
+        // read the caster's Conductive (567559) stacks and strike the target
+        // for 5% of the resolved damage per stack as bonus Nature damage.
+        if (sSpellMgr->GetFirstSpellInChain(info->Id) == SPELL_DELUGE &&
+            player->HasAura(SPELL_VOLTAIC_MASTERY) && !spell->GetScriptValue(SPELL_VOLTAIC_MASTERY))
+        {
+            spell->SetScriptValue(SPELL_VOLTAIC_MASTERY, 1);
+            if (Aura* conductive = player->GetAura(SPELL_CONDUCTIVE))
+                if (uint8 stacks = conductive->GetStackAmount())
+                    player->CastCustomSpell(SPELL_DELUGE_BONUS, SPELLVALUE_BASE_POINT0,
+                        int32(damage * stacks * 5 / 100), target, true);
+        }
+        // Issue 665: Flux Arc marks enemies hit by Forked Lightning and Arm of
+        // Thorim for 10 sec, and Call Lightning against marked enemies deals an
+        // additional 15% of its damage to them and nearby enemies. The talent's
+        // authored aura 354 has no engine handler (the dispatch table holds
+        // "//354 unknown Ascension aura"), so the mark is applied here and the
+        // bonus is dealt as a triggered strike through the authored marker
+        // helper 705644. Runs once per cast on the first successful hostile hit.
+        uint32 const root = sSpellMgr->GetFirstSpellInChain(info->Id);
+        if (player->HasAura(SPELL_FLUX_ARC) && !spell->IsTriggered() && damage &&
+            !spell->GetScriptValue(SPELL_FLUX_ARC))
+        {
+            if (root == SPELL_CALL_LIGHTNING && target->HasAura(SPELL_FLUX_ARC_MARK, player->GetGUID()))
+            {
+                spell->SetScriptValue(SPELL_FLUX_ARC, 1);
+                uint32 const bonus = damage * 15 / 100;
+                player->CastCustomSpell(SPELL_FLUX_ARC_MARK, SPELLVALUE_BASE_POINT0,
+                    int32(bonus), target, true);
+                std::list<Unit*> enemies;
+                Acore::AnyUnitInObjectRangeCheck check(target, FLUX_ARC_SPLASH_RADIUS);
+                Acore::UnitListSearcher<Acore::AnyUnitInObjectRangeCheck> search(target, enemies, check);
+                Cell::VisitObjects(target, search, FLUX_ARC_SPLASH_RADIUS);
+                for (Unit* enemy : enemies)
+                {
+                    if (enemy == target || !enemy->IsAlive() || !player->IsValidAttackTarget(enemy) ||
+                        !target->IsWithinLOSInMap(enemy))
+                        continue;
+                    player->CastCustomSpell(SPELL_FLUX_ARC_MARK, SPELLVALUE_BASE_POINT0,
+                        int32(bonus), enemy, true);
+                }
+            }
+            else if (root == SPELL_FORKED_LIGHTNING || root == SPELL_ARM_OF_THORIM)
+            {
+                spell->SetScriptValue(SPELL_FLUX_ARC, 1);
+                player->CastSpell(target, SPELL_FLUX_ARC_MARK, true);
+            }
+        }
+    }
+};
+
+class stormbringer_pulse_conversion : public AllSpellScript
+{
+public:
+    stormbringer_pulse_conversion() : AllSpellScript("stormbringer_pulse_conversion",
+        {ALLSPELLHOOK_ON_SUCCESSFUL_DISPEL}) { }
+
+    void OnSpellSuccessfulDispel(Spell* spell, Unit* target, SpellEffIndex effect, uint32 count) override
+    {
+        Unit* caster = spell->GetCaster();
+        SpellInfo const* info = spell->GetSpellInfo();
+        if (!count || !target || !caster->IsPlayer() || caster->getClass() != CLASS_STORMBRINGER ||
+            info->Id != SPELL_STORMBREAKER || info->SpellFamilyName != 22 ||
+            info->Effects[effect].MiscValue != DISPEL_MAGIC ||
+            !caster->HasAura(SPELL_PULSE_CONVERSION, caster->GetGUID()))
+            return;
+        SpellInfo const* heal = sSpellMgr->GetSpellInfo(SPELL_PULSE_CONVERSION_HEAL);
+        if (!heal)
+            return;
+        int32 amount = int32(caster->CountPctFromMaxHealth(heal->Effects[EFFECT_0].CalcValue()));
+        caster->CastCustomSpell(SPELL_PULSE_CONVERSION_HEAL, SPELLVALUE_BASE_POINT0, amount, caster,
+            TRIGGERED_FULL_MASK);
+    }
+};
+
+class stormbringer_resource_contracts : public GlobalScript
+{
+public:
+    stormbringer_resource_contracts() : GlobalScript("stormbringer_resource_contracts",
+        {GLOBALHOOK_ON_LOAD_SPELL_CUSTOM_ATTR}) { }
+
+    void OnLoadSpellCustomAttr(SpellInfo* info) override
+    {
+        if (!info || info->SpellFamilyName != 22)
+            return;
+        if (info->Id == SPELL_SHOCK_DOT)
+        {
+            info->AttributesEx2 |= SPELL_ATTR2_CANT_CRIT;
+            info->AttributesEx3 |= SPELL_ATTR3_IGNORE_CASTER_MODIFIERS;
+            info->AttributesEx4 |= SPELL_ATTR4_IGNORE_DAMAGE_TAKEN_MODIFIERS;
+            info->AscensionInheritsResolvedAmount = true;
+            info->Effects[EFFECT_0].BonusMultiplier = 0.0f;
+        }
+        if (info->Id == 705639)
+        {
+            // Issue 707: Voltaic Bursts' effect is the authored half (+50%
+            // periodic damage, aura 108 op 3 = SPELLMOD_EFFECT1, bp 49 with
+            // DieSides 1 resolving as 50), and the authored maskC 0x10000000
+            // already keys Shock (707058, family-22 flags[2] 0x10000000). The
+            // DBC already carries SPELL_ATTR0_PASSIVE, so the re-mark below is
+            // a defensive no-op kept in case the record is ever regenerated
+            // without it.
+            info->Attributes |= SPELL_ATTR0_PASSIVE;
+        }
+        if (info->Id == SPELL_THORIMS_GIFT_PATCH)
+            info->AscensionInheritsResolvedAmount = true;
+        if (info->Id == SPELL_PERPETUAL_SHOCK)
+            info->Effects[EFFECT_1].Effect = 0;
+        if (info->Id == SPELL_STORM_SOUL || info->Id == SPELL_PERPETUAL_SHOCK_TALENT)
+            info->Attributes |= SPELL_ATTR0_PASSIVE;
+        if (info->Id == SPELL_FLUX_ARC)
+        {
+            // Issue 665: the talent's authored aura 354 has no engine handler
+            // (the dispatch table holds "//354 unknown Ascension aura"), so
+            // applying it is a no-op. Neutralize it to DUMMY and clear its
+            // trigger; the hit callback above applies the 10 s mark and deals
+            // the 15% bonus through the authored marker helper 705644.
+            info->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_DUMMY;
+            info->Effects[EFFECT_0].TriggerSpell = 0;
+        }
+        if (info->Id == SPELL_FLUX_ARC_MARK)
+        {
+            // The marker is applied by the hit callback and read back by it;
+            // give it the tooltip's 10 s duration (index 1) as a DUMMY aura so
+            // both halves stay in one authored record.
+            info->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_DUMMY;
+            info->DurationEntry = sSpellDurationStore.LookupEntry(1);
+        }
+        if (info->Id == 560568)
+            // Issue 992: Electrifying Aura ships without the passive flag, so
+            // the learn/login passes never applied its raid aura (65 =
+            // APPLY_AREA_AURA_RAID, resolving the tooltip's +3% party/raid
+            // crit through the native crit-pct path).
+            info->Attributes |= SPELL_ATTR0_PASSIVE;
+        if (info->Id == 705655)
+        {
+            // Issue 1027: Stormy Days ships without the passive flag, so the
+            // learn/login passes never applied its tick-rate aura, and its
+            // mask is keyed to the wrong word, missing Conjure Storm's own
+            // family bits. Mark passive and rekey; the native
+            // activation-time mod path then quickens the authored 25%.
+            info->Attributes |= SPELL_ATTR0_PASSIVE;
+            info->Effects[EFFECT_0].SpellClassMask = flag96(0, 0, 0x30);
+        }
+        if (info->Id == 804591)
+            info->Attributes |= SPELL_ATTR0_PASSIVE;
+        if (info->Id == SPELL_TITANSTORM)
+        {
+            // Issue 686: Titanstorm's proc aura is the authored half: effect 0
+            // is the guaranteed (ProcChance 100, proc flags 0x50000) proc into
+            // the cooldown reducer 801854 on Call Lightning and Electrocute.
+            // The DBC already carries SPELL_ATTR0_PASSIVE, so the re-mark
+            // below is a defensive no-op kept in case the record is ever
+            // regenerated without it.
+            info->Attributes |= SPELL_ATTR0_PASSIVE;
+        }
+        if (info->Id == SPELL_TITANSTORM_COOLDOWN)
+        {
+            // The reducer's two ASCENSION_MODIFY_COOLDOWN effects are the
+            // authored halves (-1500 ms on Arm of Thorim 801847 and Lightning
+            // Cage 560030, bp -1501 with DieSides 1). The re-mark below is a
+            // defensive no-op kept in case the record is ever regenerated
+            // without it.
+            info->Effects[EFFECT_0].DieSides = 1;
+            info->Effects[EFFECT_1].DieSides = 1;
+        }
+        if (info->Id == SPELL_STORM_ASCENDANCE)
+        {
+            // "Transform into a storm elemental for 15 sec, increasing your
+            // Magic damage dealt by 20% and reducing your Magic damage taken
+            // by 50%." The damage-dealt half is native; the dead flat-mod
+            // slot becomes the taken half, and the instant record becomes the
+            // authored 15-second transform.
+            info->DurationEntry = sSpellDurationStore.LookupEntry(8); // Fifteen seconds.
+            info->Effects[EFFECT_2].ApplyAuraName = SPELL_AURA_MOD_DAMAGE_PERCENT_TAKEN;
+            info->Effects[EFFECT_2].MiscValue = SPELL_SCHOOL_MASK_MAGIC;
+            info->Effects[EFFECT_2].BasePoints = -51;
+            info->Effects[EFFECT_2].DieSides = 1;
+        }
+        if (info->Id == SPELL_CHARGED_CONDUIT)
+            info->Effects[EFFECT_2].Effect = 0;
+        if (info->Id == 806397)
+        {
+            // Issue 842: Bursting ships without SPELL_ATTR0_PASSIVE, so the
+            // learn/login passes never applied its Drowning mod, and its
+            // BasePoints are display-minus-1 with DieSides 0. Mark passive
+            // and shift DieSides to 1 so the value resolves as the tooltip's
+            // 20% (op 3 = SPELLMOD_FLAT, maskC 0x40000 matches both Drowning
+            // debuffs 806406/806491's family-22 flag 0x40000). The native
+            // flat-mod path applies it to the Drowning stack value.
+            info->Attributes |= SPELL_ATTR0_PASSIVE;
+            info->Effects[EFFECT_0].DieSides = 1;
+        }
+        if (info->Id == 705657)
+        {
+            // Issue 864: Studious ships without SPELL_ATTR0_PASSIVE, so the
+            // learn/login passes never applied its cast-time mod, and its
+            // BasePoints are display-minus-1 with DieSides 0. Mark passive
+            // and shift DieSides to 1 so the value resolves as the tooltip's
+            // 15% (op 10 = SPELLMOD_CASTING_TIME, maskA 0x800 matches Shock
+            // 503326's family-22 flag 0x800). The native casting-time mod
+            // path applies it.
+            info->Attributes |= SPELL_ATTR0_PASSIVE;
+            info->Effects[EFFECT_0].DieSides = 1;
+        }
+}
+        if (info->Id == SPELL_INVOKING_STORMS_RANK_1 || info->Id == SPELL_INVOKING_STORMS_RANK_2)
+        {
+            SpellEffectInfo& scaling = info->Effects[EFFECT_0];
+            if (scaling.ApplyAuraName == SPELL_AURA_ADD_PCT_MODIFIER &&
+                scaling.MiscValue == ASCENSION_SPELLMOD_BONUS_MULTIPLIER)
+                scaling.MiscValue = SPELLMOD_BONUS_MULTIPLIER;
+            flag96 const armOfThorimFamilyFlags(0, 2, 0);
+            scaling.SpellClassMask |= armOfThorimFamilyFlags;
+        }
+        if (info->Id == SPELL_PREDICTABLE_WEATHER_WINDOW &&
+            info->Effects[EFFECT_0].IsAura(SPELL_AURA_ADD_PCT_MODIFIER) &&
+            info->Effects[EFFECT_0].MiscValue == SPELLMOD_CASTING_TIME &&
+            info->ProcFlags == PROC_FLAG_DONE_MELEE_AUTO_ATTACK && !info->ProcCharges)
+        {
+            info->ProcFlags = PROC_FLAG_NONE;
+            info->ProcCharges = 1;
+        }
+        if (info->Id == SPELL_HURRICANES_BUFF &&
+            info->Effects[EFFECT_0].ApplyAuraName == SPELL_AURA_MOD_DAMAGE_PERCENT_DONE &&
+            !info->Effects[EFFECT_0].MiscValue)
+            info->Effects[EFFECT_0].MiscValue = SPELL_SCHOOL_MASK_ALL;
+        if (info->Id == SPELL_UNBOUND_ELEMENTALIST)
+            ApplyUnboundElementalistContract(info);
+    }
+};
+
+class spell_ascension_stormbringer_cooldown_reduction : public SpellScript
+{
+    PrepareSpellScript(spell_ascension_stormbringer_cooldown_reduction);
+
+    bool Load() override
+    {
+        return GetCaster()->IsPlayer() && GetCaster()->getClass() == CLASS_STORMBRINGER;
+    }
+
+    void Reduce(SpellEffIndex index)
+    {
+        PreventHitDefaultEffect(index);
+        ReduceRankCooldowns(GetHitPlayer(), uint32(GetSpellInfo()->Effects[index].MiscValue), GetEffectValue());
+    }
+
+    void Register() override
+    {
+        OnEffectHitTarget += SpellEffectFn(spell_ascension_stormbringer_cooldown_reduction::Reduce,
+            EFFECT_ALL, SPELL_EFFECT_ASCENSION_MODIFY_COOLDOWN);
+    }
+};
+
+class aura_ascension_barometric_pressure : public AuraScript
+{
+    PrepareAuraScript(aura_ascension_barometric_pressure);
+
+    bool Validate(SpellInfo const*) override { return ValidateSpellInfo({SPELL_BAROMETRIC_SLOW}); }
+
+    void Apply(AuraEffect const*, AuraEffectHandleModes)
+    {
+        if (GetCaster() && GetCaster() == GetTarget())
+            GetCaster()->AddAura(SPELL_BAROMETRIC_SLOW, GetTarget());
+    }
+
+    void OnRemove(AuraEffect const*, AuraEffectHandleModes)
+    {
+        if (GetCasterGUID() == GetTarget()->GetGUID())
+            GetTarget()->RemoveAurasDueToSpell(SPELL_BAROMETRIC_SLOW, GetCasterGUID());
+    }
+
+    void Register() override
+    {
+        AfterEffectApply += AuraEffectApplyFn(aura_ascension_barometric_pressure::Apply,
+            EFFECT_1, SPELL_AURA_DUMMY, AURA_EFFECT_HANDLE_REAL);
+        AfterEffectRemove += AuraEffectRemoveFn(aura_ascension_barometric_pressure::OnRemove,
+            EFFECT_1, SPELL_AURA_DUMMY, AURA_EFFECT_HANDLE_REAL);
+    }
+};
+
+class aura_ascension_electrical_charge : public AuraScript
+{
+    PrepareAuraScript(aura_ascension_electrical_charge);
+
+    bool Validate(SpellInfo const*) override
+    {
+        return ValidateSpellInfo({SPELL_ELECTRICAL_CHARGE, SPELL_CHARGED_CONDUIT});
+    }
+
+    void Tick(AuraEffect const*)
+    {
+        PreventDefaultAction();
+        Unit* owner = GetTarget();
+        if (owner->isMoving() || owner->HasAura(SPELL_CHARGED_CONDUIT))
+            return;
+        owner->CastSpell(owner, SPELL_ELECTRICAL_CHARGE, true);
+        if (Aura* charges = owner->GetAura(SPELL_ELECTRICAL_CHARGE))
+            if (charges->GetStackAmount() >= sSpellMgr->GetSpellInfo(SPELL_ELECTRICAL_CHARGE)->StackAmount)
+                owner->CastSpell(owner, SPELL_CHARGED_CONDUIT, true);
+    }
+
+    void OnRemove(AuraEffect const*, AuraEffectHandleModes)
+    {
+        GetTarget()->RemoveAurasDueToSpell(SPELL_CHARGED_CONDUIT);
+        GetTarget()->RemoveAurasDueToSpell(SPELL_ELECTRICAL_CHARGE);
+    }
+
+    void Register() override
+    {
+        OnEffectPeriodic += AuraEffectPeriodicFn(aura_ascension_electrical_charge::Tick,
+            EFFECT_0, SPELL_AURA_PERIODIC_TRIGGER_SPELL);
+        AfterEffectRemove += AuraEffectRemoveFn(aura_ascension_electrical_charge::OnRemove,
+            EFFECT_0, SPELL_AURA_PERIODIC_TRIGGER_SPELL, AURA_EFFECT_HANDLE_REAL);
+    }
+};
+
+class aura_ascension_dark_skies : public AuraScript
+{
+    PrepareAuraScript(aura_ascension_dark_skies);
+
+    bool Validate(SpellInfo const*) override { return ValidateSpellInfo({SPELL_DARK_SKIES_BUFF}); }
+
+    bool Check(ProcEventInfo& event)
+    {
+        Unit* player = GetTarget();
+        Unit* victim = event.GetActionTarget();
+        return player->IsPlayer() && player->getClass() == CLASS_STORMBRINGER && player->IsAlive() &&
+            GetCaster() == player && event.GetActor() == player && victim && victim != player &&
+            !player->IsFriendlyTo(victim) && event.GetDamageInfo() && event.GetDamageInfo()->GetDamage();
+    }
+
+    void Proc(AuraEffect const*, ProcEventInfo& event)
+    {
+        PreventDefaultAction();
+        Unit* player = GetTarget();
+        if (event.GetHitMask() & PROC_HIT_CRITICAL)
+            player->RemoveAurasDueToSpell(SPELL_DARK_SKIES_BUFF);
+        else
+            player->CastSpell(player, SPELL_DARK_SKIES_BUFF, true);
+    }
+
+    void Remove(AuraEffect const*, AuraEffectHandleModes)
+    {
+        GetTarget()->RemoveAurasDueToSpell(SPELL_DARK_SKIES_BUFF);
+    }
+
+    void Register() override
+    {
+        DoCheckProc += AuraCheckProcFn(aura_ascension_dark_skies::Check);
+        OnEffectProc += AuraEffectProcFn(aura_ascension_dark_skies::Proc, EFFECT_0, SPELL_AURA_PROC_TRIGGER_SPELL);
+        AfterEffectRemove += AuraEffectRemoveFn(aura_ascension_dark_skies::Remove,
+            EFFECT_0, SPELL_AURA_PROC_TRIGGER_SPELL, AURA_EFFECT_HANDLE_REAL);
+    }
+};
+
+class aura_ascension_thorims_gift : public AuraScript
+{
+    PrepareAuraScript(aura_ascension_thorims_gift);
+
+    bool Validate(SpellInfo const* info) override
+    {
+        return info->Id == SPELL_THORIMS_GIFT &&
+            info->Effects[EFFECT_0].TriggerSpell == SPELL_THORIMS_GIFT_PATCH &&
+            ValidateSpellInfo({SPELL_THORIMS_GIFT_PATCH});
+    }
+
+    bool Load() override
+    {
+        return GetUnitOwner()->IsPlayer() && GetUnitOwner()->getClass() == CLASS_STORMBRINGER;
+    }
+
+    bool Check(ProcEventInfo& event)
+    {
+        DamageInfo const* damage = event.GetDamageInfo();
+        Unit* victim = event.GetActionTarget();
+        return event.GetActor() == GetTarget() && victim && victim != GetTarget() &&
+            !GetTarget()->IsFriendlyTo(victim) && damage && damage->GetDamage();
+    }
+
+    void Proc(AuraEffect const* effect, ProcEventInfo& event)
+    {
+        PreventDefaultAction();
+        uint64 amount = uint64(event.GetDamageInfo()->GetDamage()) * std::clamp(effect->GetAmount(), 0, 100) / 100;
+        if (amount)
+            GetTarget()->CastCustomSpell(SPELL_THORIMS_GIFT_PATCH, SPELLVALUE_BASE_POINT0,
+                int32(std::min<uint64>(amount, std::numeric_limits<int32>::max())),
+                event.GetActionTarget(), TRIGGERED_FULL_MASK);
+    }
+
+    void Register() override
+    {
+        DoCheckProc += AuraCheckProcFn(aura_ascension_thorims_gift::Check);
+        OnEffectProc += AuraEffectProcFn(aura_ascension_thorims_gift::Proc, EFFECT_0, AuraType(354));
+    }
+};
+
+class aura_ascension_charged_conduit : public AuraScript
+{
+    PrepareAuraScript(aura_ascension_charged_conduit);
+
+    void OnRemove(AuraEffect const*, AuraEffectHandleModes)
+    {
+        GetTarget()->RemoveAurasDueToSpell(SPELL_ELECTRICAL_CHARGE);
+    }
+
+    void Register() override
+    {
+        AfterEffectRemove += AuraEffectRemoveFn(aura_ascension_charged_conduit::OnRemove,
+            EFFECT_1, SPELL_AURA_HASTE_SPELLS, AURA_EFFECT_HANDLE_REAL);
+    }
+};
+
+class aura_ascension_stormbringer_dark_skies : public AuraScript
+{
+    PrepareAuraScript(aura_ascension_stormbringer_dark_skies);
+
+    bool CheckProc(ProcEventInfo& event)
+    {
+        return event.GetActor() == GetTarget();
+    }
+
+    void Remove(AuraEffect const*, ProcEventInfo&)
+    {
+        PreventDefaultAction();
+        GetTarget()->RemoveAurasDueToSpell(SPELL_DARK_SKIES_BUFF);
+class aura_ascension_stormcloak : public AuraScript
+{
+    PrepareAuraScript(aura_ascension_stormcloak);
+
+    void Calculate(AuraEffect const*, int32& amount, bool& recalculate)
+    {
+        amount = -1;
+        recalculate = false;
+    }
+
+    void Absorb(AuraEffect*, DamageInfo& damage, uint32& absorb)
+    {
+        absorb = 0;
+        AuraEffect const* halved = GetEffect(EFFECT_2);
+        if (!halved || halved->GetAmount() <= 0 || damage.GetDamageType() == DOT)
+            return;
+        if (!roll_chance_i(int32(GetSpellInfo()->ProcChance)))
+            return;
+        absorb = uint32(uint64(damage.GetDamage()) * uint32(halved->GetAmount()) / 100);
+    }
+
+    void Register() override
+    {
+        DoCheckProc += AuraCheckProcFn(aura_ascension_stormbringer_dark_skies::CheckProc);
+        OnEffectProc += AuraEffectProcFn(aura_ascension_stormbringer_dark_skies::Remove,
+            EFFECT_0, SPELL_AURA_PROC_TRIGGER_SPELL);
+    }
+};
+
+constexpr uint32 SPELL_PULSE_CONVERSION = 707619;
+constexpr uint32 SPELL_PULSE_CONVERSION_HEAL = 504830;
+
+class spell_ascension_stormbringer_pulse_conversion : public SpellScript
+{
+    PrepareSpellScript(spell_ascension_stormbringer_pulse_conversion);
+
+    void HandleDispel(SpellEffIndex effIndex)
+    {
+        Unit* caster = GetCaster();
+        Unit* target = GetHitUnit();
+        if (!caster || !target || !caster->HasAura(SPELL_PULSE_CONVERSION))
+            return;
+
+        DispelChargesList dispelList;
+        target->GetDispellableAuraList(caster,
+            1 << GetSpellInfo()->Effects[effIndex].MiscValue, dispelList, GetSpellInfo());
+        if (dispelList.empty())
+            return;
+
+        caster->CastSpell(caster, SPELL_PULSE_CONVERSION_HEAL, true);
+        DoEffectCalcAmount +=
+            AuraEffectCalcAmountFn(aura_ascension_stormcloak::Calculate, EFFECT_0, SPELL_AURA_SCHOOL_ABSORB);
+        OnEffectAbsorb += AuraEffectAbsorbFn(aura_ascension_stormcloak::Absorb, EFFECT_0);
+    }
+};
+
+class aura_ascension_invigorating_winds : public AuraScript
+{
+    PrepareAuraScript(aura_ascension_invigorating_winds);
+
+    void SetImmunity(bool apply)
+    {
+        Unit* ally = GetTarget();
+        ally->ApplySpellImmune(GetId(), IMMUNITY_MECHANIC, MECHANIC_SILENCE, apply);
+        ally->ApplySpellImmune(GetId(), IMMUNITY_MECHANIC, MECHANIC_INTERRUPT, apply);
+    }
+
+    void Apply(AuraEffect const*, AuraEffectHandleModes)
+    {
+        SetImmunity(true);
+    }
+
+    void OnRemove(AuraEffect const*, AuraEffectHandleModes)
+    {
+        SetImmunity(false);
+    }
+
+    void Register() override
+    {
+        AfterEffectApply += AuraEffectApplyFn(aura_ascension_invigorating_winds::Apply,
+            EFFECT_1, SPELL_AURA_REDUCE_PUSHBACK, AURA_EFFECT_HANDLE_REAL);
+        AfterEffectRemove += AuraEffectRemoveFn(aura_ascension_invigorating_winds::OnRemove,
+            EFFECT_1, SPELL_AURA_REDUCE_PUSHBACK, AURA_EFFECT_HANDLE_REAL);
+    }
+};
+
+class aura_ascension_lightning_cage : public AuraScript
+{
+    PrepareAuraScript(aura_ascension_lightning_cage);
+
+    bool Validate(SpellInfo const*) override { return ValidateSpellInfo({SPELL_LIGHTNING_CAGE_BARRIER}); }
+
+    void Apply(AuraEffect const*, AuraEffectHandleModes)
+    {
+        Player* owner = GetTarget()->ToPlayer();
+        if (!owner || !owner->HasSpell(SPELL_STORM_BARRIER))
+            return;
+        if (Aura* barrier = owner->AddAura(SPELL_LIGHTNING_CAGE_BARRIER, owner))
+        {
+            barrier->SetMaxDuration(GetAura()->GetMaxDuration());
+            barrier->SetDuration(GetAura()->GetDuration());
+        }
+    }
+
+    void OnRemove(AuraEffect const*, AuraEffectHandleModes)
+    {
+        GetTarget()->RemoveAurasDueToSpell(SPELL_LIGHTNING_CAGE_BARRIER);
+    }
+
+    void Register() override
+    {
+        OnEffectHitTarget += SpellEffectFn(spell_ascension_stormbringer_pulse_conversion::HandleDispel,
+            EFFECT_0, SPELL_EFFECT_DISPEL);
+        AfterEffectApply += AuraEffectApplyFn(aura_ascension_lightning_cage::Apply,
+            EFFECT_0, SPELL_AURA_MOD_DECREASE_SPEED, AURA_EFFECT_HANDLE_REAL);
+        AfterEffectRemove += AuraEffectRemoveFn(aura_ascension_lightning_cage::OnRemove,
+            EFFECT_0, SPELL_AURA_MOD_DECREASE_SPEED, AURA_EFFECT_HANDLE_REAL);
+    }
+};
+}
+
+void AddSC_AscensionStormbringerTalents()
+{
+    new stormbringer_talent_casts();
+    new stormbringer_pulse_conversion();
+    new stormbringer_resource_contracts();
+    RegisterSpellScript(spell_ascension_stormbringer_cooldown_reduction);
+    RegisterSpellScript(aura_ascension_barometric_pressure);
+    RegisterSpellScript(aura_ascension_electrical_charge);
+    RegisterSpellScript(aura_ascension_thorims_gift);
+    RegisterSpellScript(aura_ascension_charged_conduit);
+    RegisterSpellScript(aura_ascension_stormbringer_dark_skies);
+    RegisterSpellScript(spell_ascension_stormbringer_pulse_conversion);
+    RegisterSpellScript(aura_ascension_dark_skies);
+    RegisterSpellScript(aura_ascension_stormcloak);
+    RegisterSpellScript(aura_ascension_invigorating_winds);
+    RegisterSpellScript(aura_ascension_lightning_cage);
+}

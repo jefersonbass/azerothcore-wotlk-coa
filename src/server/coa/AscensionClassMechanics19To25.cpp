@@ -1,0 +1,181 @@
+/* Copyright (C) 2016+ AzerothCore, GNU AGPL v3. */
+
+#include "AscensionClassMechanics19To25.h"
+#include "Log.h"
+#include "Player.h"
+#include "Spell.h"
+#include "SpellInfo.h"
+
+namespace
+{
+constexpr std::uint32_t SPELL_TEMPLAR_RECKONING = 805421;
+constexpr std::uint32_t SPELL_TEMPLAR_RECKONING_ENERGY = 521241;
+constexpr std::uint32_t SPELL_RANGER_ELUDE = 801345;
+constexpr std::uint32_t SPELL_RANGER_ONSLAUGHT = 801951;
+constexpr std::uint32_t SPELL_RANGER_FOREST_DWELLER = 524864;
+constexpr std::uint32_t SPELL_RANGER_FOREST_DWELLER_HEAL = 524863;
+constexpr std::uint32_t SPELL_CHRONOMANCER_INFINITE_SHIELD = 520457;
+constexpr std::uint32_t SPELL_CHRONOMANCER_INFINITE_SHIELD_HEAL = 520458;
+constexpr std::uint32_t SPELL_CHRONOMANCER_PARADOX_CANNON = 806203;
+constexpr std::uint32_t SPELL_CHRONOMANCER_ECHO_FRAGMENT = 804455;
+constexpr std::uint32_t SPELL_PYROMANCER_UNFATHOMABLY_HOT = 807404;
+constexpr std::uint32_t SPELL_PYROMANCER_CLEANSING_FLAMES_BONUS = 807405;
+constexpr std::uint32_t SPELL_PYROMANCER_ADD_FIVE_HEAT = 807392;
+constexpr std::uint32_t CHRONOMANCER_FAMILY = 28;
+constexpr std::uint32_t PYROMANCER_FAMILY = 30;
+constexpr std::uint32_t INFINITE_SHIELD_CHARGES = 10;
+constexpr std::uint32_t PARADOX_CANNON_PERIOD_MS = 3000;
+constexpr std::uint32_t SPELL_BLOODMAGE_BLOOD_CLOT = 680657;
+constexpr std::uint32_t SPELL_BLOODMAGE_FORBIDDEN_POWER = 500445;
+constexpr std::uint32_t SPELL_CULTIST_RESIDUAL_ENERGY = 681389;
+constexpr std::uint32_t SPELL_NECROMANCER_ICE_MASTERY = 560045;
+
+bool IsTemplarReckoning(std::uint32_t spellId)
+{
+    switch (spellId)
+    {
+        case SPELL_TEMPLAR_RECKONING:
+        case 748505:
+        case 748506:
+        case 748507:
+        case 572739:
+        case 572740:
+        case 572741:
+            return true;
+        default:
+            return false;
+    }
+}
+}
+
+void ApplyAscensionClassMechanics19To25(SpellInfo* spellInfo)
+{
+    if (!spellInfo)
+        return;
+
+    if (spellInfo->Id == SPELL_BLOODMAGE_BLOOD_CLOT)
+    {
+        // Blood Clot: without SPELL_ATTR0_PASSIVE the learned talent is never
+        // applied as a standing aura, so its modifier never comes online.
+        // Effect 2 is fully authored (aura 108, SPELLMOD_DOT flat +99 = +100
+        // percent) against the Scarlet Delirium mask (flags[2] 0x100, ranks
+        // 801074/803684-803688), applied through SpellDamageBonusDone's
+        // periodic branch. Effects 0-1 are empty strays.
+        spellInfo->Attributes |= SPELL_ATTR0_PASSIVE;
+    }
+    if (spellInfo->Id == SPELL_BLOODMAGE_FORBIDDEN_POWER)
+    {
+        // Forbidden Power: without SPELL_ATTR0_PASSIVE the learned talent is
+        // never applied as a standing aura. Effects 0-1 are fully authored
+        // (aura 220 MOD_RATING_FROM_STAT: +30 percent Agility as spell-crit
+        // rating, +5 percent as spell-hit rating) and work natively. Effect 2
+        // (aura 23, every 3 s) re-triggers the spell-pen mirror 500447, whose
+        // amount is filled by the aura_ascension_forbidden_pen script.
+        spellInfo->Attributes |= SPELL_ATTR0_PASSIVE;
+    }
+    if (spellInfo->Id == SPELL_CULTIST_RESIDUAL_ENERGY)
+    {
+        // Residual Energy: without SPELL_ATTR0_PASSIVE the learned talent is
+        // never applied as a standing aura, so its duration modifier never
+        // comes online. Effect 0 is fully authored (aura 107, SPELLMOD_
+        // DURATION flat +7999 ms) against Shadow of the Void's mask
+        // (flags[0] 0x100, spell 300277), doubling its 8 s duration.
+        spellInfo->Attributes |= SPELL_ATTR0_PASSIVE;
+    }
+    if (spellInfo->Id == SPELL_NECROMANCER_ICE_MASTERY)
+    {
+        // Issue 657: Ice Mastery's effect 2 is the authored half (aura 174,
+        // MOD_SPELL_DAMAGE_OF_STAT_PERCENT: +30% of Intellect as spell power,
+        // school mask 126, miscB 3 = STAT_INTELLECT). The DBC already carries
+        // SPELL_ATTR0_PASSIVE and DieSides 1, so the re-mark below is a
+        // defensive no-op kept in case the record is ever regenerated without
+        // them; the -1 placeholders on effects 0 (aura 220) and 1 (aura 333)
+        // resolve to a harmless 0.
+        spellInfo->Attributes |= SPELL_ATTR0_PASSIVE;
+        spellInfo->Effects[EFFECT_0].DieSides = 1;
+        spellInfo->Effects[EFFECT_1].DieSides = 1;
+        spellInfo->Effects[EFFECT_2].DieSides = 1;
+    }
+
+    if (spellInfo->Id == SPELL_CHRONOMANCER_INFINITE_SHIELD)
+    {
+        SpellEffectInfo const& effect = spellInfo->Effects[EFFECT_0];
+        if (spellInfo->SpellFamilyName == CHRONOMANCER_FAMILY &&
+            (spellInfo->ProcCharges == 6 ||
+                spellInfo->ProcCharges == INFINITE_SHIELD_CHARGES) &&
+            effect.Effect == SPELL_EFFECT_APPLY_AURA &&
+            effect.ApplyAuraName == SPELL_AURA_PROC_TRIGGER_SPELL &&
+            effect.TriggerSpell == SPELL_CHRONOMANCER_INFINITE_SHIELD_HEAL)
+        {
+            spellInfo->ProcCharges = INFINITE_SHIELD_CHARGES;
+        }
+        else
+        {
+            LOG_ERROR("coa",
+                "Skipped unexpected Infinite Shield record {}",
+                spellInfo->Id);
+        }
+        return;
+    }
+
+    if (spellInfo->Id == SPELL_CHRONOMANCER_PARADOX_CANNON)
+    {
+        SpellEffectInfo& effect = spellInfo->Effects[EFFECT_0];
+        if (spellInfo->SpellFamilyName == CHRONOMANCER_FAMILY &&
+            effect.Effect == SPELL_EFFECT_APPLY_AURA &&
+            effect.ApplyAuraName == SPELL_AURA_PERIODIC_TRIGGER_SPELL &&
+            effect.TriggerSpell == SPELL_CHRONOMANCER_ECHO_FRAGMENT &&
+            (effect.Amplitude == 2500 ||
+                effect.Amplitude == PARADOX_CANNON_PERIOD_MS))
+        {
+            effect.Amplitude = PARADOX_CANNON_PERIOD_MS;
+        }
+        else
+        {
+            LOG_ERROR("coa",
+                "Skipped unexpected Paradox Cannon record {}",
+                spellInfo->Id);
+        }
+    }
+}
+
+bool CanPrepareAscensionClassMechanics19To25(Spell* spell)
+{
+    if (!spell || !spell->GetCaster())
+        return true;
+
+    Player* player = spell->GetCaster()->ToPlayer();
+    SpellInfo const* info = spell->GetSpellInfo();
+    if (player && player->getClass() == CLASS_RANGER && info->SpellFamilyName == uint32(CLASS_RANGER) + 6 &&
+        info->Id == SPELL_RANGER_FOREST_DWELLER_HEAL && info->Effects[EFFECT_0].Effect == SPELL_EFFECT_HEAL_PCT)
+    {
+        return player->HasAura(SPELL_RANGER_FOREST_DWELLER) &&
+            (player->HasAura(SPELL_RANGER_ELUDE) || player->HasAura(SPELL_RANGER_ONSLAUGHT));
+    }
+
+    if (!player || player->getClass() != CLASS_PYROMANCER ||
+        info->Id != SPELL_PYROMANCER_CLEANSING_FLAMES_BONUS ||
+        info->SpellFamilyName != PYROMANCER_FAMILY)
+        return true;
+
+    SpellEffectInfo const& effect = info->Effects[EFFECT_0];
+    if (effect.Effect != SPELL_EFFECT_TRIGGER_SPELL ||
+        effect.TriggerSpell != SPELL_PYROMANCER_ADD_FIVE_HEAT)
+        return true;
+
+    return player->HasAura(SPELL_PYROMANCER_UNFATHOMABLY_HOT);
+}
+
+void HandleAscensionClassMechanics19To25Hit(Spell* spell, Player* player,
+    Unit* target, std::uint8_t missInfo, std::uint32_t damage)
+{
+    if (!spell || !player || !target || spell->IsTriggered() ||
+        player->getClass() != CLASS_MONK ||
+        !IsTemplarReckoning(spell->GetSpellInfo()->Id) ||
+        spell->GetSpellInfo()->SpellFamilyName != std::uint32_t(CLASS_MONK) + 6 ||
+        target == player || missInfo != SPELL_MISS_NONE || !damage ||
+        player->IsFriendlyTo(target))
+        return;
+
+    player->CastSpell(player, SPELL_TEMPLAR_RECKONING_ENERGY, true);
+}
