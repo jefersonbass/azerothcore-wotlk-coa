@@ -157,9 +157,32 @@ public:
 };
 }
 
+class stormbringer_blessing_of_lei_shen : public UnitScript
+{
+public:
+    stormbringer_blessing_of_lei_shen() : UnitScript("stormbringer_blessing_of_lei_shen", true, {UNITHOOK_MODIFY_SPELL_DAMAGE_TAKEN}) { }
+
+    void ModifySpellDamageTaken(Unit* target, Unit* attacker, int32& damage, SpellInfo const* spellInfo) override
+    {
+        Player* player = attacker ? attacker->ToPlayer() : nullptr;
+        if (!player || player->getClass() != CLASS_STORMBRINGER || !target || !spellInfo || damage <= 0)
+            return;
+        if (!player->HasAura(561228))
+            return;
+        for (uint32 stormflow : {567555u, 567557u, 567563u, 567587u, 572861u})
+            if (spellInfo->Id == stormflow)
+            {
+                player->ModifyHealth(damage);
+                return;
+            }
+    }
+};
+}
+
 void AddSC_AscensionStormbringerSphere()
 {
     RegisterCreatureAI(npc_ascension_power_sphere);
     new stormbringer_sphere_hits();
     new stormbringer_sphere_contracts();
+    new stormbringer_blessing_of_lei_shen();
 }
