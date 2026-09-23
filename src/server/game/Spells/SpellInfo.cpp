@@ -1540,6 +1540,22 @@ bool SpellInfo::IsAffectedBySpellMod(SpellModifier const* mod) const
             return false; // Four ticks are fixed; Makeshift modifiers must not add or remove ticks.
     }
 
+    if (SpellFamilyName == 29 && affectSpell->SpellFamilyName == 29)
+    {
+        // Rancid Air, Unrelenting Swarm and Gangrene name Putrefy, Crypt Scarabs and
+        // Necrosis, none of which carries a family flag of its own, so their copied
+        // masks can never intersect the spell the tooltip names. Route these modifiers
+        // by their named roots while preserving normal effect and cost calculation.
+        uint32 root = sSpellMgr->GetFirstSpellInChain(Id);
+        switch (mod->spellId)
+        {
+            case 704714: return root == 802990 || root == 802991;
+            case 704719: return root == 805868;
+            case 704726: return root == 561125 || root == 804559 || root == 9666680;
+            default: break;
+        }
+    }
+
     if (!sScriptMgr->OnIsAffectedBySpellModCheck(affectSpell, this, mod))
         return true;
 
