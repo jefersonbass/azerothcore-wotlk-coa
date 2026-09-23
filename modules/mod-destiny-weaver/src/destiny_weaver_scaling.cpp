@@ -41,6 +41,7 @@
 // whose version *is* the creature: their fight is then the authored fight, and nobody else's fight
 // changes because of it.
 #include "destiny_weaver.h"
+#include "destiny_weaver_view_damage.h"
 
 #include "Config.h"
 #include "Creature.h"
@@ -116,7 +117,7 @@ namespace
         uint32 Armor;
         uint32 AttackPower;
         uint32 RangedAttackPower;
-        uint32 BaseDamage;
+        float BaseDamage;
     };
 
     LevelStats StatsAt(uint8 level, CreatureTemplate const* info)
@@ -124,15 +125,16 @@ namespace
         CreatureBaseStats const* stats = sObjectMgr->GetCreatureBaseStats(level, info->unit_class);
         return LevelStats{ stats->GenerateHealth(info), stats->GenerateMana(info),
                            uint32(stats->GenerateArmor(info)), stats->AttackPower, stats->RangedAttackPower,
-                           uint32(stats->GenerateBaseDamage(info)) };
+                           stats->GenerateBaseDamage(info) };
     }
 
-    /// What a creature built from this row hits for: its weapon damage plus the attack power behind
-    /// it, which is what UpdateAttackPowerAndDamage writes into UNIT_FIELD_MINDAMAGE and what
-    /// Unit::CalculateDamage reads back out.
-    double HitFrom(LevelStats const& stats)
+    /// What a creature built from this row hits for on average: the middle of its weapon range plus
+    /// the attack power behind it, which is what UpdateAttackPowerAndDamage writes into
+    /// UNIT_FIELD_MINDAMAGE and UNIT_FIELD_MAXDAMAGE and what Unit::CalculateDamage rolls between.
+    double HitFrom(LevelStats const& stats, CreatureTemplate const* info)
     {
-        return double(stats.BaseDamage) + double(stats.AttackPower) / 14.0;
+        return DestinyWeaver::AverageCreatureMeleeHit(stats.BaseDamage, stats.AttackPower, info->BaseVariance,
+                                                      info->BaseAttackTime);
     }
 
     /// One character's version of one creature.
@@ -155,7 +157,7 @@ namespace
     /// Whether a creature may be given a view at all, whoever is looking at it.
     ///
     /// These are the exclusions the realm-wide implementation makes in its own `CanScale`
-    /// (mod-ascension-compat, `AscensionCompatLevelScalingScript`) and they are not optional: a
+    /// (CoA, `AscensionCompatLevelScalingScript`) and they are not optional: a
     /// creature that belongs to somebody - a pet, a summon, a totem, a charmed unit - must never be
     /// re-levelled, and neither must a trigger, a critter or a non-combat pet, which are scenery with
     /// a health bar. A scripted private instance is CoA's own scripted content and is left exactly as
@@ -229,7 +231,8 @@ namespace
         view.MaxHealth = std::max<uint32>(1, uint32(uint64(realMaxHealth) * view.Stats.Health /
                                                     std::max<uint32>(ownStats.Health, 1)));
         view.DamageDealtToPool = double(realMaxHealth) / double(view.MaxHealth);
-        view.DamageTakenFactor = HitFrom(view.Stats) / std::max(1.0, HitFrom(ownStats));
+        view.DamageTakenFactor = DestinyWeaver::ViewDamageTakenFactor(HitFrom(view.Stats, info),
+                                                                      HitFrom(ownStats, info));
         return true;
     }
 
@@ -849,15 +852,15 @@ public:
                                                         std::memory_order_relaxed);
 
         // Creature scaling is this module's now - per character, in the viewer's own client - so the
-        // realm-wide path in mod-ascension-compat stands aside: it lifts the creature object itself,
+        // realm-wide path in CoA stands aside: it lifts the creature object itself,
         // which every client is told about, and a character who never asked for scaling would then
         // see a raised world anyway. The flag is a live switch rather than a config load decision, so
         // whichever module ran its hooks first does not matter, and turning this module off returns
         // the realm-wide path exactly as it was.
         LocalLevelScaling::CreatureScalingOwnedPerViewer.store(available, std::memory_order_relaxed);
-        if (available && sConfigMgr->GetOption<bool>("AscensionCompat.LevelScaling", false))
+        if (available && sConfigMgr->GetOption<bool>("CoA.LevelScaling", false))
             LOG_INFO("module.destiny_weaver",
-                     "AscensionCompat.LevelScaling is 1, but per-character creature scaling owns the "
+                     "CoA.LevelScaling is 1, but per-character creature scaling owns the "
                      "answer: the realm-wide lift is standing aside for as long as this module is on");
 
         LOG_INFO("module.destiny_weaver",
