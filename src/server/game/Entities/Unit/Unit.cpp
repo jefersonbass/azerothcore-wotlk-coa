@@ -4712,6 +4712,12 @@ bool Unit::CanCastDuringChannel(SpellInfo const* info) const
         (info->SpellFamilyFlags[1] & 3) && channel && channel->getState() != SPELL_STATE_FINISHED &&
         channel->IsChannelActive() && channel->GetSpellInfo()->Id == 800355)
         return true;
+    if (IsPlayer() && getClass() == CLASS_STORMBRINGER && info && info->SpellFamilyName == 22 &&
+        ((info->SpellFamilyFlags[0] & 2048) || (info->SpellFamilyFlags[1] & 128)) &&
+        channel && channel->getState() != SPELL_STATE_FINISHED && channel->IsChannelActive() &&
+        channel->GetSpellInfo()->SpellFamilyName == 22 &&
+        (channel->GetSpellInfo()->SpellFamilyFlags[1] & 65536))
+        return true;
     return getClass() == CLASS_WITCH_DOCTOR && info && info->SpellFamilyName == 19 &&
         ((info->SpellFamilyFlags[1] & 2048) || (info->SpellFamilyFlags[2] & 536870913)) &&
         channel && channel->getState() != SPELL_STATE_FINISHED && channel->IsChannelActive() &&
