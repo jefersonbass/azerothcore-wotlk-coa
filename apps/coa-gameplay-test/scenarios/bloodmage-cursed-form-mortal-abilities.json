@@ -1,0 +1,92 @@
+{
+  "schema": 1,
+  "name": "Cursed forms that keep mortal abilities usable (#4032, #4492)",
+  "contract": "Cursed Form abilities require aura 525031 (Bloodfang Bite, Ravenous Strike, Lunge, Claw Sweep), the Eternal ones require 524861 (Night Hunter's Howl, Rotclaw), and the mortal toolkit is excluded by 524861 (Bloodmoon Blast) and 802877 (Sanguine Mend, Hemophobia, Blood Blast, Dark Liturgy, Shadowfang Ritual, Hematophage, Gore Barrage). SyncCursedFormRequirement (AscensionBloodmageTalents.cpp) applies the markers for every entry of CursedForms[]; Sanguine Essence 680692 (Fleshweaver) and Transgression 801076 (Sanguine) both state 'does not disable the use of Mortal Form abilities' and Sanguine Essence itself replicates Bloodmoon Blast damage, so those two keep 525031 and the Cursed Form or Sanguine Essence marker 803427 while the mortal blockers are left off; every other cursed form still blocks them. This scenario covers both halves: the Fleshweaver must keep Bloodmoon Blast and lose the blockers, the Blood Curse Bloodmage must keep them and still cast Bloodfang Bite.",
+  "timeout_ms": 90000,
+  "players": [
+    {
+      "id": "fleshweaver",
+      "race": 1,
+      "class": 20,
+      "level": 60,
+      "spell_hit_rating": 10000
+    },
+    {
+      "id": "accursed",
+      "race": 1,
+      "class": 20,
+      "level": 60,
+      "spell_hit_rating": 10000
+    }
+  ],
+  "creatures": [
+    {
+      "id": "target1",
+      "owner": "fleshweaver",
+      "entry": 36,
+      "level": 60,
+      "distance": 4
+    },
+    {
+      "id": "target2",
+      "owner": "accursed",
+      "entry": 36,
+      "level": 60,
+      "distance": 4
+    }
+  ],
+  "steps": [
+    { "action": "wait", "label": "Let level scaling settle", "ms": 5000 },
+    { "action": "learn", "actor": "fleshweaver", "spell": 680692 },
+    { "action": "learn", "actor": "fleshweaver", "spell": 501607 },
+    { "action": "learn", "actor": "accursed", "spell": 562720 },
+    { "action": "learn", "actor": "accursed", "spell": 501695 },
+    { "action": "cast", "label": "Sanguine Essence on self", "actor": "fleshweaver", "spell": 680692 },
+    {
+      "action": "assert", "label": "The hybrid cursed form is active",
+      "actor": "fleshweaver", "metric": "aura", "spell": 680692, "caster": "fleshweaver", "equals": 1, "within_ms": 3000
+    },
+    {
+      "action": "assert", "label": "Cursed Form abilities stay enabled",
+      "actor": "fleshweaver", "metric": "aura", "spell": 525031, "caster": "fleshweaver", "equals": 1, "within_ms": 3000
+    },
+    {
+      "action": "assert", "label": "The hybrid marker is applied",
+      "actor": "fleshweaver", "metric": "aura", "spell": 803427, "caster": "fleshweaver", "equals": 1, "within_ms": 3000
+    },
+    {
+      "action": "assert", "label": "The mortal blockers are not (Sanguine Mend's 802877)",
+      "actor": "fleshweaver", "metric": "aura", "spell": 802877, "caster": "fleshweaver", "equals": 0
+    },
+    {
+      "action": "assert", "label": "The mortal blockers are not (Bloodmoon Blast's 524861)",
+      "actor": "fleshweaver", "metric": "aura", "spell": 524861, "caster": "fleshweaver", "equals": 0
+    },
+    { "action": "snapshot", "actor": "target1", "metric": "health", "save_as": "target1_before" },
+    { "action": "cast", "label": "Bloodmoon Blast while in the hybrid form", "actor": "fleshweaver", "spell": 501607, "target": "target1" },
+    {
+      "action": "assert", "label": "The mortal ability lands in the hybrid form",
+      "actor": "target1", "metric": "health", "relative_to": "target1_before", "max": -1, "within_ms": 4000
+    },
+    { "action": "cast", "label": "Blood Curse on self", "actor": "accursed", "spell": 562720 },
+    {
+      "action": "assert", "label": "The plain cursed form is active",
+      "actor": "accursed", "metric": "aura", "spell": 562720, "caster": "accursed", "equals": 1, "within_ms": 3000
+    },
+    {
+      "action": "assert", "label": "A plain cursed form still blocks the mortal toolkit",
+      "actor": "accursed", "metric": "aura", "spell": 802877, "caster": "accursed", "equals": 1, "within_ms": 3000
+    },
+    {
+      "action": "assert", "label": "A plain cursed form still applies the Eternal marker",
+      "actor": "accursed", "metric": "aura", "spell": 524861, "caster": "accursed", "equals": 1, "within_ms": 3000
+    },
+    { "action": "set_power", "actor": "accursed", "power": 1, "value": 60 },
+    { "action": "snapshot", "actor": "target2", "metric": "health", "save_as": "target2_before" },
+    { "action": "cast", "label": "Bloodfang Bite while in the plain cursed form", "actor": "accursed", "spell": 501695, "target": "target2" },
+    {
+      "action": "assert", "label": "The cursed ability lands in the plain cursed form",
+      "actor": "target2", "metric": "health", "relative_to": "target2_before", "max": -1, "within_ms": 4000
+    }
+  ]
+}
