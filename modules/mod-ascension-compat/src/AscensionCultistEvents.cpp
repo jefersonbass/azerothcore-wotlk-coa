@@ -218,7 +218,7 @@ class aura_ascension_cultist_event : public AuraScript
             case 802043: Cast(player, player, 572613); break;
             case 803035: Cast(player, target, 805180); break;
             case 803037:
-                Summon(player, 500464, player->GetNearPosition(1, 0), sSpellMgr->GetSpellInfo(500707)->GetDuration(), target);
+                Summon(player, 500464, player->GetNearPosition(1, float(M_PI)), sSpellMgr->GetSpellInfo(500707)->GetDuration(), target);
                 break;
             case 803082: Cast(player, target, 803083); break;
             case 803339: Cast(player, player, 803340); break;

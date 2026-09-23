@@ -182,13 +182,10 @@ class aura_ascension_sun_cleric_lifecycle : public AuraScript
             PreventDefaultAction();
             uint32 percent = std::max(0,effect->GetAmount());
             Copy(player,target,707522,CalculatePct(target->GetMaxHealth(),percent));
-            if (target == player)
-            {
-                int32 mana = Amount(805360,1);
-                if (player->HasAura(300357))
-                    mana *= 2;
-                Mana(player,CalculatePct(player->GetMaxPower(POWER_MANA),mana));
-            }
+            int32 mana = Amount(805360,1);
+            if (player->HasAura(300357))
+                mana *= 2;
+            Mana(player,CalculatePct(player->GetMaxPower(POWER_MANA),mana));
         }
         if (id == 560123)
         {

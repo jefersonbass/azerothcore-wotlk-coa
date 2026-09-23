@@ -1,0 +1,53 @@
+{
+  "schema": 1,
+  "name": "Jar of Spiders summons three Angry Spiders (#4474)",
+  "contract": "Using the Worldforged trinket Jar of Spiders (item 450806) casts spell 901519, whose single summon effect names creature 901519 with three summons and the guardian summon properties row 61. The item therefore has to leave exactly three living Angry Spiders owned by the user, and none before the item is used. The upgraded tiers of the same item cast spell 313682, which names the same creature entry, so the creature has to exist for either tier to summon anything at all.",
+  "players": [
+    {
+      "id": "user",
+      "race": 1,
+      "class": 1,
+      "level": 10
+    }
+  ],
+  "steps": [
+    {
+      "action": "wait",
+      "label": "Let spawn/level settle",
+      "ms": 3000
+    },
+    {
+      "action": "add_item",
+      "actor": "user",
+      "item": 450806
+    },
+    {
+      "action": "assert",
+      "label": "SETUP: no Angry Spider is owned before the item is used",
+      "actor": "user",
+      "metric": "owned_creature_count",
+      "entry": 901519,
+      "equals": 0
+    },
+    {
+      "action": "use_item",
+      "label": "Use the Jar of Spiders",
+      "actor": "user",
+      "item": 450806,
+      "spell": 901519
+    },
+    {
+      "action": "wait",
+      "label": "Let the three summons land",
+      "ms": 1500
+    },
+    {
+      "action": "assert",
+      "label": "the Jar of Spiders summons three Angry Spiders",
+      "actor": "user",
+      "metric": "owned_creature_count",
+      "entry": 901519,
+      "equals": 3
+    }
+  ]
+}

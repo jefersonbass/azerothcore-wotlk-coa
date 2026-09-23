@@ -222,7 +222,7 @@ void Refresh(Player* player)
     }
     SetHelper(player, 805606, player->HasSpell(92130));
     SetHelper(player, 680556, player->HasAura(680557) && player->GetAuraOfRankedSpell(567524));
-    SetHelper(player, 573315, stacks > 60);
+    SetHelper(player, 573315, stacks >= 60);
     SetAmount(player, 680574, 1, Amount(680574, 1) * (stacks > 60 ? 2 : 1));
     SetAmount(player, 680607, 0, stacks / 20);
     SetAmount(player, 574147, 0, int32((player->GetFloatValue(UNIT_FIELD_MINDAMAGE) +
