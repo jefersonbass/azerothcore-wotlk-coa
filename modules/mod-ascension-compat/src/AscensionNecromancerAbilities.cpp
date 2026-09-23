@@ -378,6 +378,9 @@ class spell_ascension_necromancer_ability : public SpellScript
             for (Creature* minion : Minions(player, true))
                 if (player->IsWithinDistInMap(minion, info->Effects[EFFECT_0].CalcRadius(player)))
                     Cast(player, minion, 801530);
+        if (id == 801942 && target && player->IsValidAttackTarget(target))
+            if (uint32 diseases = Diseases(player, target))
+                Plague(player, target, uint8(std::min<uint32>(diseases, 255)));
         if (id == 801938 || id == 803781)
             Virulency(player, target);
         if (Named(GetSpellInfo(), 533236))
@@ -455,9 +458,24 @@ class spell_ascension_necromancer_ability : public SpellScript
             }
     }
 };
+
+class necromancer_lich_bolt : public UnitScript
+{
+  public:
+    necromancer_lich_bolt() : UnitScript("necromancer_lich_bolt", true, {UNITHOOK_MODIFY_SPELL_DAMAGE_TAKEN}) { }
+
+    void ModifySpellDamageTaken(Unit* target, Unit* attacker, int32& damage, SpellInfo const* spellInfo) override
+    {
+        Player* player = attacker ? attacker->ToPlayer() : nullptr;
+        if (player && player->getClass() == CLASS_NECROMANCER && spellInfo && spellInfo->Id == 801942 && target &&
+            Diseases(player, target))
+            damage = int32(damage * 1.5f);
+    }
+};
 }
 void AddAscensionNecromancerAbilityScripts()
 {
     new necromancer_casts();
+    new necromancer_lich_bolt();
     RegisterSpellScript(spell_ascension_necromancer_ability);
 }
