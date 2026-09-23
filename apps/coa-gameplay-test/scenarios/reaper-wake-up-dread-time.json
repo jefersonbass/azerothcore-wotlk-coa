@@ -1,0 +1,64 @@
+{
+  "schema": 1,
+  "name": "Dread Time spends itself on the next melee hit (#2672)",
+  "contract": "Wake Up, It's Dread Time grants Dread Time (572180), whose own SPELL_AURA_PROC_TRIGGER_SPELL names 355463 - a SPELL_EFFECT_ENERGIZE on Runic Power at +10. That second gate had no spell_proc row either, so nothing in the Spell.dbc applied Dread Time and nothing could spend it. With the row in place, carrying Dread Time into a melee hit has to generate the ten Runic Power. The first half of the chain (the critical strike that grants Dread Time) cannot be forced by the harness, so this covers the half that can.",
+  "timeout_ms": 60000,
+  "players": [
+    {
+      "id": "r",
+      "race": 10,
+      "class": 30,
+      "level": 80
+    }
+  ],
+  "creatures": [
+    {
+      "id": "d",
+      "owner": "r",
+      "entry": 299,
+      "level": 80,
+      "distance": 2,
+      "health": 1000000
+    }
+  ],
+  "steps": [
+    {
+      "action": "wait",
+      "label": "Let the world settle",
+      "ms": 3000
+    },
+    {
+      "action": "set_aura",
+      "label": "Grant Dread Time the way the talent would",
+      "actor": "r",
+      "spell": 572180,
+      "stacks": 1
+    },
+    {
+      "action": "assert",
+      "label": "SETUP: Dread Time is up",
+      "actor": "r",
+      "metric": "aura",
+      "spell": 572180,
+      "equals": 1
+    },
+    {
+      "action": "attack",
+      "label": "Spend it on a melee hit",
+      "actor": "r",
+      "target": "d"
+    },
+    {
+      "action": "wait",
+      "label": "Let the swing land",
+      "ms": 2000
+    },
+    {
+      "action": "assert",
+      "label": "the melee hit generated 10 Runic Power",
+      "actor": "r",
+      "metric": "power",
+      "min": 10
+    }
+  ]
+}

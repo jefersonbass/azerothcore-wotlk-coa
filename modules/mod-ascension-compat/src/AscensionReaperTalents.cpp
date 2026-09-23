@@ -469,6 +469,31 @@ void ApplyAscensionReaperSoulInfusionSpent(Player* player)
     CastTalentTrigger(player, SPELL_ESSENCE_INVIGORATION, SPELL_ESSENCE_INVIGORATION_HEAL);
 }
 
+constexpr uint32 SPELL_WAKE_UP_ITS_DREAD_TIME = 705429;
+constexpr uint32 SPELL_DREAD_TIME = 572180;
+
+class aura_ascension_reaper_wake_up : public AuraScript
+{
+    PrepareAuraScript(aura_ascension_reaper_wake_up);
+
+    bool Validate(SpellInfo const*) override
+    {
+        return ValidateSpellInfo({SPELL_DREAD_TIME});
+    }
+
+    void GrantDreadTime(AuraEffect const*, ProcEventInfo&)
+    {
+        Unit* owner = GetTarget();
+        if (owner->IsAlive())
+            owner->CastSpell(owner, SPELL_DREAD_TIME, true);
+    }
+
+    void Register() override
+    {
+        OnEffectProc += AuraEffectProcFn(aura_ascension_reaper_wake_up::GrantDreadTime, EFFECT_0, SPELL_AURA_PROC_TRIGGER_SPELL);
+    }
+};
+
 class aura_ascension_counterscythe : public AuraScript
 {
     PrepareAuraScript(aura_ascension_counterscythe);
@@ -491,6 +516,7 @@ private:
 void AddSC_AscensionReaperTalents()
 {
     RegisterSpellScript(aura_ascension_counterscythe);
+    RegisterSpellScript(aura_ascension_reaper_wake_up);
     RegisterSpellScript(spell_ascension_soul_capture);
     RegisterSpellScript(aura_ascension_harvester);
     RegisterSpellScript(aura_ascension_jailers_call);
