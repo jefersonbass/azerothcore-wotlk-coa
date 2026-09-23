@@ -4625,6 +4625,61 @@ public:
                 preset = sAscensionPresets->GetActivePresetOverride(guid);
             }
 
+            CreatureDisplayPreset casterPreset;
+            if (!preset && guid.IsCreatureOrVehicle())
+            {
+                Creature const* creature = session->GetPlayer()->GetMap()->GetCreature(guid);
+                Unit* owner = creature ? creature->GetOwner() : nullptr;
+                Player* ownerPlayer = owner ? owner->ToPlayer() : nullptr;
+
+                if (ownerPlayer)
+                {
+                    static EquipmentSlots const itemSlots[] =
+                    {
+                        EQUIPMENT_SLOT_HEAD,
+                        EQUIPMENT_SLOT_SHOULDERS,
+                        EQUIPMENT_SLOT_BODY,
+                        EQUIPMENT_SLOT_CHEST,
+                        EQUIPMENT_SLOT_WAIST,
+                        EQUIPMENT_SLOT_LEGS,
+                        EQUIPMENT_SLOT_FEET,
+                        EQUIPMENT_SLOT_WRISTS,
+                        EQUIPMENT_SLOT_HANDS,
+                        EQUIPMENT_SLOT_BACK,
+                        EQUIPMENT_SLOT_TABARD
+                    };
+
+                    casterPreset.entry = guid.GetEntry();
+                    casterPreset.display_id = ownerPlayer->GetDisplayId();
+                    casterPreset.race = ownerPlayer->getRace();
+                    casterPreset.gender = ownerPlayer->getGender();
+                    casterPreset.class_id = ownerPlayer->getClass();
+                    casterPreset.skin = ownerPlayer->GetByteValue(PLAYER_BYTES, 0);
+                    casterPreset.face = ownerPlayer->GetByteValue(PLAYER_BYTES, 1);
+                    casterPreset.hair = ownerPlayer->GetByteValue(PLAYER_BYTES, 2);
+                    casterPreset.haircolor = ownerPlayer->GetByteValue(PLAYER_BYTES, 3);
+                    casterPreset.facialhair = ownerPlayer->GetByteValue(PLAYER_BYTES_2, 0);
+                    casterPreset.guild_id = ownerPlayer->GetGuildId();
+
+                    for (std::size_t index = 0; index < casterPreset.items.size(); ++index)
+                    {
+                        EquipmentSlots slot = itemSlots[index];
+                        if ((slot == EQUIPMENT_SLOT_HEAD && ownerPlayer->HasPlayerFlag(PLAYER_FLAGS_HIDE_HELM)) ||
+                            (slot == EQUIPMENT_SLOT_BACK && ownerPlayer->HasPlayerFlag(PLAYER_FLAGS_HIDE_CLOAK)))
+                            continue;
+
+                        if (Item const* item = ownerPlayer->GetItemByPos(INVENTORY_SLOT_BAG_0, slot))
+                        {
+                            uint32 displayInfoId = item->GetTemplate()->DisplayInfoID;
+                            sScriptMgr->OnGlobalMirrorImageDisplayItem(item, displayInfoId);
+                            casterPreset.items[index] = displayInfoId;
+                        }
+                    }
+
+                    preset = &casterPreset;
+                }
+            }
+
             if (preset)
             {
                 WorldPacket response(SMSG_MIRRORIMAGE_DATA, 68);

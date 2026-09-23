@@ -191,6 +191,13 @@ namespace
 using namespace AscensionWitchDoctor;
 constexpr uint32 NpcHauntVisage = 840000;
 constexpr float HauntRunDistance = 25.0f;
+
+void ApplyCasterAppearance(Creature* summon, Player* player)
+{
+    summon->SetDisplayId(player->GetDisplayId());
+    summon->SetUnitFlag2(UNIT_FLAG2_MIRROR_IMAGE);
+}
+
 class npc_ascension_witch_doctor : public ScriptedAI
 {
   public:
@@ -214,7 +221,7 @@ class npc_ascension_witch_doctor : public ScriptedAI
             me->SetCreatorGUID(_owner);
             me->SetFaction(player->GetFaction());
             me->SetLevel(player->GetLevel());
-            me->SetDisplayId(player->GetDisplayId());
+            ApplyCasterAppearance(me, player);
             me->SetReactState(REACT_PASSIVE);
             me->SetCombatMovement(false);
             me->SetWalk(false);
@@ -236,7 +243,7 @@ class npc_ascension_witch_doctor : public ScriptedAI
         me->SetCombatMovement(false);
         State(player).summons.push_back(me->GetGUID());
         if (me->GetEntry() == NpcMirage || me->GetEntry() == NpcMarionette)
-            me->SetDisplayId(player->GetDisplayId());
+            ApplyCasterAppearance(me, player);
         if (me->GetEntry() == NpcGolem)
         {
             me->SetMaxHealth(std::max(100u, uint32(player->GetStat(STAT_INTELLECT) * 8)));
