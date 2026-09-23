@@ -1,0 +1,95 @@
+{
+  "schema": 1,
+  "name": "Final Destination resets Wraithblade when Soulrot lands (#2681)",
+  "contract": "Final Destination (705444) promises that Soulrot now resets the cooldown of Wraithblade. Its record is a SPELL_AURA_PROC_TRIGGER_SPELL whose trigger (504167) already carries the reset, but the record carries ProcTypeMask 0 and the talent had no spell_proc row, so the aura was built with no proc flags and nothing could reach the trigger. With the row and its Rules entry in place, a Soulrot application - which the Soulrot talent (805196) delivers through Deathchaser's periodic damage - has to clear Wraithblade's cooldown.",
+  "timeout_ms": 90000,
+  "players": [
+    {
+      "id": "r",
+      "race": 10,
+      "class": 30,
+      "level": 80
+    }
+  ],
+  "creatures": [
+    {
+      "id": "d",
+      "owner": "r",
+      "entry": 299,
+      "level": 80,
+      "distance": 5,
+      "health": 1000000
+    }
+  ],
+  "steps": [
+    {
+      "action": "wait",
+      "label": "Let the world settle",
+      "ms": 3000
+    },
+    {
+      "action": "learn",
+      "actor": "r",
+      "spell": 705444
+    },
+    {
+      "action": "learn",
+      "actor": "r",
+      "spell": 805196
+    },
+    {
+      "action": "learn",
+      "actor": "r",
+      "spell": 805190
+    },
+    {
+      "action": "learn",
+      "actor": "r",
+      "spell": 805258
+    },
+    {
+      "action": "cast",
+      "label": "Start Wraithblade's cooldown",
+      "actor": "r",
+      "spell": 805258,
+      "target": "d"
+    },
+    {
+      "action": "assert",
+      "label": "SETUP: Wraithblade is on cooldown",
+      "actor": "r",
+      "metric": "cooldown_ms",
+      "spell": 805258,
+      "min": 1
+    },
+    {
+      "action": "cast",
+      "label": "Deathchaser applies Soulrot through its periodic damage",
+      "actor": "r",
+      "spell": 805190,
+      "target": "d"
+    },
+    {
+      "action": "wait",
+      "label": "Let the periodic damage tick",
+      "ms": 3000
+    },
+    {
+      "action": "assert",
+      "label": "Soulrot landed on the dummy",
+      "actor": "r",
+      "target": "d",
+      "metric": "aura",
+      "spell": 804660,
+      "equals": 1
+    },
+    {
+      "action": "assert",
+      "label": "Final Destination cleared Wraithblade's cooldown",
+      "actor": "r",
+      "metric": "cooldown_ms",
+      "spell": 805258,
+      "equals": 0
+    }
+  ]
+}
