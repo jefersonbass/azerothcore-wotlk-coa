@@ -1,0 +1,43 @@
+{
+  "schema": 1,
+  "name": "Bless returns the Sun Cleric's mana while an ally holds it (#4554)",
+  "contract": "Bless 804247 reads 'Bless yourself and an ally, restoring $s1% of their maximum health and $s2% of your maximum mana every $t1 sec for $d', and the buff it leaves behind reads 'Blessed. Healing the Sun Cleric's target for ${$w1}% of your maximum health and restoring ${$w2}% maximum mana to the Sun Cleric every $t1 sec' - so the mana goes to the caster whether the ally or the caster carries the Bless. The tick handler in AscensionSunClericAuras.cpp returned that mana through Mana(), which energizes with 504877, only inside an if (target == player) block, so blessing an ally restored no mana at all. The aura ticks every 10000 ms (EffectAmplitude[0]) and lasts SpellDuration index 5, which is why the energize is expected within one tick window.",
+  "timeout_ms": 90000,
+  "players": [
+    {
+      "id": "cleric",
+      "race": 1,
+      "class": 27,
+      "level": 60
+    },
+    {
+      "id": "ally",
+      "race": 1,
+      "class": 1,
+      "level": 60
+    }
+  ],
+  "steps": [
+    { "action": "wait", "label": "Let the fixtures settle", "ms": 5000 },
+    { "action": "group", "actor": "cleric", "target": "ally" },
+    { "action": "learn", "actor": "cleric", "spell": 804247 },
+    {
+      "action": "assert", "label": "Bless is known",
+      "actor": "cleric", "metric": "knows_spell", "spell": 804247, "equals": 1
+    },
+    { "action": "set_power", "actor": "cleric", "power": 0, "value": 100 },
+    { "action": "cast", "label": "Bless the ally", "actor": "cleric", "spell": 804247, "target": "ally" },
+    {
+      "action": "assert", "label": "The ally carries the Bless",
+      "actor": "ally", "metric": "aura", "spell": 804247, "caster": "cleric", "equals": 1, "within_ms": 3000
+    },
+    {
+      "action": "assert", "label": "The caster receives the mana tick while the ally holds the Bless",
+      "actor": "cleric", "metric": "spell_energize_count", "spell": 504877, "power": 0, "min": 1, "within_ms": 12000
+    },
+    {
+      "action": "assert", "label": "The Bless is still on the ally after the tick",
+      "actor": "ally", "metric": "aura", "spell": 804247, "caster": "cleric", "equals": 1
+    }
+  ]
+}
