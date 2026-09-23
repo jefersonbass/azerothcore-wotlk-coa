@@ -34,6 +34,10 @@ CLOSED_DIR = os.path.join(ISSUES_DIR, "closed")
 STATE_FILE = os.path.join(BASE_DIR, "state.json")
 
 
+class GhApiError(Exception):
+    pass
+
+
 def log(msg):
     print(msg, flush=True)
 
@@ -67,14 +71,14 @@ def gh_api(path, params=None, retries=5):
                 log(f"  [retry {attempt}/{retries}] {err[:120]} — aguardando {wait}s...")
                 time.sleep(wait)
                 continue
-            die(f"`gh api {path}` falhou: {err}")
+            raise GhApiError(f"`gh api {path}` falhou: {err}")
         if not stdout.strip():
             if attempt < retries:
                 wait = 10 * attempt
                 log(f"  [retry {attempt}/{retries}] resposta vazia — aguardando {wait}s...")
                 time.sleep(wait)
                 continue
-            die(f"`gh api {path}` retornou resposta vazia apos {retries} tentativas")
+            raise GhApiError(f"`gh api {path}` retornou resposta vazia apos {retries} tentativas")
         return json.loads(stdout)
 
 
@@ -176,9 +180,12 @@ def fetch_all_issues(repo, state="all", limit=0):
     """Pagina todas as issues (metadados + body, sem comentarios)."""
     issues, page = [], 1
     while True:
-        raw = gh_api(f"repos/{repo}/issues",
-                     {"state": state, "per_page": 100, "page": page,
-                      "direction": "asc"})
+        try:
+            raw = gh_api(f"repos/{repo}/issues",
+                         {"state": state, "per_page": 100, "page": page,
+                          "direction": "asc"})
+        except GhApiError as e:
+            die(str(e))
         # O endpoint mistura issues e PRs: filtra, mas a paginacao segue
         # o tamanho BRUTO (uma pagina cheia de PRs nao significa fim).
         batch = [i for i in raw if is_issue(i)]
@@ -218,6 +225,17 @@ def save_state(state):
         json.dump(state, f, indent=2, ensure_ascii=False)
 
 
+def remove_stale_copies(number, keep_path):
+    keep = os.path.abspath(keep_path)
+    for d in (OPEN_DIR, CLOSED_DIR):
+        if not os.path.isdir(d):
+            continue
+        for fn in os.listdir(d):
+            p = os.path.abspath(os.path.join(d, fn))
+            if fn.startswith(f"{number}-") and p != keep:
+                os.remove(p)
+
+
 def write_issue(issue, comments, state):
     """Escreve (ou reescreve) o .md da issue; move entre pastas se mudou
     de estado ou de titulo. Retorna (acao, caminho)."""
@@ -227,14 +245,9 @@ def write_issue(issue, comments, state):
     new_path = os.path.join(new_dir, new_name)
     os.makedirs(new_dir, exist_ok=True)
 
-    old = state.get(num, {})
-    old_path = old.get("path")
+    remove_stale_copies(num, new_path)
 
-    # Remove arquivo antigo se mudou de nome/pasta (titulo editado ou
-    # transicao open<->closed) para nunca deixar duplicata.
-    if old_path and os.path.abspath(old_path) != os.path.abspath(new_path):
-        if os.path.exists(old_path):
-            os.remove(old_path)
+    old = state.get(num, {})
 
     with open(new_path, "w", encoding="utf-8") as f:
         f.write(render_markdown(issue, comments))
@@ -261,12 +274,20 @@ def cmd_extract(args):
     issues = fetch_all_issues(args.repo, limit=args.limit)
     log(f"[extract] {len(issues)} issues encontradas, baixando comentarios...")
     state = {}
+    falhas = []
     for i, issue in enumerate(issues, 1):
-        comments = fetch_comments(args.repo, issue["number"])
-        acao, path = write_issue(issue, comments, state)
+        try:
+            comments = fetch_comments(args.repo, issue["number"])
+            write_issue(issue, comments, state)
+        except GhApiError as e:
+            falhas.append((str(issue["number"]), str(e)))
         if i % 50 == 0 or i == len(issues):
             log(f"  {i}/{len(issues)}...")
     save_state(state)
+    if falhas:
+        log(f"[extract] FALHAS: {len(falhas)} issues nao baixadas")
+        for num, err in falhas[:20]:
+            log(f"  #{num}: {err[:140]}")
     n_open = sum(1 for v in state.values() if v["state"] == "open")
     n_closed = len(state) - n_open
     log(f"[extract] OK: {len(state)} arquivos ({n_open} open, {n_closed} closed)")
@@ -281,12 +302,12 @@ def cmd_sync(args):
     issues = fetch_all_issues(args.repo, limit=args.limit)
     remote_nums = set()
     novas = atualizadas = movidas = 0
+    falhas = []
 
     for issue in issues:
         num = str(issue["number"])
         remote_nums.add(num)
         old = state.get(num)
-        comments = None
 
         precisa = (
             old is None
@@ -295,7 +316,9 @@ def cmd_sync(args):
             or old.get("comments") != issue.get("comments", 0)
             or not (old.get("path") and os.path.exists(old["path"]))
         )
-        if precisa:
+        if not precisa:
+            continue
+        try:
             comments = fetch_comments(args.repo, issue["number"])
             # Confirma pelo hash p/ nao reescrever sem mudanca real.
             if old and old.get("hash") == content_hash(issue, comments) \
@@ -305,13 +328,16 @@ def cmd_sync(args):
                                    "comments": issue.get("comments", 0)})
                 continue
             acao, path = write_issue(issue, comments, state)
-            if acao == "nova":
-                novas += 1
-            elif "->" in acao:
-                movidas += 1
-                log(f"  #{num} {acao}: {os.path.basename(path)}")
-            else:
-                atualizadas += 1
+        except GhApiError as e:
+            falhas.append((num, str(e)))
+            continue
+        if acao == "nova":
+            novas += 1
+        elif "->" in acao:
+            movidas += 1
+            log(f"  #{num} {acao}: {os.path.basename(path)}")
+        else:
+            atualizadas += 1
 
     # Issues que sumiram do remoto (deletadas) -> remove arquivo local.
     removidas = 0
@@ -326,6 +352,46 @@ def cmd_sync(args):
     save_state(state)
     log(f"[sync] OK: {novas} novas, {atualizadas} atualizadas, "
         f"{movidas} movidas open<->closed, {removidas} removidas")
+    if falhas:
+        log(f"[sync] FALHAS: {len(falhas)} issues nao atualizadas nesta passada")
+        for num, err in falhas[:20]:
+            log(f"  #{num}: {err[:140]}")
+    if args.limit:
+        return
+    verifica_remoto(args.repo)
+
+
+def count_local(d):
+    if not os.path.isdir(d):
+        return 0
+    return len([f for f in os.listdir(d) if f.endswith(".md")])
+
+
+def fetch_remote_counts(repo):
+    q = f"repo:{repo}+type:issue+state:"
+    op = gh_api("search/issues", {"q": q + "open", "per_page": 1})["total_count"]
+    cl = gh_api("search/issues", {"q": q + "closed", "per_page": 1})["total_count"]
+    return op, cl
+
+
+def verifica_remoto(repo):
+    try:
+        ro, rc = fetch_remote_counts(repo)
+    except GhApiError as e:
+        log(f"[sync] nao foi possivel conferir o remoto: {e}")
+        return
+    lo, lc = count_local(OPEN_DIR), count_local(CLOSED_DIR)
+    log(f"[sync] conferencia: local {lo} open / {lc} closed | "
+        f"remoto {ro} open / {rc} closed")
+    if lo > ro:
+        log(f"[sync] DIVERGENCIA: {lo - ro} arquivo(s) em open/ que o remoto ja fechou")
+        sys.exit(3)
+    if lc != rc:
+        log(f"[sync] DIVERGENCIA: closed local {lc} != remoto {rc}")
+        sys.exit(3)
+    if ro > lo:
+        log(f"[sync] {ro - lo} issue(s) novas no remoto desde esta passada")
+    log("[sync] snapshot bate com o fork pai")
 
 
 def main():
