@@ -1,0 +1,48 @@
+{
+  "schema": 1,
+  "name": "Warrior of Tyr generates Energy from periodic damage (#4432)",
+  "contract": "Warrior of Tyr 301253 is the rank spell of talent entry 7822 (CharacterAdvancement.dbc, Templar tab 51) and its tooltip reads 'Periodic damage dealt now generates 10 Energy'. The record is an APPLY_AURA (aura 42, PROC_TRIGGER_SPELL) on 524987 (Energize, 10 Energy) with ProcFlags 0 in Spell.dbc, so the native proc cannot fire and the Energy has to come from the module rule {19, 0, 0, 3, 10, PeriodicDamageTick, 301253} in AscensionCustomResourceData.h, consumed by OnPeriodicDamageTick (AscensionCompat.cpp) through UNITHOOK_ON_PERIODIC_DAMAGE_RESULT. Templar is class 19, its ChrClasses power type is 3 (Energy), the talent spell has no stance requirement so Player::IsNeedCastPassiveSpellAtLearn applies its aura on learn, and Condemn 804906 is a real periodic damage aura (aura 3, amplitude 3000 ms, 21 s). Every link of that chain is present in the source; this scenario decides the runtime half: after Condemn costs its 30 Energy, two ticks add 20 Energy on top of the 10 per second regeneration, so the caster must be near 95 after 6.5 s, while regeneration alone leaves it near 75.",
+  "timeout_ms": 90000,
+  "players": [
+    {
+      "id": "t",
+      "race": 1,
+      "class": 19,
+      "level": 60,
+      "spell_hit_rating": 10000
+    }
+  ],
+  "creatures": [
+    {
+      "id": "e",
+      "owner": "t",
+      "entry": 36,
+      "level": 60,
+      "distance": 5
+    }
+  ],
+  "steps": [
+    { "action": "wait", "label": "Let level scaling settle", "ms": 5000 },
+    { "action": "learn", "actor": "t", "spell": 301253 },
+    { "action": "learn", "actor": "t", "spell": 804906 },
+    {
+      "action": "assert", "label": "The talent is known",
+      "actor": "t", "metric": "knows_spell", "spell": 301253, "equals": 1
+    },
+    {
+      "action": "assert", "label": "Learning the talent applied its passive aura",
+      "actor": "t", "metric": "aura", "spell": 301253, "caster": "t", "equals": 1, "within_ms": 3000
+    },
+    { "action": "set_power", "actor": "t", "power": 3, "value": 40 },
+    { "action": "cast", "label": "Condemn the enemy (costs 30 Energy, leaving 10)", "actor": "t", "spell": 804906, "target": "e" },
+    {
+      "action": "assert", "label": "Condemn's periodic damage started",
+      "actor": "e", "metric": "health", "max": 0, "within_ms": 3000
+    },
+    { "action": "wait", "label": "Two periodic ticks (3 s apart) plus regeneration", "ms": 6500 },
+    {
+      "action": "assert", "label": "Energy reflects the two 10-Energy ticks (regeneration alone leaves about 75)",
+      "actor": "t", "metric": "power", "power": 3, "min": 85, "max": 100
+    }
+  ]
+}
