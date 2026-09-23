@@ -469,6 +469,32 @@ void ApplyAscensionReaperSoulInfusionSpent(Player* player)
     CastTalentTrigger(player, SPELL_ESSENCE_INVIGORATION, SPELL_ESSENCE_INVIGORATION_HEAL);
 }
 
+constexpr uint32 SPELL_HARD_BARGAIN_TALENT = 300569;
+constexpr uint32 SPELL_HARD_BARGAIN = 572300;
+constexpr uint32 SPELL_TORMENTED_SOULS = 500481;
+
+class aura_ascension_reaper_hard_bargain : public AuraScript
+{
+    PrepareAuraScript(aura_ascension_reaper_hard_bargain);
+
+    bool Validate(SpellInfo const*) override
+    {
+        return ValidateSpellInfo({SPELL_HARD_BARGAIN, SPELL_TORMENTED_SOULS});
+    }
+
+    void ApplyHardBargain(AuraEffect const*, ProcEventInfo&)
+    {
+        Unit* owner = GetTarget();
+        if (owner->IsAlive() && owner->HasAura(SPELL_TORMENTED_SOULS))
+            owner->CastSpell(owner, SPELL_HARD_BARGAIN, true);
+    }
+
+    void Register() override
+    {
+        OnEffectProc += AuraEffectProcFn(aura_ascension_reaper_hard_bargain::ApplyHardBargain, EFFECT_0, SPELL_AURA_PROC_TRIGGER_SPELL);
+    }
+};
+
 constexpr uint32 SPELL_WAKE_UP_ITS_DREAD_TIME = 705429;
 constexpr uint32 SPELL_DREAD_TIME = 572180;
 
@@ -516,6 +542,7 @@ private:
 void AddSC_AscensionReaperTalents()
 {
     RegisterSpellScript(aura_ascension_counterscythe);
+    RegisterSpellScript(aura_ascension_reaper_hard_bargain);
     RegisterSpellScript(aura_ascension_reaper_wake_up);
     RegisterSpellScript(spell_ascension_soul_capture);
     RegisterSpellScript(aura_ascension_harvester);

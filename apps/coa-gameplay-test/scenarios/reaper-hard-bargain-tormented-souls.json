@@ -1,0 +1,62 @@
+{
+  "schema": 1,
+  "name": "Hard Bargain applies while Tormented Souls is active (#1653)",
+  "contract": "Hard Bargain (300569) promises that while Tormented Souls is active on the caster, melee attack speed rises by 30% and Dreadwake costs less Runic Power. Its trigger 572300 already carries both halves, but the talent's aura 42 had no proc flags and no row, so nothing could reach it. The condition is a state rather than a spell event, so the row is broad and the script checks Tormented Souls (500481) before casting the payload: with the state up, a melee swing has to leave the Hard Bargain buff on the caster, and the script must not cast it when the state is absent.",
+  "timeout_ms": 60000,
+  "players": [
+    {
+      "id": "r",
+      "race": 10,
+      "class": 30,
+      "level": 80
+    }
+  ],
+  "creatures": [
+    {
+      "id": "d",
+      "owner": "r",
+      "entry": 299,
+      "level": 80,
+      "distance": 2,
+      "health": 1000000
+    }
+  ],
+  "steps": [
+    {
+      "action": "wait",
+      "label": "Let the world settle",
+      "ms": 3000
+    },
+    {
+      "action": "learn",
+      "actor": "r",
+      "spell": 300569
+    },
+    {
+      "action": "set_aura",
+      "label": "Put the caster under Tormented Souls",
+      "actor": "r",
+      "spell": 500481,
+      "stacks": 1
+    },
+    {
+      "action": "attack",
+      "label": "Swing once so the talent can proc",
+      "actor": "r",
+      "target": "d"
+    },
+    {
+      "action": "wait",
+      "label": "Let the swing and the proc land",
+      "ms": 2500
+    },
+    {
+      "action": "assert",
+      "label": "Hard Bargain is up while Tormented Souls is active",
+      "actor": "r",
+      "metric": "aura",
+      "spell": 572300,
+      "equals": 1
+    }
+  ]
+}
