@@ -358,7 +358,13 @@ class spell_ascension_necromancer_ability : public SpellScript
         _handled = true;
         Unit* target = GetExplTargetUnit();
         if (Command(GetSpellInfo()) || id == 500991 || id == 805871)
+        {
             Order(player, target, id);
+            if (GetSpellInfo()->HasAttribute(SPELL_ATTR6_TAPS_IMMEDIATELY))
+                if (Creature* creature = target ? target->ToCreature() : nullptr)
+                    if (creature->IsAlive())
+                        creature->SetLootRecipient(player);
+        }
         if (id == 570132)
             Plague(player, target);
         if (id == 801938 || id == 803781)
