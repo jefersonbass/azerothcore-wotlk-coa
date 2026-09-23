@@ -623,6 +623,11 @@ class npc_ascension_necromancer : public ScriptedAI
                     Cast(me, me, 707010);
                 else
                     Cast(me, me, 500585);
+                if (player && player->HasAura(704697))
+                    if (SpellInfo const* explosion = sSpellMgr->GetSpellInfo(500585))
+                        for (Creature* minion : Minions(player))
+                            if (me->IsWithinDistInMap(minion, explosion->Effects[EFFECT_0].CalcRadius(me)))
+                                Cast(player, minion, 500334);
                 me->DespawnOrUnsummon(100ms);
             }
             if (event == 4)
