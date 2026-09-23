@@ -2,6 +2,7 @@
 #include "Player.h"
 #include "ScriptMgr.h"
 #include "SpellInfo.h"
+#include <initializer_list>
 
 namespace
 {
