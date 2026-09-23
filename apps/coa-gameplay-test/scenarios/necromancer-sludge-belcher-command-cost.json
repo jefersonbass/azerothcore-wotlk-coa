@@ -1,0 +1,36 @@
+{
+  "schema": 1,
+  "name": "Sludge Belcher reduces the Command spell cost (#2834)",
+  "contract": "Sludge Belcher 705755 reads 'Reduces the cost of Command spells by $/10;s1'. Its payload is already correct in Spell.dbc - aura 107, EffectMiscValue 14 (SPELLMOD_COST, SpellDefines.h), base points -51 (-50%) and SpellClassMask word 2 = 16777216, the Command family bit that AscensionNecromancer.h Command() is Family(info, 2, 16777216) - but the record ships without SPELL_ATTR0_PASSIVE, and Player::AddSpell casts a learned spell's aura only when spellInfo->IsPassive() (Player.cpp, 'cast passive spells ... with additional checks'). The talent therefore never applied its aura and the modifier never registered, which is why the audit saw no handler doing the work. AscensionNecromancerContracts.cpp now marks it passive, so the aura applies at learn and the native cost modifier path trims the Command cost.",
+  "timeout_ms": 90000,
+  "players": [
+    {
+      "id": "necro",
+      "race": 1,
+      "class": 23,
+      "level": 60
+    }
+  ],
+  "steps": [
+    { "action": "wait", "label": "Let the fixtures settle", "ms": 5000 },
+    { "action": "learn", "actor": "necro", "spell": 504868 },
+    {
+      "action": "assert", "label": "The Command spell is known",
+      "actor": "necro", "metric": "knows_spell", "spell": 504868, "equals": 1
+    },
+    {
+      "action": "snapshot", "label": "Cost before the talent", "actor": "necro",
+      "metric": "spell_power_cost", "spell": 504868, "save_as": "command_cost_before"
+    },
+    { "action": "learn", "actor": "necro", "spell": 705755 },
+    {
+      "action": "assert", "label": "The talent aura is applied at learn (this is what the missing passive flag broke)",
+      "actor": "necro", "metric": "aura", "spell": 705755, "equals": 1, "within_ms": 3000
+    },
+    {
+      "action": "assert", "label": "The Command spell now costs less than before the talent",
+      "actor": "necro", "metric": "spell_power_cost", "spell": 504868,
+      "relative_to": "command_cost_before", "max": -1, "within_ms": 5000
+    }
+  ]
+}
