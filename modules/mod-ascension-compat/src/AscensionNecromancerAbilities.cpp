@@ -362,7 +362,7 @@ class spell_ascension_necromancer_ability : public SpellScript
             Order(player, target, id);
             if (GetSpellInfo()->HasAttribute(SPELL_ATTR6_TAPS_IMMEDIATELY))
                 if (Creature* creature = target ? target->ToCreature() : nullptr)
-                    if (creature->IsAlive())
+                    if (creature->IsAlive() && !creature->hasLootRecipient())
                         creature->SetLootRecipient(player);
         }
         if (id == 570132)
