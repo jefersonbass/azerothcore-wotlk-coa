@@ -14,8 +14,9 @@ struct Rule
     std::array<std::uint32_t, 26> Spells;
 };
 
-inline constexpr std::array<Rule, 31> Rules =
+inline constexpr std::array<Rule, 32> Rules =
 {{
+    {300555, {{0}}},
     {300565, {{0}}},
     {301193, {{500629, 500630, 500631, 500765}}},
     {500286, {{0}}},
