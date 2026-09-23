@@ -67,7 +67,7 @@ enum StormbringerTalentSpells : uint32
     SPELL_TITANSTORM_COOLDOWN = 801854,
     SPELL_FLUX_ARC = 705643,
     SPELL_FLUX_ARC_MARK = 705644,
-    SPELL_FORKED_LIGHTNING = 355289,
+    SPELL_FORKED_LIGHTNING = 801851,
     SPELL_ARM_OF_THORIM = 801847
 };
 
@@ -805,29 +805,6 @@ class aura_ascension_stormcloak : public AuraScript
 constexpr uint32 SPELL_PULSE_CONVERSION = 707619;
 constexpr uint32 SPELL_PULSE_CONVERSION_HEAL = 504830;
 
-class spell_ascension_stormbringer_pulse_conversion : public SpellScript
-{
-    PrepareSpellScript(spell_ascension_stormbringer_pulse_conversion);
-
-    void HandleDispel(SpellEffIndex effIndex)
-    {
-        Unit* caster = GetCaster();
-        Unit* target = GetHitUnit();
-        if (!caster || !target || !caster->HasAura(SPELL_PULSE_CONVERSION))
-            return;
-
-        DispelChargesList dispelList;
-        target->GetDispellableAuraList(caster,
-            1 << GetSpellInfo()->Effects[effIndex].MiscValue, dispelList, GetSpellInfo());
-        if (dispelList.empty())
-            return;
-
-        caster->CastSpell(caster, SPELL_PULSE_CONVERSION_HEAL, true);
-        DoEffectCalcAmount +=
-            AuraEffectCalcAmountFn(aura_ascension_stormcloak::Calculate, EFFECT_0, SPELL_AURA_SCHOOL_ABSORB);
-        OnEffectAbsorb += AuraEffectAbsorbFn(aura_ascension_stormcloak::Absorb, EFFECT_0);
-    }
-};
 
 class aura_ascension_invigorating_winds : public AuraScript
 {
@@ -884,8 +861,6 @@ class aura_ascension_lightning_cage : public AuraScript
 
     void Register() override
     {
-        OnEffectHitTarget += SpellEffectFn(spell_ascension_stormbringer_pulse_conversion::HandleDispel,
-            EFFECT_0, SPELL_EFFECT_DISPEL);
         AfterEffectApply += AuraEffectApplyFn(aura_ascension_lightning_cage::Apply,
             EFFECT_0, SPELL_AURA_MOD_DECREASE_SPEED, AURA_EFFECT_HANDLE_REAL);
         AfterEffectRemove += AuraEffectRemoveFn(aura_ascension_lightning_cage::OnRemove,
@@ -905,7 +880,6 @@ void AddSC_AscensionStormbringerTalents()
     RegisterSpellScript(aura_ascension_thorims_gift);
     RegisterSpellScript(aura_ascension_charged_conduit);
     RegisterSpellScript(aura_ascension_stormbringer_dark_skies);
-    RegisterSpellScript(spell_ascension_stormbringer_pulse_conversion);
     RegisterSpellScript(aura_ascension_dark_skies);
     RegisterSpellScript(aura_ascension_stormcloak);
     RegisterSpellScript(aura_ascension_invigorating_winds);
