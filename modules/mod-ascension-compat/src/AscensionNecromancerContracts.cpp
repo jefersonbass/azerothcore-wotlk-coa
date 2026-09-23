@@ -184,6 +184,9 @@ void ApplyContracts(SpellInfo* info)
     for (uint32 spellMissingThePassiveFlag : {705755u, 704719u, 704726u, 801732u, 804717u, 806150u})
         if (id == spellMissingThePassiveFlag)
             info->Attributes |= SPELL_ATTR0_PASSIVE;
+
+    if (id == 704712)
+        info->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_DUMMY;
     if (id == 707445)
     {
         // Issue 812: Runic Animation ships without SPELL_ATTR0_PASSIVE, so

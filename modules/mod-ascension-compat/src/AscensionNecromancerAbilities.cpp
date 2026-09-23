@@ -17,6 +17,14 @@ namespace AscensionNecromancer
 {
 constexpr int32 RANCID_AIR_RUNIC_POWER = 5;
 
+bool RayOfRot(uint32 id)
+{
+    for (uint32 ray : {504507u, 504508u, 504509u, 804535u, 804536u})
+        if (id == ray)
+            return true;
+    return false;
+}
+
 void CorpseExplosion(Player* player, Unit* center)
 {
     for (Unit* unit : Nearby(center, 15.0f, false))
@@ -453,6 +461,22 @@ class spell_ascension_necromancer_ability : public SpellScript
     }
 };
 
+class necromancer_plague_drinker : public UnitScript
+{
+  public:
+    necromancer_plague_drinker() : UnitScript("necromancer_plague_drinker", true, {UNITHOOK_MODIFY_SPELL_DAMAGE_TAKEN}) { }
+
+    void ModifySpellDamageTaken(Unit* target, Unit* attacker, int32& damage, SpellInfo const* spellInfo) override
+    {
+        Player* player = attacker ? attacker->ToPlayer() : nullptr;
+        if (!player || player->getClass() != CLASS_NECROMANCER || !target || !spellInfo || damage <= 0)
+            return;
+        if (!player->HasAura(704712) || !RayOfRot(spellInfo->Id))
+            return;
+        player->ModifyHealth(damage);
+    }
+};
+
 class necromancer_lich_bolt : public UnitScript
 {
   public:
@@ -471,5 +495,6 @@ void AddAscensionNecromancerAbilityScripts()
 {
     new necromancer_casts();
     new necromancer_lich_bolt();
+    new necromancer_plague_drinker();
     RegisterSpellScript(spell_ascension_necromancer_ability);
 }
