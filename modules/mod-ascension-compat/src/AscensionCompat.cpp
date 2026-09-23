@@ -418,6 +418,58 @@ uint8 AppearanceCategoryForEquipmentSlot(uint8 slot) {
   }
 }
 
+uint8 EquipmentSlotForInventoryType(uint32 inventoryType) {
+  switch (inventoryType) {
+  case INVTYPE_HEAD:
+    return EQUIPMENT_SLOT_HEAD;
+  case INVTYPE_SHOULDERS:
+    return EQUIPMENT_SLOT_SHOULDERS;
+  case INVTYPE_CLOAK:
+    return EQUIPMENT_SLOT_BACK;
+  case INVTYPE_CHEST:
+  case INVTYPE_ROBE:
+    return EQUIPMENT_SLOT_CHEST;
+  case INVTYPE_TABARD:
+    return EQUIPMENT_SLOT_TABARD;
+  case INVTYPE_BODY:
+    return EQUIPMENT_SLOT_BODY;
+  case INVTYPE_WRISTS:
+    return EQUIPMENT_SLOT_WRISTS;
+  case INVTYPE_HANDS:
+    return EQUIPMENT_SLOT_HANDS;
+  case INVTYPE_WAIST:
+    return EQUIPMENT_SLOT_WAIST;
+  case INVTYPE_LEGS:
+    return EQUIPMENT_SLOT_LEGS;
+  case INVTYPE_FEET:
+    return EQUIPMENT_SLOT_FEET;
+  case INVTYPE_RANGED:
+  case INVTYPE_THROWN:
+  case INVTYPE_RANGEDRIGHT:
+    return EQUIPMENT_SLOT_RANGED;
+  case INVTYPE_WEAPON:
+  case INVTYPE_2HWEAPON:
+  case INVTYPE_WEAPONMAINHAND:
+    return EQUIPMENT_SLOT_MAINHAND;
+  case INVTYPE_SHIELD:
+  case INVTYPE_WEAPONOFFHAND:
+  case INVTYPE_HOLDABLE:
+    return EQUIPMENT_SLOT_OFFHAND;
+  default:
+    return NULL_SLOT;
+  }
+}
+
+uint8 AppearanceCategoryForInventoryType(uint32 inventoryType) {
+  return AppearanceCategoryForEquipmentSlot(
+      EquipmentSlotForInventoryType(inventoryType));
+}
+
+uint8 AppearanceCategoryForItem(uint32 itemId) {
+  ItemTemplate const *proto = sObjectMgr->GetItemTemplate(itemId);
+  return proto ? AppearanceCategoryForInventoryType(proto->InventoryType) : 0;
+}
+
 uint8 WeaponEffectCategoryForEquipmentSlot(uint8 slot) {
   switch (slot) {
   case EQUIPMENT_SLOT_MAINHAND:
@@ -4323,7 +4375,13 @@ private:
     if (itemSetItr == _itemSetItems.end())
       return false;
 
-    bool expanded = false;
+    struct SetPiece {
+      uint32 ItemId;
+      uint32 Category;
+      uint32 AppearanceId;
+    };
+
+    std::vector<SetPiece> pieces;
     for (uint32 itemId : itemSetItr->second) {
       auto itemAppearanceItr = _itemAppearances.find(itemId);
       if (itemAppearanceItr == _itemAppearances.end())
@@ -4344,7 +4402,32 @@ private:
       if (categoryItr == categories.end())
         continue;
 
-      activeAppearances[*categoryItr] = itemAppearanceItr->second;
+      pieces.push_back({itemId, *categoryItr, itemAppearanceItr->second});
+    }
+
+    std::array<bool, 15> categorySeen{};
+    std::array<uint8, 15> categorySlotCategory{};
+    bool rebuildFromSlots = false;
+    for (SetPiece const &piece : pieces) {
+      uint8 const slotCategory = AppearanceCategoryForItem(piece.ItemId);
+      if (!categorySeen[piece.Category]) {
+        categorySeen[piece.Category] = true;
+        categorySlotCategory[piece.Category] = slotCategory;
+      } else if (categorySlotCategory[piece.Category] != slotCategory) {
+        rebuildFromSlots = true;
+      }
+    }
+
+    bool expanded = false;
+    for (SetPiece const &piece : pieces) {
+      uint32 categoryId = piece.Category;
+      if (rebuildFromSlots) {
+        uint8 const slotCategory = AppearanceCategoryForItem(piece.ItemId);
+        if (slotCategory)
+          categoryId = slotCategory;
+      }
+
+      activeAppearances[categoryId] = piece.AppearanceId;
       expanded = true;
     }
 

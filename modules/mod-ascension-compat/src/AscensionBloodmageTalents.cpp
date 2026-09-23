@@ -30,6 +30,7 @@ enum BloodmageTalentSpells : uint32
     SPELL_SANGUINE_SCRIPTURE_BUFF = 504264,
     SPELL_CURSED_FORM_REQUIREMENT = 525031,
     SPELL_CURSED_FORM_REQUIREMENT_2 = 524861,
+    SPELL_CURSED_FORM_OR_SANGUINE_ESSENCE = 803427,
     SPELL_BLOODMOON_POWER = 801961,
     SPELL_ATHERANNS_ANGUISH = 680680,
     SPELL_ATHERANNS_ANGUISH_BURST = 680681,
@@ -93,11 +94,23 @@ bool IsCursedForm(uint32 id)
 
 constexpr uint8 CursedFormWeaponSlots[] = {EQUIPMENT_SLOT_MAINHAND, EQUIPMENT_SLOT_OFFHAND, EQUIPMENT_SLOT_RANGED};
 
+constexpr uint32 CursedFormsKeepingMortalAbilities[] = {680692, 801076};
+
 bool HasCursedForm(Player const* player, Aura const* ignored = nullptr)
 {
     for (uint32 form : CursedForms)
         if (Aura const* aura = player->GetAura(form, player->GetGUID()); aura && aura != ignored)
             return true;
+    return false;
+}
+
+bool HasCursedFormBlockingMortalAbilities(Player const* player)
+{
+    for (uint32 form : CursedForms)
+        if (std::find(std::begin(CursedFormsKeepingMortalAbilities), std::end(CursedFormsKeepingMortalAbilities),
+            form) == std::end(CursedFormsKeepingMortalAbilities))
+            if (Aura const* aura = player->GetAura(form, player->GetGUID()); aura)
+                return true;
     return false;
 }
 
@@ -118,12 +131,16 @@ void UpdateCursedFormWeapons(Player* player, bool hidden)
 
 void SyncCursedFormRequirement(Player* player)
 {
-    bool active = HasCursedForm(player);
+    bool const active = HasCursedForm(player);
+    bool const blocksMortalAbilities = HasCursedFormBlockingMortalAbilities(player);
 
     for (uint32 marker : {uint32(SPELL_CURSED_FORM_REQUIREMENT), uint32(SPELL_CURSED_FORM_REQUIREMENT_2),
-        uint32(AscensionBloodmage::CursedForm)})
+        uint32(AscensionBloodmage::CursedForm), uint32(SPELL_CURSED_FORM_OR_SANGUINE_ESSENCE)})
     {
-        if (!active)
+        bool const wanted = active && (marker == SPELL_CURSED_FORM_REQUIREMENT ||
+            marker == SPELL_CURSED_FORM_OR_SANGUINE_ESSENCE || blocksMortalAbilities);
+
+        if (!wanted)
             player->RemoveAurasDueToSpell(marker, player->GetGUID());
         else if (player->IsInWorld() && player->IsAlive() && !player->HasAura(marker, player->GetGUID()))
             player->CastSpell(player, marker, true);

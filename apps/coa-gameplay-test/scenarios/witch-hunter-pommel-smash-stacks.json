@@ -1,0 +1,55 @@
+{
+  "schema": 1,
+  "name": "Pommel Smash stacks its debuff (#4667)",
+  "contract": "Pommel Smash 680515 reads 'Smash an enemy with your pommel, dealing High Threat Weapon Damage plus ${$m1+$ppl1}, and increasing their Magic damage taken by $582588s1% for $582588d, stacking $582588u times', and the debuff it triggers, 582588, carries StackAmount 5 in Spell.dbc with duration index 9. The spell costs rage, needs a weapon equipped (EquippedItemClass 2) and has no cooldown (RecoveryTime 0), so three hits inside the debuff window decide whether the stacks accumulate: the report is that they do not.",
+  "timeout_ms": 90000,
+  "players": [
+    {
+      "id": "hunter",
+      "race": 1,
+      "class": 15,
+      "level": 60,
+      "spell_hit_rating": 10000,
+      "ranged_hit_rating": 10000
+    }
+  ],
+  "creatures": [
+    {
+      "id": "target",
+      "owner": "hunter",
+      "entry": 36,
+      "level": 60,
+      "health": 200000,
+      "distance": 4
+    }
+  ],
+  "steps": [
+    { "action": "wait", "label": "Let the fixtures settle", "ms": 5000 },
+    { "action": "add_item", "actor": "hunter", "item": 25 },
+    { "action": "equip", "actor": "hunter", "item": 25, "slot": 15 },
+    { "action": "wait", "label": "Let the weapon swap cooldown expire", "ms": 2000 },
+    { "action": "learn", "actor": "hunter", "spell": 680515 },
+    {
+      "action": "assert", "label": "Pommel Smash is known",
+      "actor": "hunter", "metric": "knows_spell", "spell": 680515, "equals": 1
+    },
+    { "action": "set_power", "actor": "hunter", "power": 1, "value": 1000 },
+    { "action": "cast", "label": "First Pommel Smash", "actor": "hunter", "spell": 680515, "target": "target" },
+    {
+      "action": "assert", "label": "The Magic-damage-taken debuff lands",
+      "actor": "target", "metric": "aura_stacks", "spell": 582588, "equals": 1, "within_ms": 3000
+    },
+    { "action": "wait", "label": "Let the global cooldown pass", "ms": 2500 },
+    { "action": "cast", "label": "Second Pommel Smash", "actor": "hunter", "spell": 680515, "target": "target" },
+    {
+      "action": "assert", "label": "The debuff stacks to two",
+      "actor": "target", "metric": "aura_stacks", "spell": 582588, "equals": 2, "within_ms": 3000
+    },
+    { "action": "wait", "label": "Let the global cooldown pass", "ms": 2500 },
+    { "action": "cast", "label": "Third Pommel Smash", "actor": "hunter", "spell": 680515, "target": "target" },
+    {
+      "action": "assert", "label": "The debuff reaches three of its five allowed stacks",
+      "actor": "target", "metric": "aura_stacks", "spell": 582588, "equals": 3, "within_ms": 3000
+    }
+  ]
+}

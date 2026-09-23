@@ -16,7 +16,8 @@ enum Spells : uint32
     HeartbreakBuff = 807563,
     VisceralPower = 807687,
     CursedFormCheck = 524861,
-    CursedForm = 802877
+    CursedForm = 802877,
+    CursedFormOrSanguineEssence = 803427
 };
 
 enum Empowerment : uint32
