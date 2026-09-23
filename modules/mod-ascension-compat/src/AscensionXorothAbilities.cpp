@@ -449,13 +449,16 @@ class xoroth_casts : public AllSpellScript
                 if (Chance(player, 520296, 30000))
                     Reduce(player, SPELL_UNLEASH_PESTILENCE, INT32_MAX);
             }
-            if (Pestilence(id) && player->HasAura(300398) && !State(player).timers.HasTimeUntilEvent(300398))
+            if (Pestilence(id) && player->HasAura(300398))
                 if (Pet* pet = player->GetPet(); pet && pet->GetEntry() == 510100)
                 {
-                    for (uint32 sid : {802603, 802604, 802605, 806962})
-                        pet->RemoveAurasDueToSpell(sid);
-                    Cast(player, pet, id == 801053 ? 802605 : id == 802344 ? 802603 : id == 804786 ? 806962 : 802604);
-                    State(player).timers.ScheduleEvent(300398, 10s);
+                    uint32 applied = id == 801053 ? 802605 : id == 802344 ? 802603 : id == 804786 ? 806962 : 802604;
+                    if (!pet->HasAura(applied))
+                    {
+                        for (uint32 sid : {802603, 802604, 802605, 806962})
+                            pet->RemoveAurasDueToSpell(sid);
+                        Cast(player, pet, applied);
+                    }
                 }
             if (Pestilence(id) && player->HasAura(704984))
                 Cast(player, player, 704985);
