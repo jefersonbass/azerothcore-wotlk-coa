@@ -367,6 +367,9 @@ class spell_ascension_necromancer_ability : public SpellScript
         }
         if (id == 570132)
             Plague(player, target);
+        if (id == 801939 && target && player->IsValidAttackTarget(target))
+            for (uint32 disease : {500338u, 500968u, 570044u, 806091u})
+                Cast(player, target, disease);
         if (id == 801938 || id == 803781)
             Virulency(player, target);
         if (Named(GetSpellInfo(), 533236))
