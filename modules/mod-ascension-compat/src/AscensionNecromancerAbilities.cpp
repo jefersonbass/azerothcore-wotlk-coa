@@ -15,6 +15,8 @@
 
 namespace AscensionNecromancer
 {
+constexpr int32 RANCID_AIR_RUNIC_POWER = 5;
+
 void CorpseExplosion(Player* player, Unit* center)
 {
     for (Unit* unit : Nearby(center, 15.0f, false))
@@ -370,6 +372,8 @@ class spell_ascension_necromancer_ability : public SpellScript
         if (id == 801939 && target && player->IsValidAttackTarget(target))
             for (uint32 disease : {500338u, 500968u, 570044u, 801945u})
                 Cast(player, target, disease);
+        if ((id == 561125 || id == 9666680) && player->HasAura(704726))
+            player->EnergizeBySpell(player, 704726, RANCID_AIR_RUNIC_POWER, POWER_RUNIC_POWER);
         if (id == 801938 || id == 803781)
             Virulency(player, target);
         if (Named(GetSpellInfo(), 533236))

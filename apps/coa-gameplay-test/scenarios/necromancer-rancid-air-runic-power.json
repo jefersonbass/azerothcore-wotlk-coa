@@ -1,0 +1,47 @@
+{
+  "schema": 1,
+  "name": "Rancid Air grants its Runic Power on Putrefy (#2374)",
+  "contract": "Rancid Air 704726 reads 'Putrefy now generates an additional 5 Runic Power and the cast time is reduced by 10%'. The cast-time half runs through the native spellmod path - aura 108, op 10 (SPELLMOD_CASTING_TIME), routed to Putrefy's roots by 8fc77419f - and the talent is now marked passive (42edb88ec) so its aura registers at learn at all. The resource half has no SpellModOp, so spell_ascension_necromancer_ability grants it on the cast records only: casting Putrefy 561125 triggers 804559, which already energizes +150 Runic Power, and binding that triggered record as well would pay the bonus twice. The amount is the tooltip's own $/10;S1 over base points 49, which the original reference data renders as 'an additional 5 Runic Power'.",
+  "timeout_ms": 90000,
+  "players": [
+    {
+      "id": "necro",
+      "race": 1,
+      "class": 23,
+      "level": 60,
+      "spell_hit_rating": 10000
+    }
+  ],
+  "creatures": [
+    {
+      "id": "target",
+      "owner": "necro",
+      "entry": 36,
+      "level": 60,
+      "health": 200000,
+      "distance": 20
+    }
+  ],
+  "steps": [
+    { "action": "wait", "label": "Let the fixtures settle", "ms": 5000 },
+    { "action": "learn", "actor": "necro", "spell": 561125 },
+    { "action": "learn", "actor": "necro", "spell": 704726 },
+    {
+      "action": "assert", "label": "Putrefy is known",
+      "actor": "necro", "metric": "knows_spell", "spell": 561125, "equals": 1
+    },
+    {
+      "action": "assert", "label": "The Rancid Air aura registers at learn",
+      "actor": "necro", "metric": "aura", "spell": 704726, "equals": 1, "within_ms": 3000
+    },
+    { "action": "cast", "label": "Putrefy the enemy", "actor": "necro", "spell": 561125, "target": "target" },
+    {
+      "action": "assert", "label": "Putrefy reaches the enemy",
+      "actor": "target", "metric": "health", "max": 199999, "within_ms": 6000
+    },
+    {
+      "action": "assert", "label": "Rancid Air energizes the caster on the cast",
+      "actor": "necro", "metric": "spell_energize_count", "spell": 704726, "power": 6, "min": 1, "within_ms": 6000
+    }
+  ]
+}
