@@ -1,0 +1,64 @@
+{
+  "schema": 1,
+  "name": "Shadow Rage reaches the Unleash the Hounds Shadow Hounds (#311)",
+  "contract": "Shadow Rage 705455 reads 'Casting Shadowblast now grants Shadow Rage to your Shadow Hound'. Shadowblast is family 21 with SpellFamilyFlags[2] bit 16, the flag ApplyShadowblastTalents keys on (AscensionWitchHunterAbilities.cpp), and Unleash the Hounds 807933 summons creature 50224, the Lesser Shadow Hound, which the rest of the Witch Hunter code already treats as a Shadow Hound (AscensionWitchHunterSummons.cpp and AscensionWitchHunterEvents.cpp both accept 50124 or 50224). The talent used to cast Shadow Rage only on Hound(player), which resolves player->GetGuardianPet() and requires entry 50124, so the summoned guardians never received it; this scenario decides that half. 804192 retargets its auras to TARGET_UNIT_TARGET_ALLY (AscensionWitchHunterCompletion.cpp), so casting it on a hound lands the buff on that hound.",
+  "timeout_ms": 120000,
+  "players": [
+    {
+      "id": "hunter",
+      "race": 1,
+      "class": 15,
+      "level": 60,
+      "spell_hit_rating": 10000,
+      "ranged_hit_rating": 10000
+    }
+  ],
+  "creatures": [
+    {
+      "id": "target",
+      "owner": "hunter",
+      "entry": 36,
+      "level": 60,
+      "health": 100000,
+      "distance": 12
+    }
+  ],
+  "steps": [
+    { "action": "wait", "label": "Let the fixtures settle", "ms": 5000 },
+    { "action": "add_item", "actor": "hunter", "item": 15807 },
+    { "action": "equip", "actor": "hunter", "item": 15807, "slot": 17 },
+    { "action": "wait", "label": "Let the weapon swap cooldown expire", "ms": 2000 },
+    { "action": "learn", "actor": "hunter", "spell": 705455 },
+    { "action": "learn", "actor": "hunter", "spell": 807933 },
+    { "action": "learn", "actor": "hunter", "spell": 680264 },
+    {
+      "action": "assert", "label": "The Shadow Rage talent is applied",
+      "actor": "hunter", "metric": "aura", "spell": 705455, "equals": 1, "within_ms": 3000
+    },
+    {
+      "action": "assert", "label": "No Shadow Hound is out yet",
+      "actor": "hunter", "metric": "owned_creature_count", "entry": 50224, "equals": 0
+    },
+    { "action": "set_power", "actor": "hunter", "power": 1, "value": 1000 },
+    { "action": "cast", "label": "Unleash the Hounds", "actor": "hunter", "spell": 807933 },
+    {
+      "action": "assert", "label": "The summoned Shadow Hounds are out",
+      "actor": "hunter", "metric": "owned_creature_count", "entry": 50224, "min": 1, "within_ms": 5000
+    },
+    {
+      "action": "assert", "label": "They start without Shadow Rage",
+      "actor": "hunter", "metric": "owned_creature_count", "entry": 50224, "spell": 804192, "equals": 0
+    },
+    { "action": "set_power", "actor": "hunter", "power": 1, "value": 1000 },
+    { "action": "snapshot", "actor": "target", "metric": "health", "save_as": "target_before" },
+    { "action": "cast", "label": "Shadowblast", "actor": "hunter", "spell": 680264, "target": "target" },
+    {
+      "action": "assert", "label": "Shadowblast damages its target",
+      "actor": "target", "metric": "health", "relative_to": "target_before", "max": -1, "within_ms": 10000
+    },
+    {
+      "action": "assert", "label": "Every summoned Shadow Hound now carries Shadow Rage",
+      "actor": "hunter", "metric": "owned_creature_count", "entry": 50224, "spell": 804192, "min": 1, "within_ms": 5000
+    }
+  ]
+}

@@ -33,10 +33,17 @@ enum WitchHunterCastSpells
     SPELL_SHARPSHOOTER_ENERGIZE = 704385
 };
 
+constexpr uint32 UNLEASHED_SHADOW_HOUND = 50224;
+
 void ApplyShadowblastTalents(Player* player)
 {
     if (player->HasAura(SPELL_SHADOW_RAGE_TALENT))
+    {
         Cast(player, Hound(player), SPELL_SHADOW_RAGE_PET);
+        for (Unit* unit : Nearby(player, 60.0f))
+            if (unit->GetEntry() == UNLEASHED_SHADOW_HOUND && unit->GetOwnerGUID() == player->GetGUID())
+                Cast(player, unit, SPELL_SHADOW_RAGE_PET);
+    }
     if (player->HasAura(SPELL_SHARPSHOOTER))
         Cast(player, player, SPELL_SHARPSHOOTER_ENERGIZE);
 }
