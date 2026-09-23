@@ -393,6 +393,26 @@ class aura_ascension_runemaster_fire_engraving : public AuraScript
     }
 };
 
+class aura_ascension_runemaster_ice_engraving : public AuraScript
+{
+    PrepareAuraScript(aura_ascension_runemaster_ice_engraving);
+
+    bool Check(ProcEventInfo& event)
+    {
+        Unit* player = GetTarget();
+        DamageInfo const* damage = event.GetDamageInfo();
+        Unit* target = event.GetActionTarget();
+        return player->IsPlayer() && player->getClass() == CLASS_SPIRIT_MAGE && event.GetActor() == player &&
+            target && target != player && target->IsAlive() && damage && damage->GetDamage() &&
+            damage->GetDamageType() != DOT;
+    }
+
+    void Register() override
+    {
+        DoCheckProc += AuraCheckProcFn(aura_ascension_runemaster_ice_engraving::Check);
+    }
+};
+
 class aura_ascension_runemaster_firebrand : public AuraScript
 {
     PrepareAuraScript(aura_ascension_runemaster_firebrand);
@@ -533,5 +553,6 @@ void AddSC_AscensionRunemasterSecondary()
     new runemaster_secondary_metadata();
     RegisterSpellScript(aura_ascension_arcane_palm_sigil);
     RegisterSpellScript(aura_ascension_runemaster_fire_engraving);
+    RegisterSpellScript(aura_ascension_runemaster_ice_engraving);
     RegisterSpellScript(aura_ascension_runemaster_firebrand);
 }
