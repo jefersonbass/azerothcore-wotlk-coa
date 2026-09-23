@@ -170,6 +170,9 @@ constexpr uint32 SPELL_RANGER_RUSTY_SHIV_DAMAGE = 681459;
 constexpr uint8 RANGER_ADVANTAGE_REFUND_CHANCE = 20;
 constexpr uint8 RANGER_ADVANTAGE_CAST_EVENT = 30;
 constexpr uint8 RANGER_ARCHERY_MASTER_EVENT = 31;
+constexpr uint8 RANGER_ON_THE_HUNT_EVENT = 32;
+constexpr uint32 SPELL_RANGER_ON_THE_HUNT = 804708;
+constexpr uint32 SPELL_RANGER_ON_THE_HUNT_HEAVY_BOLT = 804714;
 
 constexpr uint32 SPELL_CULTIST_TWILIGHT_SHIELDTOSS_SLOW = 524880;
 
@@ -1529,6 +1532,17 @@ void HandleAscensionClassMechanicsHit(Spell* spell, Player* player,
     if (IsRangerQuickShot(spellId) && critical && player->HasAura(SPELL_RANGER_ARCHERY_MASTER) &&
         spell->TryMarkScriptEventHandled(RANGER_ARCHERY_MASTER_EVENT))
         AddRangerAdvantage(player, 1);
+
+    if (spell->GetSpellInfo()->DmgClass == SPELL_DAMAGE_CLASS_RANGED && critical &&
+        player->HasAura(SPELL_RANGER_ON_THE_HUNT) &&
+        spell->TryMarkScriptEventHandled(RANGER_ON_THE_HUNT_EVENT))
+        if (Item const* weapon = player->GetWeaponForAttack(RANGED_ATTACK))
+        {
+            if (weapon->GetTemplate()->SubClass == ITEM_SUBCLASS_WEAPON_BOW)
+                AddRangerAdvantage(player, 1);
+            else if (weapon->GetTemplate()->SubClass == ITEM_SUBCLASS_WEAPON_CROSSBOW)
+                player->CastSpell(target, SPELL_RANGER_ON_THE_HUNT_HEAVY_BOLT, true);
+        }
 }
 
 void HandleAscensionClassMechanicsCast(Spell* spell)
