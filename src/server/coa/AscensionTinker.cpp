@@ -258,6 +258,7 @@ void Grant(Player* player, uint32 id, uint32 charges)
     if (Aura* aura = player->GetAura(id,player->GetGUID()))
     {
         aura->SetCharges(uint8(std::clamp<uint32>(charges,1,255)));
+        aura->SetUsingCharges(false);
         aura->SetStackAmount(1);
         aura->SetScriptValue(Scrap,++State(player).sequence);
     }

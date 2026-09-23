@@ -1,0 +1,27 @@
+{
+  "schema": 1,
+  "name": "Tinker: Aftermath covers two Scrap Shots (#4642)",
+  "contract": "#4642: Aftermath (707261) reads 'your next 2 Scrap Shots within 10 seconds to cast -50% faster and deal 25% increased damage'. The module consumes its charges by hand: Snapshot records the aura's generation on the cast, Finish spends one charge, and the Apply hook sets SetUsingCharges(false) so the core does not consume them too. Grant set the charges after that hook had run, and SetCharges re-derives m_isUsingCharges from the count (SpellAuras.cpp:907-914), so the core's consumer came back on and both paths fired on the same cast: Player::RemoveSpellMods dropped one charge (Player.cpp:10525) and Spend dropped the second, which removes a two-charge aura outright. Fail-before proof: the fourth assert reads aura_charges 1 after the first Scrap Shot, and the unfixed code leaves the aura already gone. The fifth assert proves the second Scrap Shot still spends it, so the fix does not merely stop consumption. Timing: the buff lives 10 seconds (SpellDuration) and two Scrap Shots cost 3 seconds each (2500 ms cast plus the ranged-slot 500 ms), so the whole sequence is asserted with polling rather than fixed waits.",
+  "timeout_ms": 90000,
+  "players": [
+    { "id": "t", "race": 1, "class": 28, "level": 80, "spell_hit_rating": 10000 }
+  ],
+  "creatures": [
+    { "id": "dummy", "owner": "t", "entry": 36, "health": 1000000 }
+  ],
+  "location": { "map": 0, "x": -8917.41, "y": -115.853, "z": 82.3711, "o": 0 },
+  "steps": [
+    { "action": "wait", "ms": 5000 },
+    { "action": "learn", "actor": "t", "spell": 707260 },
+    { "action": "learn", "actor": "t", "spell": 500232 },
+    { "action": "learn", "actor": "t", "spell": 500549 },
+    { "action": "assert", "label": "Aftermath is active on the Tinker", "actor": "t", "metric": "aura", "spell": 707260, "equals": 1, "within_ms": 3000 },
+    { "action": "assert", "label": "No Aftermath buff before the Sticky Bomb", "actor": "t", "metric": "aura", "spell": 707261, "equals": 0 },
+    { "action": "cast", "label": "Sticky Bomb grants Aftermath", "actor": "t", "spell": 500232, "target": "dummy" },
+    { "action": "assert", "label": "Aftermath carries two charges", "actor": "t", "metric": "aura_charges", "spell": 707261, "equals": 2, "within_ms": 3000 },
+    { "action": "cast", "label": "Scrap Shot 1 of 2", "actor": "t", "spell": 500549, "target": "dummy" },
+    { "action": "assert", "label": "One Scrap Shot leaves the second charge", "actor": "t", "metric": "aura_charges", "spell": 707261, "equals": 1, "within_ms": 6000 },
+    { "action": "cast", "label": "Scrap Shot 2 of 2", "actor": "t", "spell": 500549, "target": "dummy" },
+    { "action": "assert", "label": "The second Scrap Shot spends it", "actor": "t", "metric": "aura", "spell": 707261, "equals": 0, "within_ms": 6000 }
+  ]
+}
