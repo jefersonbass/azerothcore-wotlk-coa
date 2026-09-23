@@ -211,6 +211,20 @@ void Refresh(Player* player)
     {
         if (!pet->HasAura(520662))
             Cast(player, pet, 520662);
+        uint32 active = 0;
+        for (uint32 id : {801053, 802344, 802345, 804786, 801054})
+            if (player->HasAura(id))
+                active = id;
+        if (player->HasAura(300398) && active)
+        {
+            uint32 pestilence = active == 801053 ? 802605 : active == 802344 ? 802603 : active == 804786 ? 806962 : 802604;
+            if (!pet->HasAura(pestilence))
+            {
+                for (uint32 id : {802603, 802604, 802605, 806962})
+                    pet->RemoveAurasDueToSpell(id);
+                Cast(player, pet, pestilence);
+            }
+        }
         if (pet->HasSpell(800444))
         {
             pet->ToggleAutocast(sSpellMgr->GetSpellInfo(800444), false);
