@@ -95,7 +95,7 @@ class aura_ascension_tinker_lifecycle : public AuraScript
         Player* player = Owner(GetCaster());
         if (!player || !First(effect))
             return;
-        if (GetId() == Mechsuit || GetId() == 803451)
+        if (GetId() == Mechsuit)
         {
             ExitMechsuit(player);
             Refresh(player);
