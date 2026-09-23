@@ -181,8 +181,8 @@ void ApplyContracts(SpellInfo* info)
         info->Effects[EFFECT_1].DieSides = 1;
     }
 
-    for (uint32 talentMissingThePassiveFlag : {705755u, 704719u, 704726u})
-        if (id == talentMissingThePassiveFlag)
+    for (uint32 spellMissingThePassiveFlag : {705755u, 704719u, 704726u, 801732u, 804717u, 806150u})
+        if (id == spellMissingThePassiveFlag)
             info->Attributes |= SPELL_ATTR0_PASSIVE;
     if (id == 707445)
     {
