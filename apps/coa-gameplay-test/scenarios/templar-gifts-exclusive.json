@@ -1,0 +1,40 @@
+{
+  "schema": 1,
+  "name": "One Templar Gift per caster on each recipient (#4449)",
+  "contract": "Gift of Zeal 706634 (aura 29, Agility) and Greater Gift of Zeal 680306 (aura 29, raid version) are separate spells, and so are Gift of Fervor 572629 and Greater Gift of Fervor 572630 (aura 137, total stats); no spell_group listed them, so Aura::CanStackWith let all four coexist (#4449). They share spell group 1140 with stack rule 2 (SPELL_GROUP_STACK_RULE_EXCLUSIVE_FROM_SAME_CASTER, Aura::CanStackWith, SpellAuras.cpp): a new Gift from the same caster replaces the old one, while a second Templar's Gift still coexists. Rank chains resolve through spell_ranks, so the first rank 706634 stands for every Gift of Zeal rank. Gift of Zeal is TARGET_UNIT_TARGET_ALLY and Greater Gift of Zeal is TARGET_UNIT_CASTER_AREA_RAID in Spell.dbc (2026-09-22), so the raid version lands on the caster alone.",
+  "timeout_ms": 60000,
+  "players": [
+    { "id": "tpl", "race": 1, "class": 19, "level": 60 },
+    { "id": "tpl2", "race": 1, "class": 19, "level": 60 }
+  ],
+  "steps": [
+    { "action": "wait", "label": "Let level scaling settle", "ms": 5000 },
+    { "action": "learn", "actor": "tpl", "spell": 706634 },
+    { "action": "learn", "actor": "tpl", "spell": 680306 },
+    { "action": "learn", "actor": "tpl2", "spell": 706634 },
+    { "action": "cast", "label": "Gift of Zeal on self", "actor": "tpl", "spell": 706634 },
+    {
+      "action": "assert", "label": "Gift of Zeal is applied",
+      "actor": "tpl", "metric": "aura", "spell": 706634, "caster": "tpl", "equals": 1, "within_ms": 3000
+    },
+    { "action": "wait", "label": "Let the global cooldown pass", "ms": 2500 },
+    { "action": "cast", "label": "Greater Gift of Zeal from the same caster", "actor": "tpl", "spell": 680306 },
+    {
+      "action": "assert", "label": "Greater Gift of Zeal is applied",
+      "actor": "tpl", "metric": "aura", "spell": 680306, "caster": "tpl", "equals": 1, "within_ms": 3000
+    },
+    {
+      "action": "assert", "label": "It replaced the same caster's Gift of Zeal",
+      "actor": "tpl", "metric": "aura", "spell": 706634, "caster": "tpl", "equals": 0
+    },
+    { "action": "cast", "label": "A second Templar gives Gift of Zeal", "actor": "tpl2", "spell": 706634, "target": "tpl" },
+    {
+      "action": "assert", "label": "The other caster's Gift of Zeal coexists (rule 2, not rule 1)",
+      "actor": "tpl", "metric": "aura", "spell": 706634, "caster": "tpl2", "equals": 1, "within_ms": 3000
+    },
+    {
+      "action": "assert", "label": "The first caster's Greater Gift of Zeal is kept",
+      "actor": "tpl", "metric": "aura", "spell": 680306, "caster": "tpl", "equals": 1
+    }
+  ]
+}
