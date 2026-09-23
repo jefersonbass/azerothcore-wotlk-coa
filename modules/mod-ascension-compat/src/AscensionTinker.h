@@ -17,6 +17,7 @@ namespace AscensionTinker
 {
 constexpr uint32 Scrap = 801816;
 constexpr uint32 Mechsuit = 801384;
+constexpr uint32 MechsuitAppearance = 809000;
 constexpr uint32 Napalm = 805315;
 struct TinkerState
 {
