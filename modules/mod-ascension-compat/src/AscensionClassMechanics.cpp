@@ -173,6 +173,10 @@ constexpr uint8 RANGER_ARCHERY_MASTER_EVENT = 31;
 constexpr uint8 RANGER_ON_THE_HUNT_EVENT = 32;
 constexpr uint32 SPELL_RANGER_ON_THE_HUNT = 804708;
 constexpr uint32 SPELL_RANGER_ON_THE_HUNT_HEAVY_BOLT = 804714;
+constexpr uint8 RANGER_SWIFTSHOT_EVENT = 33;
+constexpr uint32 SPELL_RANGER_SWIFTSHOT = 705028;
+constexpr uint32 SPELL_RANGER_SWIFTSHOT_DEBUFF = 800578;
+constexpr uint32 RANGER_PRECISION_SHOT_FLAG = 8388608;
 
 constexpr uint32 SPELL_CULTIST_TWILIGHT_SHIELDTOSS_SLOW = 524880;
 
@@ -1543,6 +1547,13 @@ void HandleAscensionClassMechanicsHit(Spell* spell, Player* player,
             else if (weapon->GetTemplate()->SubClass == ITEM_SUBCLASS_WEAPON_CROSSBOW)
                 player->CastSpell(target, SPELL_RANGER_ON_THE_HUNT_HEAVY_BOLT, true);
         }
+
+    if (player->HasAura(SPELL_RANGER_SWIFTSHOT) &&
+        spell->GetSpellInfo()->SpellFamilyName == uint32(CLASS_RANGER) + 6 &&
+        (spell->GetSpellInfo()->SpellFamilyFlags[1] & RANGER_PRECISION_SHOT_FLAG) &&
+        spell->TryMarkScriptEventHandled(RANGER_SWIFTSHOT_EVENT) &&
+        roll_chance_i(spell->GetSpellInfo()->ProcChance))
+        player->CastSpell(target, SPELL_RANGER_SWIFTSHOT_DEBUFF, true);
 }
 
 void HandleAscensionClassMechanicsCast(Spell* spell)
