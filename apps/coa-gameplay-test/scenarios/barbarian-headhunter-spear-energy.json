@@ -1,0 +1,47 @@
+{
+  "schema": 1,
+  "name": "Headhunter's Spear restores 30% maximum Energy (#4405)",
+  "contract": "Headhunter's Spear 503405 is a thrown-weapon ability whose tooltip reads 'restores $706816s2% of your maximum Energy'; 706816 (Collecting Heads) carries SPELL_EFFECT_ENERGIZE_PCT with MiscValue 3 (Energy) and base points 29, so 30% of maximum Energy. 503405 has no trigger spell and no energy cost (PowerType 3, ManaCost 0) and requires a weapon of subclass 16, the thrown subclass (EquippedItemClass 2, mask 65536), so the Energy has to come from the module: HandleAscensionClassMechanics12To17Hit casts 706816 for every spell in BARBARIAN_HEADHUNTERS_SPEAR 503402-503407, 504712, 804137 on a successful hostile hit (modules/mod-ascension-compat/src/AscensionClassMechanics12To17.cpp). That chain is present in the source; this scenario decides whether it reaches the player at runtime: with 0 Energy and no other Energy source, only the 30% restore can push the caster past 25 within two seconds, since the core regenerates 10 Energy per second (Player::Regenerate).",
+  "timeout_ms": 60000,
+  "players": [
+    {
+      "id": "b",
+      "race": 1,
+      "class": 12,
+      "level": 60,
+      "spell_hit_rating": 10000,
+      "ranged_hit_rating": 10000
+    }
+  ],
+  "creatures": [
+    {
+      "id": "e",
+      "owner": "b",
+      "entry": 36,
+      "level": 60,
+      "distance": 10
+    }
+  ],
+  "steps": [
+    { "action": "wait", "label": "Let level scaling settle", "ms": 5000 },
+    { "action": "add_item", "actor": "b", "item": 463 },
+    { "action": "equip", "actor": "b", "item": 463, "slot": 17 },
+    { "action": "wait", "label": "Let the weapon swap cooldown expire", "ms": 2000 },
+    { "action": "learn", "actor": "b", "spell": 503405 },
+    {
+      "action": "assert", "label": "Headhunter's Spear is known",
+      "actor": "b", "metric": "knows_spell", "spell": 503405, "equals": 1
+    },
+    { "action": "set_power", "actor": "b", "power": 3, "value": 0 },
+    { "action": "snapshot", "actor": "e", "metric": "health", "save_as": "health_before" },
+    { "action": "cast", "label": "Throw the spear at the enemy", "actor": "b", "spell": 503405, "target": "e" },
+    {
+      "action": "assert", "label": "The 30% Energy restore lands (regeneration alone reaches 20 in two seconds)",
+      "actor": "b", "metric": "power", "power": 3, "min": 25, "max": 100, "within_ms": 2000
+    },
+    {
+      "action": "assert", "label": "The spear damages the enemy",
+      "actor": "e", "metric": "health", "relative_to": "health_before", "max": -1, "within_ms": 3000
+    }
+  ]
+}
