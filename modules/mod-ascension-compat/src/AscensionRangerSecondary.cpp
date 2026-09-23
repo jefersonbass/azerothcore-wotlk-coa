@@ -62,6 +62,38 @@ constexpr uint32 SPELL_RANGER_WARDANCER = 705096;
 constexpr uint32 SPELL_RANGER_BACKSTEP = 800684;
 constexpr uint32 SPELL_RANGER_BACKSTEP_ALT = 800685;
 constexpr uint32 SPELL_RANGER_WARDANCER_MOD = 705097;
+constexpr uint32 SPELL_RANGER_RANGERS_GAMBIT = 803103;
+constexpr uint32 SPELL_RANGER_FOREST_DWELLER = 801492;
+constexpr uint32 SPELL_RANGER_LIE_IN_WAIT = 804709;
+constexpr uint32 SPELL_RANGER_LIE_IN_WAIT_PERIODIC = 806349;
+
+class aura_ascension_ranger_elude : public AuraScript
+{
+    PrepareAuraScript(aura_ascension_ranger_elude);
+
+    void Sync(AuraEffect const*, AuraEffectHandleModes)
+    {
+        Unit* player = GetTarget();
+        if (player->HasAura(SPELL_RANGER_RANGERS_GAMBIT))
+            player->CastSpell(player, SPELL_RANGER_FOREST_DWELLER, true);
+        if (player->HasAura(SPELL_RANGER_LIE_IN_WAIT))
+            player->CastSpell(player, SPELL_RANGER_LIE_IN_WAIT_PERIODIC, true);
+    }
+
+    void Clear(AuraEffect const*, AuraEffectHandleModes)
+    {
+        GetTarget()->RemoveAurasDueToSpell(SPELL_RANGER_FOREST_DWELLER, GetTarget()->GetGUID());
+        GetTarget()->RemoveAurasDueToSpell(SPELL_RANGER_LIE_IN_WAIT_PERIODIC, GetTarget()->GetGUID());
+    }
+
+    void Register() override
+    {
+        AfterEffectApply += AuraEffectApplyFn(aura_ascension_ranger_elude::Sync,
+            EFFECT_0, SPELL_AURA_ADD_FLAT_MODIFIER, AURA_EFFECT_HANDLE_REAL_OR_REAPPLY_MASK);
+        AfterEffectRemove += AuraEffectRemoveFn(aura_ascension_ranger_elude::Clear,
+            EFFECT_0, SPELL_AURA_ADD_FLAT_MODIFIER, AURA_EFFECT_HANDLE_REAL);
+    }
+};
 
 class ranger_secondary_hits : public AllSpellScript
 {
@@ -186,6 +218,7 @@ public:
 void AddSC_AscensionRangerSecondary()
 {
     RegisterSpellScript(aura_ascension_ranger_advantage);
+    RegisterSpellScript(aura_ascension_ranger_elude);
     new ranger_secondary_hits();
     new ranger_secondary_contracts();
 }
