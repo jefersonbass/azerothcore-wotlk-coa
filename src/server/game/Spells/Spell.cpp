@@ -6091,7 +6091,8 @@ SpellCastResult Spell::CheckCast(bool strict, uint32* /*param1*/, uint32* /*para
     Unit const* divineCaster = divineCharge ? divineCharge->GetCaster() : nullptr;
     bool divineSteed = divineCaster && divineCaster->IsPlayer() && divineCaster->getClass() == CLASS_MONK &&
         m_caster->GetMountID() == 14584 && !m_caster->IsInFlight();
-    // The Mechsuit no longer keeps a mount aura, so the exemption keys on the suit itself (801384), mounted or not.
+    // The Mechsuit no longer keeps a mount aura, so this keys on the suit (801384) alone. The mount check
+    // cannot fire in the suit regardless: the appearance transform leaves IsInDisallowedMountForm() true.
     bool tinkerMechsuit = m_caster->IsPlayer() && m_caster->getClass() == CLASS_TINKER &&
         m_spellInfo->SpellFamilyName == 34 && !m_caster->IsInFlight() &&
         m_caster->HasAura(801384, m_caster->GetGUID());
