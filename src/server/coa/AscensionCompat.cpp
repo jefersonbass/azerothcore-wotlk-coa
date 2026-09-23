@@ -55,6 +55,7 @@
 #include "AscensionSpellProgressionData.h"
 #include "AscensionTalentReplacementData.h"
 #include "AscensionTaughtAbilityData.h"
+#include "AscensionPooledVitality.h"
 #include "AscensionCreaturePreset.h"
 #include "Bag.h"
 #include "Battlefield.h"
@@ -270,6 +271,7 @@ constexpr uint32 SPELL_STORMBRINGER_WRATH_OF_ALAKIR = 300834;
 constexpr uint32 SPELL_STORMBRINGER_UNSHACKLE_EXTENSION = 300835;
 constexpr uint32 SPELL_BLOODMAGE_THIRST_PASSIVE = 92112;
 constexpr uint32 SPELL_BLOODMAGE_THIRST = 706613;
+constexpr uint32 BLOODMAGE_FLESHWEAVER_SPEC = 25;
 constexpr uint32 SPELL_REAPER_REAPED_SOUL = 500363;
 // Reap (801624): the generator whose Runic Power grant Backswing augments.
 constexpr uint32 SPELL_REAPER_REAP = 801624;
@@ -2022,6 +2024,9 @@ public:
         ++removed;
       }
     }
+
+    if (player->getClass() == CLASS_SON_OF_ARUGAL && previousSpecialization == BLOODMAGE_FLESHWEAVER_SPEC)
+      player->RemoveAurasDueToSpell(AscensionBloodmage::PooledVitality);
 
     {
       std::lock_guard<std::mutex> lock(_stateLock);
@@ -6058,6 +6063,12 @@ public:
             ApplyAscensionExperienceContracts(spellInfo);
             switch (spellInfo->Id)
             {
+                case 19782:
+                    if (spellInfo->Effects[EFFECT_0].Effect == SPELL_EFFECT_APPLY_AURA &&
+                        spellInfo->Effects[EFFECT_0].ApplyAuraName == SPELL_AURA_MOD_STAT &&
+                        spellInfo->Effects[EFFECT_0].MiscValue == STAT_SPIRIT)
+                        spellInfo->Effects[EFFECT_0].MiscValue = STAT_STAMINA;
+                    break;
                 case 83328: case 83329: case 83330: case 83331: case 83332:
                 case 83334: case 83335: case 83336: case 103921:
                     if (spellInfo->Effects[EFFECT_0].Effect == SPELL_EFFECT_APPLY_AURA &&

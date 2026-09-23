@@ -267,6 +267,8 @@ void AddSC_AscensionPrimalistSecondary();
 void AddSC_AscensionRunemasterSecondary();
 void AddSC_AscensionRunemasterHurricane();
 void AddSC_AscensionRunemasterRiftClones();
+void AddSC_AscensionWelcomeWarchest();
+void AddSC_AscensionClassBundleStore();
 
 void AddCoAScripts()
 {
@@ -532,4 +534,6 @@ void AddCoAScripts()
     AddSC_AscensionRestingBuff();
     AddSC_AscensionClosestResurrection();
     AddSC_AscensionThreatRedirect();
+    AddSC_AscensionWelcomeWarchest();
+    AddSC_AscensionClassBundleStore();
 }
