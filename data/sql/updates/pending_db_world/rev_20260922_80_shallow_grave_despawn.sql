@@ -14,8 +14,8 @@
 --   * 128308 already carries the follow-up row "Shallow Grave - On Gossip Hello - Despawn"
 --     (SMART_ACTION_FORCE_DESPAWN (41), 300000 ms) but with target_type 0 = SMART_TARGET_NONE.
 --     SmartScript::GetTargets() pushes no target for SMART_TARGET_NONE, and SMART_ACTION_FORCE_DESPAWN
---     only iterates the resolved target list, so the row despawned nothing. It is the only row out of
---     1480 SMART_ACTION_FORCE_DESPAWN rows in the world database with target_type 0; 121 of the 125
+--     only iterates the resolved target list, so the row despawned nothing. It is the only one of the
+--     1753 SMART_ACTION_FORCE_DESPAWN rows in the world database with target_type 0; 121 of the 145
 --     gameobject-sourced rows use SMART_TARGET_SELF (1).
 --   * 128403 has no despawn row at all, so the majority of the graves had no backstop even in intent.
 --   * Consequence of the inert despawn: a partially looted grave never leaves GO_ACTIVATED, so
