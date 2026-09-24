@@ -188,6 +188,10 @@ class spell_ascension_xoroth_sacrificial_circle : public SpellScript
         Player* player = Owner(GetCaster());
         targets.remove_if([player](WorldObject* target) { return !player || !OwnImp(player, target); });
     }
+    void PreventLaunchDefault(SpellEffIndex index)
+    {
+        PreventHitDefaultEffect(index);
+    }
     void Sacrifice(SpellEffIndex index)
     {
         PreventHitDefaultEffect(index);
@@ -208,7 +212,9 @@ class spell_ascension_xoroth_sacrificial_circle : public SpellScript
     {
         OnCheckCast += SpellCheckCastFn(spell_ascension_xoroth_sacrificial_circle::CheckImps);
         OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_ascension_xoroth_sacrificial_circle::SelectImps,
-                                                                  EFFECT_0, TARGET_UNIT_DEST_AREA_ALLY);
+                                                                  EFFECT_0, TARGET_UNIT_SRC_AREA_ALLY);
+        OnEffectLaunchTarget += SpellEffectFn(spell_ascension_xoroth_sacrificial_circle::PreventLaunchDefault, EFFECT_0,
+                                              SPELL_EFFECT_TRIGGER_SPELL);
         OnEffectHitTarget += SpellEffectFn(spell_ascension_xoroth_sacrificial_circle::Sacrifice, EFFECT_0,
                                            SPELL_EFFECT_TRIGGER_SPELL);
     }

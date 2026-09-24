@@ -147,6 +147,8 @@ constexpr uint16 CMSG_CHARACTER_ADVANCEMENT_KNOWN_ENTRIES = 0x0727;
 constexpr uint16 CMSG_MISSILE_FIRE_POSITION = 0x09C7;
 
 constexpr uint16 SMSG_PATCH_VANITY_COLLECTION = 0x0573;
+constexpr uint16 SMSG_UPDATE_OBJECT_ADDON = 0x0578;
+constexpr uint32 PLAYER_ADDON_FIELD_AVERAGE_ITEM_LEVEL = 5;
 
 constexpr uint16 SMSG_REALM_INFO = 0x09BC;
 constexpr uint8 REALM_CREATION_FLAG_CONQUEST_OF_AZEROTH = 6;
@@ -714,9 +716,11 @@ public:
       LOG_INFO("coa", "Reconciled {} proven class grants for {} against live level {}",
           removed, player->GetName(), uint32(player->GetLevel()));
     uint32 learned = 0;
+    bool const botCannotBuyBooksOfAscension = player->GetSession() && player->GetSession()->IsBot();
     bool const automaticProgression =
         explicitRequest || ascensionCompatConfig.GetConfigValue<bool>(
-                               AscensionCompatConfig::AUTO_PROGRESSION);
+                               AscensionCompatConfig::AUTO_PROGRESSION) ||
+        botCannotBuyBooksOfAscension;
     for (uint32 spellId : racialSpells)
         if (automaticProgression && !player->HasSpell(spellId) && sSpellMgr->GetSpellInfo(spellId))
         {
@@ -4692,6 +4696,32 @@ void SendBankPermissions(Player* player, uint8 kind)
     AscensionPersonalBank::SendKindHint(player, uint8(kind));
 }
 
+[[nodiscard]] float AverageEquippedItemLevel(Player* player, uint8 emptiedSlot)
+{
+    float sum = 0.0f;
+    uint32 count = 0;
+    for (uint8 slot = EQUIPMENT_SLOT_START; slot < EQUIPMENT_SLOT_END; ++slot)
+    {
+        if (slot == EQUIPMENT_SLOT_TABARD || slot == EQUIPMENT_SLOT_RANGED || slot == EQUIPMENT_SLOT_OFFHAND ||
+            slot == EQUIPMENT_SLOT_BODY)
+            continue;
+
+        ++count;
+        if (Item* item = slot == emptiedSlot ? nullptr : player->GetItemByPos(INVENTORY_SLOT_BAG_0, slot))
+            sum += item->GetTemplate()->Quality == ITEM_QUALITY_HEIRLOOM ? player->GetLevel()
+                                                                        : item->GetTemplate()->ItemLevel;
+    }
+    return sum / count;
+}
+
+void SendAverageItemLevel(Player* player, uint8 emptiedSlot = EQUIPMENT_SLOT_END)
+{
+    WorldPacket data(SMSG_UPDATE_OBJECT_ADDON, 16);
+    data << player->GetGUID() << PLAYER_ADDON_FIELD_AVERAGE_ITEM_LEVEL
+         << AverageEquippedItemLevel(player, emptiedSlot);
+    player->SendMessageToSet(&data, true);
+}
+
 [[nodiscard]] bool OwnsPlacedBank(Player* player, uint8 kind)
 {
     static std::array<PersonalBankSpell, 2> const personalSpells =
@@ -5694,6 +5724,7 @@ public:
       AscensionResourceService::Instance().OnPlayerLogin(player);
       AscensionCollectionService::Instance().OnPlayerLogin(player);
       RefreshScaledQuestQueries(player);
+      SendAverageItemLevel(player);
     }
   }
 
@@ -5701,6 +5732,7 @@ public:
     if (ascensionCompatConfig.GetConfigValue<bool>(
             AscensionCompatConfig::ENABLED))
     {
+      SendAverageItemLevel(player);
       AscensionClassService::Instance().SynchronizeProgression(player);
       AscensionClassService::Instance().SynchronizeProficiencies(player);
       AscensionClassService::Instance().SendCharacterAdvancementKnownEntries(player);
@@ -5799,6 +5831,8 @@ public:
   void OnPlayerAfterSetVisibleItemSlot(Player *player, uint8 slot,
                                        Item *item) override {
     AscensionCollectionService::Instance().OnVisibleItemSet(player, slot, item);
+    if (player->IsInWorld() && ascensionCompatConfig.GetConfigValue<bool>(AscensionCompatConfig::ENABLED))
+      SendAverageItemLevel(player, item ? EQUIPMENT_SLOT_END : slot);
   }
 
   void OnPlayerEquip(Player *player, Item *item, uint8, uint8,
@@ -6063,6 +6097,7 @@ public:
             ApplyAscensionExperienceContracts(spellInfo);
             switch (spellInfo->Id)
             {
+                case 19743:
                 case 19782:
                     if (spellInfo->Effects[EFFECT_0].Effect == SPELL_EFFECT_APPLY_AURA &&
                         spellInfo->Effects[EFFECT_0].ApplyAuraName == SPELL_AURA_MOD_STAT &&
