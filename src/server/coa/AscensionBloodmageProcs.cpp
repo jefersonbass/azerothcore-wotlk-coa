@@ -54,7 +54,6 @@ class aura_ascension_bloodmage_grim_omen : public AuraScript
             GRIM_OMEN_SOURCES.end())
             return false;
 
-        if (spellInfo->SpellFamilyFlags.HasFlag(0, GRIM_OMEN_HOWL_MASK1, GRIM_OMEN_HOWL_MASK2))
         if (spellInfo->SpellFamilyFlags.HasFlag(0, BLOODMAGE_HOWL_MASK1, BLOODMAGE_HOWL_MASK2))
             return (event.GetSpellPhaseMask() & PROC_SPELL_PHASE_CAST) != 0;
 
