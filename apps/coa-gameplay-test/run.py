@@ -60,7 +60,7 @@ METRICS = {
     'who_count', 'who_class', 'player_name', 'name_lookup', 'loot_count', 'loot_entry', 'loot_received',
     'loot_gold', 'loot_bloodforged', 'nearby_gameobject_count', 'nearby_creature_count', 'carried_money',
     'quest_rewarded', 'spell_damage_taken', 'melee_damage_taken', 'spell_healing_taken',
-    'spell_hit_bonus_taken', 'rooted', 'spell_cast_count', 'spell_go_count', 'cast_failure',
+    'spell_hit_bonus_taken', 'rooted', 'stunned', 'spell_cast_count', 'spell_go_count', 'cast_failure',
     'stealth_detection', 'can_detect',
     'quest_status', 'quest_takeable', 'quest_objective_count', 'dialog_status',
     'ball_offer_count', 'ball_offers_quest',
@@ -71,7 +71,7 @@ METRICS = {
     'aura_amplitude_ms', 'melee_crit_chance', 'dodge_chance', 'parry_chance', 'expertise', 'combat_rating',
     'spell_modifier', 'spell_cast_time_ms', 'spell_max_range', 'spell_max_stacks', 'spell_healing_done',
     'aura_crit_chance', 'aura_script_value', 'melee_hit_chance', 'spell_hit_chance', 'spell_power',
-    'spell_done_crit_chance', 'melee_spell_damage_done', 'script_melee_damage_taken',
+    'spell_done_crit_chance', 'spell_done_crit_chance_scripted', 'melee_spell_damage_done', 'script_melee_damage_taken',
     'script_spell_damage_taken', 'script_periodic_damage_taken', 'script_heal_received', 'spell_effect_value',
     'block_chance', 'block_value', 'critical_block_chance', 'spell_critical_damage', 'armor_reduced_damage',
     'aoe_damage_taken', 'reputation_gain', 'spell_immune', 'spell_effect_immune', 'melee_attack_count',
@@ -87,7 +87,7 @@ PLAYER_STAT_METRICS = {
     'pet_power', 'pet_max_power', 'spell_energize_count', 'spell_energize_total',
     'melee_crit_chance', 'dodge_chance', 'parry_chance', 'expertise', 'combat_rating',
     'spell_modifier', 'spell_cast_time_ms', 'spell_max_range', 'spell_max_stacks', 'spell_healing_done',
-    'melee_hit_chance', 'spell_hit_chance', 'spell_power', 'spell_done_crit_chance', 'melee_spell_damage_done',
+    'melee_hit_chance', 'spell_hit_chance', 'spell_power', 'spell_done_crit_chance', 'spell_done_crit_chance_scripted', 'melee_spell_damage_done',
     'script_melee_damage_taken', 'script_spell_damage_taken', 'script_periodic_damage_taken',
     'script_heal_received', 'spell_effect_value',
     'block_chance', 'block_value', 'critical_block_chance', 'spell_critical_damage', 'armor_reduced_damage',
@@ -116,6 +116,7 @@ ACTIONS = {
     'unlearn': ({'actor', 'spell'}, {'actor', 'spell', 'all_specs'}),
     'money': ({'actor', 'copper'}, {'actor', 'copper'}),
     'set_aura': ({'actor', 'spell', 'stacks'}, {'actor', 'spell', 'stacks', 'pet'}),
+    'cancel_aura': ({'actor', 'spell'}, {'actor', 'spell'}),
     'cast': ({'actor', 'spell'}, {'actor', 'spell', 'target', 'destination'}),
     'attack': ({'actor', 'target'}, {'actor', 'target', 'pet'}),
     'pvp': ({'actor', 'enabled'}, {'actor', 'enabled'}),
@@ -366,6 +367,7 @@ def validate(scenario):
                     'spell_damage_done', 'spell_damage_taken', 'spell_healing_taken', 'spell_hit_bonus_taken',
                     'spell_cast_count', 'spell_go_count', 'spell_modifier', 'spell_cast_time_ms',
                     'spell_max_range', 'spell_max_stacks', 'spell_healing_done', 'spell_done_crit_chance',
+                    'spell_done_crit_chance_scripted',
                     'melee_spell_damage_done', 'script_spell_damage_taken', 'script_periodic_damage_taken',
                     'script_heal_received', 'spell_effect_value', 'spell_critical_damage', 'armor_reduced_damage',
                     'spell_immune', 'spell_effect_immune', 'spell_damage_count', 'spell_damage_total',
@@ -390,7 +392,7 @@ def validate(scenario):
                         and step.get('target') in player_ids, f'{where}: target_pet needs a healing or energize target player')
                 require(type(step['target_pet']) is bool, f'{where}: target_pet must be boolean')
             if metric in {'spell_damage_done', 'melee_damage_done', 'spell_damage_taken', 'melee_damage_taken',
-                          'spell_healing_done', 'spell_healing_taken', 'spell_done_crit_chance', 'melee_spell_damage_done',
+                          'spell_healing_done', 'spell_healing_taken', 'spell_done_crit_chance', 'spell_done_crit_chance_scripted', 'melee_spell_damage_done',
                           'spell_critical_damage', 'armor_reduced_damage', 'spell_immune', 'spell_effect_immune',
                           'distance_2d', 'can_detect'} \
                     or metric.startswith('script_'):
