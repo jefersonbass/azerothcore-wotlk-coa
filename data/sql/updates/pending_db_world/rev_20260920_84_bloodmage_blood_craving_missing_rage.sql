@@ -12,9 +12,15 @@
 -- Rage. MiscValueB is not read by that handler and there is no Ascension "energize missing pct" effect.
 -- spell_ascension_bloodmage_blood_craving replaces that one effect with CalculatePct(max - current, 15).
 -- The 15% is the record's own value; nothing is introduced.
+-- rev_20260920_46 had bound this same spell to spell_ascension_blood_craving_payout, an earlier and
+-- narrower handler for the same effect (it accepted only SPELL_BLOOD_CRAVING_PAYOUT and POWER_RAGE).
+-- Each DELETE names only its own script, so both bindings survived and the payout ran twice. The old
+-- binding is removed here, which reduces the payout from 2x to 1x: the duplication was the defect.
 START TRANSACTION;
 DELETE FROM `spell_script_names` WHERE `spell_id` = 805985
     AND `ScriptName` = 'spell_ascension_bloodmage_blood_craving';
+DELETE FROM `spell_script_names` WHERE `spell_id` = 805985
+    AND `ScriptName` = 'spell_ascension_blood_craving_payout';
 INSERT INTO `spell_script_names` (`spell_id`, `ScriptName`) VALUES
 (805985, 'spell_ascension_bloodmage_blood_craving');
 COMMIT;
