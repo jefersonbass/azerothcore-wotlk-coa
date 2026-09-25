@@ -21,12 +21,18 @@
 -- ability the clause names, so the mask selects it alone. Where an ability has no exclusive bit at
 -- all (its whole flag set is shared), the mask cannot isolate it and the row must be filtered by the
 -- spell list in AscensionStormbringerRunemasterTalentProcs instead.
-DELETE FROM `spell_proc` WHERE `SpellId` IN (705634, 705700, 707053, 705715);
+-- ROW REMOVAL (2026-09-24) - THIS SUPERSEDES THE 705700 AND 705715 ROWS THIS FILE USED TO WRITE:
+-- both were restored to the shape their own gameplay scenarios assert, by rev_20260924_03 (which
+-- sorts after this file). Invigoration 705700: stormbringer-fix-invigoration-stack-family.json names
+-- the Aeroblast HIT, so the row needs SpellPhaseMask 2 and this file's phase 1 contradicted it.
+-- Gift of Air 705715: stormbringer-fix-air-elemental-family-gift-of-air.json asserts the critical
+-- strike extends Tailwind, which needs the HIT phase, so the row needs SpellPhaseMask 3 with HitMask
+-- 3; the "not driven by this aura" note above is therefore superseded by that scenario.
+-- The basis is the scenario assertion, not an independent measurement.
+DELETE FROM `spell_proc` WHERE `SpellId` IN (705634, 707053);
 INSERT INTO `spell_proc` (`SpellId`, `SchoolMask`, `SpellFamilyName`, `SpellFamilyMask0`, `SpellFamilyMask1`, `SpellFamilyMask2`, `ProcFlags`, `SpellTypeMask`, `SpellPhaseMask`, `HitMask`, `AttributesMask`, `DisableEffectsMask`, `ProcsPerMinute`, `Chance`, `Cooldown`, `Charges`) VALUES
 (705634, 0, 38, 0, 0, 0, 87312, 7, 1, 0, 0, 0, 0, 0, 0, 0),
-(705700, 0, 22, 8388608, 0, 0, 69904, 1, 1, 0, 0, 0, 0, 0, 0, 0),
-(707053, 0, 22, 0, 0, 0, 69904, 1, 1, 0, 0, 0, 0, 0, 0, 0),
-(705715, 0, 22, 0, 0, 1048576, 87312, 7, 1, 0, 0, 0, 0, 0, 0, 0);
+(707053, 0, 22, 0, 0, 0, 69904, 1, 1, 0, 0, 0, 0, 0, 0, 0);
 
 DELETE FROM `spell_script_names` WHERE `spell_id` IN (705634, 707053)
   AND `ScriptName` = 'spell_ascension_stormbringer_runemaster_talent_proc';
