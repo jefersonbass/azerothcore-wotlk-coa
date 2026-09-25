@@ -104,6 +104,16 @@ uint32 AttackSpell(uint32 entry)
         return 0;
     }
 }
+uint8 SummonCount(Player* player, uint32 spell, uint8 effect, uint8 count)
+{
+    SpellInfo const* info = sSpellMgr->GetSpellInfo(spell);
+    if (info && info->Effects[effect].Effect == SPELL_EFFECT_TRIGGER_SPELL && info->Effects[effect].TriggerSpell)
+        spell = info->Effects[effect].TriggerSpell;
+    SpellInfo const* source = sSpellMgr->GetSpellInfo(spell);
+    if (!source)
+        return count;
+    return uint8(std::clamp<int32>(int32(player->ApplyEffectModifiers(source, effect, float(count))), 0, 16));
+}
 }
 bool Responds(uint32 entry, uint32 command)
 {
@@ -211,7 +221,9 @@ bool Summon(Player* player, uint32 spell, Unit* target, Position const& position
     bool created = false;
     for (auto const& row : NecromancerSummons)
         if (row.spell == spell)
-            for (uint8 i = 0; i < std::min<uint8>(row.count, 16); ++i)
+        {
+            uint8 count = SummonCount(player, spell, row.effect, row.count);
+            for (uint8 i = 0; i < count; ++i)
             {
                 if (cost && int32(Capacity(player)) - Used(player) < cost)
                 {
@@ -258,7 +270,7 @@ bool Summon(Player* player, uint32 spell, Unit* target, Position const& position
                     point = player->GetPosition();
                     point.SetOrientation(heading);
                     player->MovePositionToFirstCollision(point, 2.0f, heading - player->GetOrientation());
-                    float const lateral = (float(i) - (row.count - 1) / 2.0f) * 1.0f;
+                    float const lateral = (float(i) - (count - 1) / 2.0f) * 1.0f;
                     point.m_positionX += std::cos(heading + float(M_PI) / 2) * lateral;
                     point.m_positionY += std::sin(heading + float(M_PI) / 2) * lateral;
                     point.SetOrientation(heading);
@@ -294,6 +306,7 @@ bool Summon(Player* player, uint32 spell, Unit* target, Position const& position
                 else
                     unit->GetMotionMaster()->MoveFollow(player, distance, angle);
             }
+        }
     Sync(player);
     return created;
 }
