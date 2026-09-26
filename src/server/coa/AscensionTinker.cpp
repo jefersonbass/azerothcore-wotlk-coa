@@ -233,7 +233,7 @@ void ExitMechsuit(Player* player)
         if (Spell* spell = player->GetCurrentSpell(slot); spell &&
             (spell->GetSpellInfo()->Id == 500213 || MechAbility(spell->GetSpellInfo())))
             player->InterruptSpell(slot);
-    for (uint32 id : {801384,803451,801385,803329,680999,504749,801389,801386,MechsuitAppearance})
+    for (uint32 id : {801384u,803451u,801385u,803329u,680999u,504749u,801389u,801386u,MechsuitAppearance})
         player->RemoveAurasDueToSpell(id,player->GetGUID());
 }
 bool Resource(Player* player, uint32 id, int32 delta)

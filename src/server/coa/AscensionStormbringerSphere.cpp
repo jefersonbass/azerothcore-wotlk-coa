@@ -155,7 +155,6 @@ public:
         }
     }
 };
-}
 
 class stormbringer_blessing_of_lei_shen : public UnitScript
 {

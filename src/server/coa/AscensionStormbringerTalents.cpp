@@ -68,11 +68,7 @@ enum StormbringerTalentSpells : uint32
     SPELL_FLUX_ARC = 705643,
     SPELL_FLUX_ARC_MARK = 705644,
     SPELL_FORKED_LIGHTNING = 801851,
-    SPELL_ARM_OF_THORIM = 801847
-};
-
-float const FLUX_ARC_SPLASH_RADIUS = 10.0f;
-uint32 ElectrocutionerChance(Player const* player)
+    SPELL_ARM_OF_THORIM = 801847,
     SPELL_CRITICAL_CIRCUIT = 807314,
     SPELL_REFUND_STATIC_10 = 804084,
     SPELL_CONJURATION_MASTERY = 300595,
@@ -92,6 +88,9 @@ uint32 ElectrocutionerChance(Player const* player)
     SPELL_HURRICANES_BUFF = 570129,
     SPELL_UNBOUND_ELEMENTALIST = 705702
 };
+}
+
+float const FLUX_ARC_SPLASH_RADIUS = 10.0f;
 
 constexpr int32 ASCENSION_SPELLMOD_BONUS_MULTIPLIER = 41;
 constexpr uint32 CONJURE_STORM_FAMILY_FLAG_TWO = 16;
