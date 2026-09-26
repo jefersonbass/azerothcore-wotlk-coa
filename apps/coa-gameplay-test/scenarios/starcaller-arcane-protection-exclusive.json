@@ -1,0 +1,36 @@
+{
+  "schema": 1,
+  "name": "One Starcaller Arcane Protection per caster on each recipient (#5167)",
+  "contract": "Arcane Protection ranks 1-3 share the chain 573343 -> 573344 -> 573345 (spell_ranks, rev_20260903_01) and Greater Arcane Protection 573348 is unranked; no spell_group listed them, so Aura::CanStackWith let the normal and greater versions stay on one recipient (#5167). They share spell group 1143 with stack rule 2 (SPELL_GROUP_STACK_RULE_EXCLUSIVE_FROM_SAME_CASTER): the newest replaces the caster's previous one, while a second Starcaller's still coexists - the same shape as the Templar Gift (1140) group. Only the first rank is listed because SpellMgr::LoadSpellGroups drops any other rank and chains resolve through GetFirstSpellInChain.",
+  "timeout_ms": 60000,
+  "players": [
+    { "id": "sc", "race": 1, "class": 26, "level": 60 },
+    { "id": "sc2", "race": 1, "class": 26, "level": 60 }
+  ],
+  "steps": [
+    { "action": "wait", "label": "Let level scaling settle", "ms": 5000 },
+    { "action": "learn", "actor": "sc", "spell": 573343 },
+    { "action": "learn", "actor": "sc", "spell": 573348 },
+    { "action": "learn", "actor": "sc2", "spell": 573343 },
+    { "action": "cast", "label": "Arcane Protection on the ally", "actor": "sc", "spell": 573343, "target": "sc2" },
+    {
+      "action": "assert", "label": "Arcane Protection is applied",
+      "actor": "sc2", "metric": "aura", "spell": 573343, "caster": "sc", "equals": 1, "within_ms": 3000
+    },
+    { "action": "wait", "label": "Let the global cooldown pass", "ms": 2500 },
+    { "action": "cast", "label": "Greater Arcane Protection from the same caster", "actor": "sc", "spell": 573348, "target": "sc2" },
+    {
+      "action": "assert", "label": "Greater Arcane Protection is applied",
+      "actor": "sc2", "metric": "aura", "spell": 573348, "caster": "sc", "equals": 1, "within_ms": 3000
+    },
+    {
+      "action": "assert", "label": "It replaced the same caster's Arcane Protection",
+      "actor": "sc2", "metric": "aura", "spell": 573343, "caster": "sc", "equals": 0
+    },
+    { "action": "cast", "label": "A second Starcaller gives Arcane Protection", "actor": "sc2", "spell": 573343, "target": "sc" },
+    {
+      "action": "assert", "label": "The other caster's Arcane Protection coexists (rule 2, not rule 1)",
+      "actor": "sc", "metric": "aura", "spell": 573343, "caster": "sc2", "equals": 1, "within_ms": 3000
+    }
+  ]
+}

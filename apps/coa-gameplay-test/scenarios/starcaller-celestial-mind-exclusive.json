@@ -1,0 +1,36 @@
+{
+  "schema": 1,
+  "name": "One Starcaller Celestial Mind per caster on each recipient (#5167)",
+  "contract": "Celestial Mind ranks 1-5 share the chain 300255 -> 301222 -> 301223 -> 301224 -> 301225 (spell_ranks, rev_20260903_01) and Greater Celestial Mind 680301 is unranked; no spell_group listed them, so Aura::CanStackWith let the normal and greater versions stay on one recipient (#5167). They share spell group 1142 with stack rule 2 (SPELL_GROUP_STACK_RULE_EXCLUSIVE_FROM_SAME_CASTER): the newest replaces the caster's previous one, while a second Starcaller's still coexists - the same shape as the Templar Gift (1140) group. Only the first rank is listed because SpellMgr::LoadSpellGroups drops any other rank and chains resolve through GetFirstSpellInChain.",
+  "timeout_ms": 60000,
+  "players": [
+    { "id": "sc", "race": 1, "class": 26, "level": 60 },
+    { "id": "sc2", "race": 1, "class": 26, "level": 60 }
+  ],
+  "steps": [
+    { "action": "wait", "label": "Let level scaling settle", "ms": 5000 },
+    { "action": "learn", "actor": "sc", "spell": 300255 },
+    { "action": "learn", "actor": "sc", "spell": 680301 },
+    { "action": "learn", "actor": "sc2", "spell": 300255 },
+    { "action": "cast", "label": "Celestial Mind on the ally", "actor": "sc", "spell": 300255, "target": "sc2" },
+    {
+      "action": "assert", "label": "Celestial Mind is applied",
+      "actor": "sc2", "metric": "aura", "spell": 300255, "caster": "sc", "equals": 1, "within_ms": 3000
+    },
+    { "action": "wait", "label": "Let the global cooldown pass", "ms": 2500 },
+    { "action": "cast", "label": "Greater Celestial Mind from the same caster", "actor": "sc", "spell": 680301, "target": "sc2" },
+    {
+      "action": "assert", "label": "Greater Celestial Mind is applied",
+      "actor": "sc2", "metric": "aura", "spell": 680301, "caster": "sc", "equals": 1, "within_ms": 3000
+    },
+    {
+      "action": "assert", "label": "It replaced the same caster's Celestial Mind",
+      "actor": "sc2", "metric": "aura", "spell": 300255, "caster": "sc", "equals": 0
+    },
+    { "action": "cast", "label": "A second Starcaller gives Celestial Mind", "actor": "sc2", "spell": 300255, "target": "sc" },
+    {
+      "action": "assert", "label": "The other caster's Celestial Mind coexists (rule 2, not rule 1)",
+      "actor": "sc", "metric": "aura", "spell": 300255, "caster": "sc2", "equals": 1, "within_ms": 3000
+    }
+  ]
+}
