@@ -385,7 +385,7 @@ class spell_ascension_necromancer_ability : public SpellScript
             player->EnergizeBySpell(player, 704726, RANCID_AIR_RUNIC_POWER, POWER_RUNIC_POWER);
         if (id == 805143)
             for (Creature* minion : Minions(player, true))
-                if (player->IsWithinDistInMap(minion, info->Effects[EFFECT_0].CalcRadius(player)))
+                if (player->IsWithinDistInMap(minion, GetSpellInfo()->Effects[EFFECT_0].CalcRadius(player)))
                     Cast(player, minion, 801530);
         if (id == 801942 && target && player->IsValidAttackTarget(target))
             if (uint32 diseases = Diseases(player, target))
