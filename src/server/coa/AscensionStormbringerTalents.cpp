@@ -811,10 +811,6 @@ class aura_ascension_stormcloak : public AuraScript
     }
 };
 
-constexpr uint32 SPELL_PULSE_CONVERSION = 707619;
-constexpr uint32 SPELL_PULSE_CONVERSION_HEAL = 504830;
-
-
 class aura_ascension_invigorating_winds : public AuraScript
 {
     PrepareAuraScript(aura_ascension_invigorating_winds);
