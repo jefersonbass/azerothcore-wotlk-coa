@@ -185,6 +185,10 @@ void ApplyContracts(SpellInfo* info)
         if (id == spellMissingThePassiveFlag)
             info->Attributes |= SPELL_ATTR0_PASSIVE;
 
+    for (uint32 spellTalentMarkerOnSummons : {503740u, 524979u, 531128u, 706565u, 707265u, 802986u, 806747u})
+        if (id == spellTalentMarkerOnSummons)
+            info->Effects[EFFECT_0].Effect = SPELL_EFFECT_APPLY_AURA;
+
     if (id == 704712)
         info->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_DUMMY;
     if (id == 707445)
