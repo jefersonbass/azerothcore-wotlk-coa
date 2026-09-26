@@ -88,7 +88,6 @@ enum StormbringerTalentSpells : uint32
     SPELL_HURRICANES_BUFF = 570129,
     SPELL_UNBOUND_ELEMENTALIST = 705702
 };
-}
 
 float const FLUX_ARC_SPLASH_RADIUS = 10.0f;
 
@@ -553,7 +552,6 @@ public:
             info->Attributes |= SPELL_ATTR0_PASSIVE;
             info->Effects[EFFECT_0].DieSides = 1;
         }
-}
         if (info->Id == SPELL_INVOKING_STORMS_RANK_1 || info->Id == SPELL_INVOKING_STORMS_RANK_2)
         {
             SpellEffectInfo& scaling = info->Effects[EFFECT_0];
@@ -774,6 +772,16 @@ class aura_ascension_stormbringer_dark_skies : public AuraScript
     {
         PreventDefaultAction();
         GetTarget()->RemoveAurasDueToSpell(SPELL_DARK_SKIES_BUFF);
+    }
+
+    void Register() override
+    {
+        DoCheckProc += AuraCheckProcFn(aura_ascension_stormbringer_dark_skies::CheckProc);
+        OnEffectProc += AuraEffectProcFn(aura_ascension_stormbringer_dark_skies::Remove,
+            EFFECT_0, SPELL_AURA_PROC_TRIGGER_SPELL);
+    }
+};
+
 class aura_ascension_stormcloak : public AuraScript
 {
     PrepareAuraScript(aura_ascension_stormcloak);
@@ -797,9 +805,9 @@ class aura_ascension_stormcloak : public AuraScript
 
     void Register() override
     {
-        DoCheckProc += AuraCheckProcFn(aura_ascension_stormbringer_dark_skies::CheckProc);
-        OnEffectProc += AuraEffectProcFn(aura_ascension_stormbringer_dark_skies::Remove,
-            EFFECT_0, SPELL_AURA_PROC_TRIGGER_SPELL);
+        DoEffectCalcAmount +=
+            AuraEffectCalcAmountFn(aura_ascension_stormcloak::Calculate, EFFECT_0, SPELL_AURA_SCHOOL_ABSORB);
+        OnEffectAbsorb += AuraEffectAbsorbFn(aura_ascension_stormcloak::Absorb, EFFECT_0);
     }
 };
 
