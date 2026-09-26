@@ -282,8 +282,9 @@ class npc_ascension_witch_doctor : public ScriptedAI
             {
                 me->SetDisplayId(target->GetDisplayId());
                 me->SetReactState(REACT_AGGRESSIVE);
-                me->SetFloatValue(UNIT_FIELD_MINDAMAGE, target->GetFloatValue(UNIT_FIELD_MINDAMAGE));
-                me->SetFloatValue(UNIT_FIELD_MAXDAMAGE, target->GetFloatValue(UNIT_FIELD_MAXDAMAGE));
+                me->SetBaseWeaponDamage(BASE_ATTACK, MINDAMAGE, target->GetFloatValue(UNIT_FIELD_MINDAMAGE));
+                me->SetBaseWeaponDamage(BASE_ATTACK, MAXDAMAGE, target->GetFloatValue(UNIT_FIELD_MAXDAMAGE));
+                me->UpdateDamagePhysical(BASE_ATTACK);
                 me->SetCombatMovement(true);
                 AttackStart(target);
             }
