@@ -1,6 +1,8 @@
 /* Copyright (C) 2016+ AzerothCore, GNU AGPL v3. */
 
 #include "AscensionNecromancer.h"
+#include "AscensionCoATalentData.h"
+#include "AscensionCoATalentState.h"
 #include "CellImpl.h"
 #include "Creature.h"
 #include "GridNotifiers.h"
@@ -106,6 +108,31 @@ uint8 Capacity(Player* player)
     player->ApplySpellMod(805011, SPELLMOD_MAX_AURA_STACKS, capacity);
     return uint8(std::clamp(capacity, 0, 48));
 }
+bool MinionRaiserKnown(Player* player, uint32 spell)
+{
+    static std::unordered_map<uint32, uint32> const entryByTalentSpell = []
+    {
+        std::unordered_map<uint32, uint32> map;
+        for (AscensionCompatData::CoATalentEntry const& entry : AscensionCompatData::CoATalentEntries)
+            for (uint8 index = 0; index < entry.SpellCount; ++index)
+                if (entry.SpellIds[index])
+                    map[entry.SpellIds[index]] = entry.EntryId;
+        return map;
+    }();
+
+    auto found = entryByTalentSpell.find(spell);
+    if (found == entryByTalentSpell.end())
+        return true;
+
+    auto const& entries = AscensionCompatData::CoATalentEntries;
+    auto entry = std::lower_bound(entries.begin(), entries.end(), found->second,
+        [](AscensionCompatData::CoATalentEntry const& value, uint32 id) { return value.EntryId < id; });
+    if (entry == entries.end() || entry->EntryId != found->second)
+        return true;
+
+    return AscensionCoATalentState::KnownRank(*entry,
+        [player](uint32 id) { return player->HasSpell(id); }) != 0;
+}
 void Prune(Player* player, bool all)
 {
     auto& state = State(player);
@@ -118,11 +145,11 @@ void Prune(Player* player, bool all)
                                                                 : nullptr;
                                            return all || !unit || !unit->IsAlive() ||
                                                   unit->GetOwnerGUID() != player->GetGUID() || !player->IsInMap(unit) ||
-                                                  !player->InSamePhase(unit);
+                                                  !player->InSamePhase(unit) || !MinionRaiserKnown(player, row.spell);
                                        }),
                         state.minions.end());
-    if (all)
-        for (auto const& row : saved)
+    for (auto const& row : saved)
+        if (all || !MinionRaiserKnown(player, row.spell))
             if (Creature* unit = player->FindMap() ? ObjectAccessor::GetCreature(*player, row.guid) : nullptr)
                 if (unit->GetOwnerGUID() == player->GetGUID())
                     unit->DespawnOrUnsummon();
