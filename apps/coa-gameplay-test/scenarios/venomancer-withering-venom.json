@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "name": "Venomancer Withering Venom consumes Lethal Toxin and grows per tick (#3190)",
+  "contract": "#3190: Withering Venom 800886 ('Requires Spider Form' per the issue tooltip; consumes a Lethal Toxin stack, applies the DoT for 20 sec, stacking to 15) has no script or SQL. The fix gates the cast on Spider Form 800841, consumes one 802840 stack from the target, and applies stack helper 707084 (Periodic Damage 52-54 + Periodic Trigger). Each trigger tick steps to the next helper (707085-707090) in aura_ascension_venomancer_lifecycle. The 71 direct damage on consume is the trigger payload and stays native where authored.",
+  "timeout_ms": 120000,
+  "players": [
+    { "id": "v", "race": 8, "class": 29, "level": 80 }
+  ],
+  "creatures": [
+    { "id": "dummy", "owner": "v", "entry": 28168, "level": 80, "health": 500000, "distance": 3 }
+  ],
+  "steps": [
+    { "action": "wait", "label": "Let level scaling settle", "ms": 5000 },
+    { "action": "learn", "actor": "v", "spell": 800886 },
+    { "action": "learn", "actor": "v", "spell": 800841 },
+    { "action": "cast", "label": "Take Spider Form", "actor": "v", "spell": 800841 },
+    {
+      "action": "assert", "label": "Spider Form is up",
+      "actor": "v", "metric": "aura", "spell": 800841, "equals": 1, "within_ms": 3000
+    },
+    { "action": "cast", "label": "Withering Venom on the target", "actor": "v", "spell": 800886, "target": "dummy" },
+    {
+      "action": "assert", "label": "First stack helper is applied",
+      "actor": "dummy", "metric": "aura", "spell": 707084, "caster": "v", "equals": 1, "within_ms": 5000
+    },
+    {
+      "action": "assert", "label": "The stacks grow past the first helper",
+      "actor": "dummy", "metric": "aura", "spell": 707085, "caster": "v", "equals": 1, "within_ms": 30000
+    }
+  ]
+}

@@ -14,6 +14,11 @@
 namespace
 {
 using namespace AscensionVenomancer;
+enum VenomancerWithering : uint32
+{
+    SPELL_WITHERING_STACK_BASE = 707084,
+    SPELL_WITHERING_STACK_LAST = 707090,
+};
 bool First(AuraEffect const* effect)
 {
     for (uint8 slot = 0; slot < effect->GetEffIndex(); ++slot)
@@ -325,6 +330,15 @@ class aura_ascension_venomancer_lifecycle : public AuraScript
         }
         if (Named(GetSpellInfo(),706962) && slot == 1)
             PreventDefaultAction();
+        if (GetId() >= SPELL_WITHERING_STACK_BASE && GetId() < SPELL_WITHERING_STACK_LAST && slot == 1)
+        {
+            PreventDefaultAction();
+            if (Aura* aura = GetAura())
+                if (sSpellMgr->GetSpellInfo(aura->GetId() + 1))
+                    if (Unit* target = GetTarget())
+                        if (Player* owner = Owner(GetCaster()))
+                            owner->CastSpell(target,aura->GetId() + 1,true);
+        }
         if (id == 707234 && slot == 2)
             PreventDefaultAction();
         if (id == 681291 && slot == 1)
