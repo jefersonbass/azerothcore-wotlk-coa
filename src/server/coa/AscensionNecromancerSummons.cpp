@@ -647,6 +647,10 @@ class npc_ascension_necromancer : public ScriptedAI
                 {
                     if (me->GetEntry() == 50068)
                         Cast(me, me, 802353);
+                    if (me->GetEntry() == 50309)
+                        Cast(me, me, 801412);
+                    if (me->GetEntry() == 503030 || me->GetEntry() == 503031 || me->GetEntry() == 503032)
+                        Cast(me, me, 504022);
                     if (Unit* victim = me->GetVictim())
                         if (uint32 ability = AttackSpell(me->GetEntry()))
                             if (!me->GetCurrentSpell(CURRENT_CHANNELED_SPELL))
