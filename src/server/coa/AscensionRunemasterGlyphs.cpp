@@ -41,6 +41,12 @@ constexpr uint32 SPELL_ARCANE_SALVO = 800731;
 constexpr uint32 SPELL_ADVANCED_MAGI = 804557;
 constexpr uint32 SPELL_ELEMENTAL_BURST_ROOT = 802202;
 
+void LaunchPrimordialSalvo(Unit* caster, Unit* target, uint32 salvo)
+{
+    if (caster->HasAura(SPELL_PRIMORDIAL_SALVOS, caster->GetGUID()) && target->IsAlive())
+        caster->CastSpell(target, salvo, TRIGGERED_FULL_MASK);
+}
+
 bool IsElementalBurst(uint32 id)
 {
     return id == 802202 || (id >= 502828 && id <= 502838);
@@ -162,6 +168,7 @@ class spell_ascension_runemaster_glyph_cast : public SpellScript
 
         std::array<uint32, 3> const carriers = {SPELL_FROST_GLYPH, SPELL_FLAME_GLYPH, SPELL_ARCANE_GLYPH};
         std::array<uint32, 3> const helpers = {SPELL_UNLEASHED_FROST, SPELL_UNLEASHED_FLAME, SPELL_UNLEASHED_ARCANE};
+        std::array<uint32, 3> const salvos = {SPELL_FROST_SALVO, SPELL_FLAME_SALVO, SPELL_ARCANE_SALVO};
         std::array<bool, 3> active = {};
         bool any = false;
         for (std::size_t i = 0; i < carriers.size(); ++i)
@@ -176,6 +183,7 @@ class spell_ascension_runemaster_glyph_cast : public SpellScript
             if (active[i])
             {
                 caster->CastSpell(target, helpers[i], TRIGGERED_FULL_MASK);
+                LaunchPrimordialSalvo(caster, target, salvos[i]);
                 if (caster->HasAura(SPELL_SCROLL_PASSIVE))
                     caster->CastSpell(caster, SPELL_SCROLL_BUFF, TRIGGERED_FULL_MASK);
             }

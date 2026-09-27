@@ -8,6 +8,7 @@
 #include "SpellAuras.h"
 #include "SpellMgr.h"
 #include "SpellScript.h"
+#include <algorithm>
 #include <limits>
 #include <set>
 
@@ -15,8 +16,35 @@ namespace
 {
 constexpr uint32 SPELL_RUNIC_BRAND_MARK = 712323;
 constexpr uint32 SPELL_RUNIC_EXPLOSION = 712324;
-constexpr uint32 SPELL_GENESIS_BRAND = 500501;
+constexpr uint32 SPELL_GENESIS = 500501;
 constexpr uint32 SPELL_GENESIS_DAMAGE = 500502;
+constexpr uint32 SPELL_FIRE_ENGRAVING = 653211;
+constexpr uint32 SPELL_FIREBRAND = 653210;
+constexpr uint32 SPELL_WATER_ENGRAVING = 653214;
+constexpr uint32 SPELL_WATER_ENGRAVING_DRAIN = 653261;
+constexpr uint32 SPELL_ICE_ENGRAVING = 653266;
+constexpr uint32 SPELL_ICE_ENGRAVING_STRIKE = 653217;
+constexpr uint32 SPELL_ARCANE_ENGRAVING = 653267;
+constexpr uint32 SPELL_ARCANE_ENGRAVING_MARK = 653263;
+
+struct WeaponEngraving
+{
+    uint32 Aura;
+    uint32 Effect;
+};
+
+constexpr WeaponEngraving WeaponEngravings[] =
+{
+    {SPELL_FIRE_ENGRAVING, SPELL_FIREBRAND},
+    {SPELL_WATER_ENGRAVING, SPELL_WATER_ENGRAVING_DRAIN},
+    {SPELL_ICE_ENGRAVING, SPELL_ICE_ENGRAVING_STRIKE},
+    {SPELL_ARCANE_ENGRAVING, SPELL_ARCANE_ENGRAVING_MARK}
+};
+
+bool IsRunemaster(Unit const* unit)
+{
+    return unit && unit->IsPlayer() && unit->getClass() == CLASS_SPIRIT_MAGE;
+}
 
 bool IsRunicBrand(uint32 id)
 {
@@ -141,63 +169,102 @@ class spell_ascension_runemaster_brand_runeblade : public SpellScript
     std::set<ObjectGuid> _pending;
 };
 
-// Genesis (500501): "Apply a runic brand to an enemy for 8 seconds,
-// accumulating 50% of your damage dealt, and unleashing that accumulated
-// damage as Arcane damage when the brand ends." The aura's School Absorb slot
-// (all schools, value 1) is the accumulator; the Dummy slots mark ownership.
-// Damage is banked here and paid out as 500502 (spell_bonus_data supplies the
-// SP coefficient) when the brand expires.
-class runemaster_genesis_accumulator : public UnitScript
+class runemaster_genesis_accumulation : public UnitScript
 {
 public:
-    runemaster_genesis_accumulator() : UnitScript("runemaster_genesis_accumulator", true,
-        {UNITHOOK_ON_DAMAGE, UNITHOOK_ON_AURA_REMOVE}) { }
+    runemaster_genesis_accumulation() : UnitScript("runemaster_genesis_accumulation", true, {UNITHOOK_ON_DAMAGE}) { }
 
     void OnDamage(Unit* attacker, Unit* victim, uint32& damage) override
     {
-        Player* player = attacker ? attacker->ToPlayer() : nullptr;
-        if (!player || !damage || !victim)
+        if (!damage || !victim || attacker == victim || !IsRunemaster(attacker))
             return;
-
-        Aura* brand = victim->GetAura(SPELL_GENESIS_BRAND, player->GetGUID());
-        if (!brand)
-            return;
-
-        uint64 const stored = brand->GetScriptValue(GENESIS_STORED);
-        if (stored >= std::numeric_limits<int32>::max())
-            return;
-        brand->SetScriptValue(GENESIS_STORED, stored + damage);
+        if (Aura* genesis = victim->GetAura(SPELL_GENESIS, attacker->GetGUID()))
+            genesis->SetScriptValue(SPELL_GENESIS, genesis->GetScriptValue(SPELL_GENESIS) + damage);
     }
-
-    void OnAuraRemove(Unit* unit, AuraApplication* application, AuraRemoveMode) override
-    {
-        Player* player = unit ? unit->ToPlayer() : nullptr;
-        if (!player || !application)
-            return;
-
-        Aura* aura = application->GetBase();
-        if (aura->GetId() != SPELL_GENESIS_BRAND || aura->GetCasterGUID() != player->GetGUID())
-            return;
-
-        // Pay out 50% of everything banked during the brand's lifetime.
-        uint64 const stored = aura->GetScriptValue(GENESIS_STORED);
-        if (!stored)
-            return;
-        CustomSpellValues values;
-        values.AddSpellMod(SPELLVALUE_BASE_POINT0,
-            int32(std::min<uint64>(stored / 2, std::numeric_limits<int32>::max())));
-        player->CastCustomSpell(SPELL_GENESIS_DAMAGE, values, unit, TRIGGERED_FULL_MASK);
-    }
-
-private:
-    static constexpr uint32 GENESIS_STORED = 1;
 };
+
+class aura_ascension_runemaster_genesis : public AuraScript
+{
+    PrepareAuraScript(aura_ascension_runemaster_genesis);
+
+    bool Validate(SpellInfo const*) override
+    {
+        return ValidateSpellInfo({SPELL_GENESIS_DAMAGE});
+    }
+
+    void Unleash(AuraEffect const*, AuraEffectHandleModes)
+    {
+        Unit* caster = GetCaster();
+        Unit* target = GetTarget();
+        if (GetTargetApplication()->GetRemoveMode() != AURA_REMOVE_BY_EXPIRE || !IsRunemaster(caster) ||
+            !caster->IsAlive() || !target->IsAlive())
+            return;
+        uint64 const amount = GetAura()->GetScriptValue(SPELL_GENESIS) *
+            std::clamp(GetSpellInfo()->Effects[EFFECT_1].MiscValueB, 0, 100) / 100;
+        if (amount)
+            caster->CastCustomSpell(SPELL_GENESIS_DAMAGE, SPELLVALUE_BASE_POINT0,
+                int32(std::min<uint64>(amount, std::numeric_limits<int32>::max())), target, TRIGGERED_FULL_MASK);
+    }
+
+    void Register() override
+    {
+        AfterEffectRemove += AuraEffectRemoveFn(aura_ascension_runemaster_genesis::Unleash, EFFECT_0,
+            SPELL_AURA_DUMMY, AURA_EFFECT_HANDLE_REAL);
+    }
+};
+
+class spell_ascension_runemaster_genesis_damage : public SpellScript
+{
+    PrepareSpellScript(spell_ascension_runemaster_genesis_damage);
+
+    bool Load() override
+    {
+        return IsRunemaster(GetCaster());
+    }
+
+    void TriggerWeaponEngraving()
+    {
+        Unit* caster = GetCaster();
+        Unit* target = GetHitUnit();
+        if (!target || GetHitDamage() <= 0)
+            return;
+        for (WeaponEngraving const& engraving : WeaponEngravings)
+            if (target->IsAlive() && caster->HasAura(engraving.Aura, caster->GetGUID()))
+                caster->CastSpell(target, engraving.Effect, TRIGGERED_FULL_MASK);
+    }
+
+    void Register() override
+    {
+        AfterHit += SpellHitFn(spell_ascension_runemaster_genesis_damage::TriggerWeaponEngraving);
+    }
+};
+
+void ApplyGenesisContracts(SpellInfo* info)
+{
+    SpellEffectInfo const& brand = info->Effects[EFFECT_0];
+    SpellEffectInfo& accumulation = info->Effects[EFFECT_1];
+    if (info->Id == SPELL_GENESIS && accumulation.IsAura(SPELL_AURA_SCHOOL_ABSORB) && accumulation.MiscValueB == 50 &&
+        brand.IsAura(SPELL_AURA_DUMMY) && brand.TriggerSpell == SPELL_GENESIS_DAMAGE)
+        accumulation.ApplyAuraName = SPELL_AURA_DUMMY;
+
+    if (info->Id == SPELL_GENESIS_DAMAGE && info->Effects[EFFECT_0].Effect == SPELL_EFFECT_SCHOOL_DAMAGE &&
+        !info->Effects[EFFECT_1].Effect && !info->Effects[EFFECT_2].Effect)
+    {
+        info->AttributesEx2 |= SPELL_ATTR2_CANT_CRIT;
+        info->AttributesEx3 |= SPELL_ATTR3_IGNORE_CASTER_MODIFIERS;
+        info->AttributesEx4 |= SPELL_ATTR4_IGNORE_DAMAGE_TAKEN_MODIFIERS;
+        info->AscensionInheritsResolvedAmount = true;
+        info->Effects[EFFECT_0].BonusMultiplier = 0.0f;
+    }
+}
 }
 
 void ApplyAscensionRunemasterBrandContracts(SpellInfo* info)
 {
     if (!info || info->SpellFamilyName != uint32(CLASS_SPIRIT_MAGE) + 6)
         return;
+
+    ApplyGenesisContracts(info);
 
     SpellEffectInfo& effect = info->Effects[EFFECT_0];
     if (info->Id == SPELL_RUNIC_BRAND_MARK && !info->ProcFlags && !info->ProcCharges && !info->StackAmount &&
@@ -221,5 +288,7 @@ void AddAscensionRunemasterBrandScripts()
 {
     RegisterSpellScript(spell_ascension_runemaster_brand);
     RegisterSpellScript(spell_ascension_runemaster_brand_runeblade);
-    new runemaster_genesis_accumulator();
+    new runemaster_genesis_accumulation();
+    RegisterSpellScript(aura_ascension_runemaster_genesis);
+    RegisterSpellScript(spell_ascension_runemaster_genesis_damage);
 }

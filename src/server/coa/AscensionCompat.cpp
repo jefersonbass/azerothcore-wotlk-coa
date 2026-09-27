@@ -6179,6 +6179,7 @@ public:
             ApplyAscensionChangelogSpellChanges(spellInfo);
             ApplyAscensionExperienceContracts(spellInfo);
             ApplyAdventureModeDifficultyContracts(spellInfo);
+            AscensionClassTuning::DisablePvpHealingTuning(spellInfo);
             switch (spellInfo->Id)
             {
                 case 19743:
