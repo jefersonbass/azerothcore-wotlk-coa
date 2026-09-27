@@ -221,7 +221,7 @@ class npc_ascension_witch_doctor : public ScriptedAI
             me->SetCreatorGUID(_owner);
             me->SetFaction(player->GetFaction());
             me->SetLevel(player->GetLevel());
-            ApplyCasterAppearance(me, player);
+            player->CastSpell(me, CloneMe, true);
             me->SetReactState(REACT_PASSIVE);
             me->SetCombatMovement(false);
             RunAwayFrom(player);

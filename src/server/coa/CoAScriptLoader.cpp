@@ -168,6 +168,7 @@ void AddSC_AscensionPrimalistSpiritualFrenzy();
 void AddSC_AscensionPrimalistPhysicalCrit();
 void AddSC_AscensionPrimalistRipsAndTears();
 void AddSC_AscensionPrimalistMountainAvatar();
+void AddSC_AscensionPrimalistRylaksBite();
 void AddSC_AscensionPrimalistRylaksBlessing();
 void AddSC_AscensionPrimalistWildheart();
 void AddSC_AscensionPrimalistDreamslip();
@@ -418,6 +419,7 @@ void AddCoAScripts()
     AddSC_AscensionPrimalistPhysicalCrit();
     AddSC_AscensionPrimalistRipsAndTears();
     AddSC_AscensionPrimalistMountainAvatar();
+    AddSC_AscensionPrimalistRylaksBite();
     AddSC_AscensionPrimalistRylaksBlessing();
     AddSC_AscensionPrimalistWildheart();
     AddSC_AscensionPrimalistDreamslip();
