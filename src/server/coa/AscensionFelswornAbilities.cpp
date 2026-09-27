@@ -306,6 +306,8 @@ class felsworn_casts : public AllSpellScript
             Cast(player, target, 704397);
         if (!damage || target == player || player->IsFriendlyTo(target))
             return;
+        if (Named(info, 802060))
+            player->EnergizeBySpell(player, info->Id, 20, POWER_ENERGY);
         if (Named(info, 801312))
         {
             if (spell->GetScriptValue(804216) && player->HasAura(92088))

@@ -1,0 +1,29 @@
+{
+  "schema": 1,
+  "name": "Felsworn: Sargeron Smite generates 20 Energy on hit (#5165)",
+  "contract": "Sargeron Smite 501314 (rank 1 of 802060, Felsworn level 10) reads 'generates 20 Energy'. No spell_proc row, no script energize, no native ENERGIZE effect wires it: OnSpellHitResult only generates Felfury on self-hits (effect 175 -> 800058) and 1 Felfury via Bane, while Energy grants elsewhere are explicit EnergizeBySpell calls (Outland Slaver 705123 +3, channel refund 800355). The fix grants 20 Energy on a successful hostile hit through the same EnergizeBySpell path. The discriminator is power-3 gain over the cast cost, mirroring the Templar Tyr-energy window shape.",
+  "timeout_ms": 90000,
+  "players": [
+    { "id": "fel", "race": 1, "class": 14, "level": 80 }
+  ],
+  "creatures": [
+    { "id": "enemy", "owner": "fel", "entry": 36, "level": 80, "health": 100000, "distance": 3 }
+  ],
+  "steps": [
+    { "action": "wait", "label": "Let login hooks and class synchronisation settle", "ms": 5000 },
+    { "action": "learn", "actor": "fel", "spell": 501314 },
+    { "action": "set_power", "actor": "fel", "power": 3, "value": 0 },
+    { "action": "wait", "label": "Let Energy settle at zero", "ms": 1000 },
+    {
+      "action": "snapshot", "label": "Energy before the Smite",
+      "actor": "fel", "metric": "power", "power": 3, "save_as": "before"
+    },
+    { "action": "cast", "label": "Sargeron Smite the enemy", "actor": "fel", "spell": 501314, "target": "enemy" },
+    { "action": "wait", "ms": 2000 },
+    {
+      "action": "assert", "label": "CONTRACT: 20 Energy generated on hit",
+      "actor": "fel", "metric": "power", "power": 3,
+      "relative_to": "before", "min": 18, "max": 25
+    }
+  ]
+}
