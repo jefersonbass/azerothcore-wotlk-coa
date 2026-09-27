@@ -150,6 +150,8 @@ class aura_ascension_sun_cleric_lifecycle : public AuraScript
         }
         if (id == 704930 && mode == AURA_REMOVE_BY_EXPIRE)
             Cast(player,player,704931);
+        if (id == Dawn && mode == AURA_REMOVE_BY_CANCEL && target == player)
+            Resource(player, SolarPower, int32(GetAura()->GetCharges()) - 10);
         if (id == 570125 && player->HasAura(804628))
             if (Aura* charge = target->GetAura(807080,player->GetGUID()))
                 ReleaseSuncharge(player,target,charge->GetStackAmount());

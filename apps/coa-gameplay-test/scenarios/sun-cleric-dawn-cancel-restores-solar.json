@@ -1,0 +1,52 @@
+{
+  "schema": 1,
+  "name": "Sun Cleric: cancelling Dawn restores unspent Solar Power (#5239)",
+  "contract": "Dawn 807440 spends 20 Solar Power 500149 for 10 charges (AscensionSunCleric.cpp ActivateDawn: Resource -20, SetCharges 10; each qualifying cast decrements via OnSpellBeforeEffects). Cancelling mid-Dawn previously destroyed the unspent charges: native CMSG_CANCEL_AURA reaches RemoveOwnedAura(AURA_REMOVE_BY_CANCEL) and no CoA handler restored anything. The Remove handler now grants charges-10 Solar Power on BY_CANCEL (10 fresh = 0 net, 7 left = -3 back). Generation stays blocked during Dawn itself (Resource guard), so only the cancel path restores.",
+  "timeout_ms": 90000,
+  "players": [
+    { "id": "cleric", "race": 1, "class": 27, "level": 80 }
+  ],
+  "creatures": [
+    { "id": "enemy", "owner": "cleric", "entry": 36, "health": 100000, "distance": 3 }
+  ],
+  "steps": [
+    { "action": "wait", "label": "Let login hooks and class synchronisation settle", "ms": 5000 },
+    { "action": "learn", "actor": "cleric", "spell": 804584 },
+    { "action": "learn", "actor": "cleric", "spell": 500143 },
+    { "action": "learn", "actor": "cleric", "spell": 803489 },
+    { "action": "cast", "label": "Take Vow of Radiance", "actor": "cleric", "spell": 803489 },
+    { "action": "wait", "ms": 1500 },
+    { "action": "cast", "label": "Direct heal to bank 20 Solar Power", "actor": "cleric", "spell": 500143, "target": "cleric" },
+    { "action": "wait", "ms": 1500 },
+    {
+      "action": "assert", "label": "SETUP: 20 Solar Power banked",
+      "actor": "cleric", "metric": "aura_stacks", "spell": 500149, "equals": 20, "within_ms": 6000
+    },
+    { "action": "cast", "label": "Activate Dawn", "actor": "cleric", "spell": 804584 },
+    { "action": "wait", "ms": 1500 },
+    {
+      "action": "assert", "label": "SETUP: Dawn is active with 10 charges",
+      "actor": "cleric", "metric": "aura_charges", "spell": 807440, "equals": 10, "within_ms": 3000
+    },
+    { "action": "cast", "label": "Spend 3 Dawn charges", "actor": "cleric", "spell": 500143, "target": "enemy" },
+    { "action": "wait", "ms": 1500 },
+    { "action": "cast", "label": "Spend 3 Dawn charges", "actor": "cleric", "spell": 500143, "target": "enemy" },
+    { "action": "wait", "ms": 1500 },
+    { "action": "cast", "label": "Spend 3 Dawn charges", "actor": "cleric", "spell": 500143, "target": "enemy" },
+    { "action": "wait", "ms": 1500 },
+    {
+      "action": "assert", "label": "SETUP: 7 Dawn charges remain",
+      "actor": "cleric", "metric": "aura_charges", "spell": 807440, "equals": 7, "within_ms": 3000
+    },
+    { "action": "cancel_aura", "label": "Cancel Dawn early", "actor": "cleric", "spell": 807440 },
+    { "action": "wait", "ms": 1500 },
+    {
+      "action": "assert", "label": "CONTRACT: Dawn is gone",
+      "actor": "cleric", "metric": "aura", "spell": 807440, "equals": 0, "within_ms": 3000
+    },
+    {
+      "action": "assert", "label": "CONTRACT: 7 unspent charges return as Solar Power",
+      "actor": "cleric", "metric": "aura_stacks", "spell": 500149, "equals": 7, "within_ms": 3000
+    }
+  ]
+}
