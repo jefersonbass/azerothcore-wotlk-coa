@@ -31,7 +31,12 @@
       "action": "assert", "label": "The archers occupy no Life Force: 2 free of 2", "actor": "n",
       "metric": "aura_stacks", "spell": 525004, "equals": 2, "within_ms": 2000
     },
-    { "action": "wait", "label": "Most of the 15 s lifetime", "ms": 11000 },
+    { "action": "wait", "label": "Let the 30 s cooldown expire", "ms": 20000 },
+    { "action": "cast", "label": "Recast while 3 archers live", "actor": "n", "spell": 805040 },
+    {
+      "action": "assert", "label": "CONTRACT: recast replaces, still 3 (no stacking)",
+      "actor": "n", "metric": "owned_creature_count", "entry": 50076, "equals": 3, "within_ms": 3000
+    },
     {
       "action": "assert", "label": "The archers are still up 11 s later", "actor": "n",
       "metric": "owned_creature_count", "entry": 50076, "equals": 3

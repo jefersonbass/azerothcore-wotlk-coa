@@ -61,7 +61,11 @@ uint32 Followers(Player* player)
 }
 uint8 SummonCount(Player const* player, SpellInfo const* info, NecromancerSummon const& row)
 {
-    int32 count = int32(player->ApplyEffectModifiers(info, row.effect, float(row.count)));
+    SpellInfo const* source = info;
+    if (uint32 trigger = info->Effects[row.effect].TriggerSpell)
+        if (SpellInfo const* triggered = sSpellMgr->GetSpellInfo(trigger))
+            source = triggered;
+    int32 count = int32(player->ApplyEffectModifiers(source, row.effect, float(row.count)));
     return uint8(std::clamp(count, 1, 16));
 }
 uint32 FormationSlot(Player* player, Creature const* minion)
@@ -232,6 +236,10 @@ bool Summon(Player* player, uint32 spell, Unit* target, Position const& position
     bool created = false;
     for (auto const& row : NecromancerSummons)
         if (row.spell == spell)
+        {
+            for (Creature* live : Minions(player))
+                if (live->GetEntry() == row.creature && live->IsAlive())
+                    live->DespawnOrUnsummon();
             for (uint8 i = 0, count = SummonCount(player, info, row); i < count; ++i)
             {
                 if (cost && int32(Capacity(player)) - Used(player) < cost)
