@@ -1,0 +1,25 @@
+{
+  "schema": 1,
+  "name": "Sun Cleric: Injunction taunts and engages an out-of-combat enemy (#5235)",
+  "contract": "Injunction 800624 (Sun Cleric level-14 class grant, family 33) must force its target to attack the caster AND put both in combat. EFFECT_ATTACK_ME (114) on a threat-list creature calls ThreatManager::MatchUnitThreatToHighestThreat against an empty list and adds nothing, and the launch-phase SetInCombatWith gate requires HasInitialAggro or an engaged target. If the record carries EFFECT_THREAT (63) instead, EffectThreat calls ThreatManager::AddThreat, whose own body documents 'threat implies combat' via SetInCombatWith before applying. The discriminator is the enemy's combat flag after the cast, mirroring bloodmage-blood-howl.json.",
+  "timeout_ms": 90000,
+  "players": [
+    { "id": "cleric", "race": 1, "class": 27, "level": 80 }
+  ],
+  "creatures": [
+    { "id": "enemy", "owner": "cleric", "entry": 36, "level": 1, "health": 1000000, "distance": 8 }
+  ],
+  "steps": [
+    { "action": "wait", "label": "Let spawn AI and level scaling settle", "ms": 5000 },
+    { "action": "learn", "label": "Know Injunction before casting it", "actor": "cleric", "spell": 800624 },
+    {
+      "action": "assert", "label": "SETUP: enemy starts out of combat",
+      "actor": "enemy", "metric": "combat", "equals": 0, "within_ms": 3000
+    },
+    { "action": "cast", "label": "Taunt the out-of-combat enemy", "actor": "cleric", "spell": 800624, "target": "enemy" },
+    {
+      "action": "assert", "label": "CONTRACT: the taunted creature is in combat with the caster",
+      "actor": "enemy", "metric": "combat", "equals": 1, "within_ms": 3000
+    }
+  ]
+}
