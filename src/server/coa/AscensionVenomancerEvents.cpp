@@ -89,6 +89,7 @@ class aura_ascension_venomancer_event : public AuraScript
             case 705959: return damage && Named(info,803193);
             case 705980: return damage && Named(info,803570);
             case 705982: return damage && critical && Any(info,{803570,803199,803193});
+            case 705987: return damage && critical && !periodic;
             case 705993: return (damage || healing) && Chance(player,id);
             case 706001: return damage && Named(info,803199);
             case 706016: return healing && critical;
@@ -175,6 +176,7 @@ class aura_ascension_venomancer_event : public AuraScript
                     ExtendOwned(player,target,804977,std::abs(Amount(504795)));
                 break;
             case 504402: case 705982: Cast(player,target,705985); break;
+            case 705987: Cast(player,player,705986); break;
             case 560200: Cast(player,player,560201); break;
             case 560264: Cast(player,player,560265); break;
             case 560281: Cast(player,player,1257670); break;
