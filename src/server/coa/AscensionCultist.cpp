@@ -153,7 +153,10 @@ bool Resource(Player* player, uint32 id, int32 delta, bool force)
     after = Count(player, id);
     if (before < 60 && after >= 60 && player->HasAura(300307))
         Cast(player, player, 573285);
-    if (after == 100 && before < 100 && !player->HasSpell(92131) && !player->HasSpell(805120))
+    // Herald of the Depths (92131): reaching 100 Insanity no longer causes Total
+    // Madness; the aura check covers the granted passive as well as the entry (#4487).
+    if (after == 100 && before < 100 && !player->HasSpell(92131) && !player->HasSpell(805120) &&
+        !player->HasAura(92131))
         Cast(player, player, 803060);
     Refresh(player);
     return true;
