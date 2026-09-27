@@ -137,25 +137,6 @@ class spell_ascension_ranger_knockout : public SpellScript
     }
 };
 
-class aura_ascension_ranger_highwayman : public AuraScript
-{
-    PrepareAuraScript(aura_ascension_ranger_highwayman);
-
-    bool CheckProc(ProcEventInfo& event)
-    {
-        Unit* owner = GetTarget();
-        Unit* victim = event.GetActionTarget();
-        return owner->IsPlayer() && owner->getClass() == CLASS_RANGER && event.GetActor() == owner &&
-            victim && victim != owner && !owner->IsFriendlyTo(victim) &&
-            (event.GetHitMask() & PROC_HIT_CRITICAL) && !victim->HasInArc(float(M_PI), owner);
-    }
-
-    void Register() override
-    {
-        DoCheckProc += AuraCheckProcFn(aura_ascension_ranger_highwayman::CheckProc);
-    }
-};
-
 class aura_ascension_ranger_wingman : public AuraScript
 {
     PrepareAuraScript(aura_ascension_ranger_wingman);
