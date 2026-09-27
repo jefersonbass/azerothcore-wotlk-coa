@@ -510,6 +510,9 @@ a fingerprint of a vendor's stock, so one vendor can be held to another's items 
 and returns that player's class ID, or zero if absent. These inspect packets from socketless test sessions,
 not client packet delivery. Masks use native Who bits (`1 << classID`, `1 << raceID`), with class 32 in bit zero;
 omitted masks mean all. The custom-class scenario expects ordinary player RBAC, including faction separation.
+`player_class` reads the player's current class byte and `cached_class` the class the character cache holds,
+which is what name queries tell other clients. `at_login_flag` requires an `AtLoginFlags` value as `id` and
+reports whether the player carries it (for example `8` customize, `64` faction change, `128` race change).
 `health_pct` observes current health as a percentage of maximum health.
 `creature_type` reads the native type used by creature-type targeting and effects.
 `cast_speed_multiplier` observes the native cast-time multiplier; smaller values mean faster casts.
@@ -565,6 +568,8 @@ numeric `SpellCastResult` reasons. These diagnose a rejected submission; effect 
 `distance` requires `target` and measures the native two-dimensional distance, in yards, between the actor and
 that target. It reads position and nothing else, so displacement from a knockback, pull or teleport shows up as
 the difference between two observations; take a `snapshot` first and assert `relative_to` it. Height is excluded.
+`position_x`, `position_y` and `position_z` read the unit's native coordinates on its current map, so a
+teleport's landing can be held to its destination with `min`/`max` bounds; pair them with `map_id`.
 `spell_proc_count` requires `spell` and counts the procs of that spell's aura on the actor since the scenario
 started. What is counted is each spell the proc cast while the aura was named as its trigger, which is the one
 place the server records both the proc and its owner; an aura whose proc does not cast anything counts zero.
