@@ -66,7 +66,8 @@ enum ReaperSecondarySpells : uint32
     SPELL_GHOSTLY_WEAPON = 803997,
     SPELL_GHOSTLY_WEAPON_FROST = 804474,
     SPELL_LAMENTING = 705397,
-    SPELL_LAMENTING_HEAL = 807420
+    SPELL_LAMENTING_HEAL = 807420,
+    SPELL_SHADE = 573038
 };
 
 // Essence Harvest (707908): "Increases the additional Frost damage dealt by
@@ -391,6 +392,32 @@ class aura_ascension_crimson_thirst : public AuraScript
     }
 };
 
+class aura_ascension_reaper_shade : public AuraScript
+{
+    PrepareAuraScript(aura_ascension_reaper_shade);
+
+    bool Validate(SpellInfo const* info) override
+    {
+        SpellEffectInfo const& effect = info->Effects[EFFECT_0];
+        return info->Id == SPELL_SHADE &&
+            effect.Effect == SPELL_EFFECT_APPLY_AURA && effect.ApplyAuraName == SPELL_AURA_TRANSFORM &&
+            effect.TargetA.GetTarget() == TARGET_UNIT_CASTER;
+    }
+
+    void RemoveImpairment(AuraEffect const*, AuraEffectHandleModes)
+    {
+        Unit* target = GetTarget();
+        if (target)
+            target->RemoveMovementImpairingAuras(true);
+    }
+
+    void Register() override
+    {
+        AfterEffectApply += AuraEffectApplyFn(aura_ascension_reaper_shade::RemoveImpairment,
+            EFFECT_0, SPELL_AURA_TRANSFORM, AURA_EFFECT_HANDLE_REAL);
+    }
+};
+
 class aura_ascension_ghostly_weapon : public AuraScript
 {
     PrepareAuraScript(aura_ascension_ghostly_weapon);
@@ -527,5 +554,6 @@ void AddSC_AscensionReaperSecondary()
     new soulforged_weaponry_melee();
     RegisterSpellScript(aura_ascension_gravesite);
     RegisterSpellScript(aura_ascension_crimson_thirst);
+    RegisterSpellScript(aura_ascension_reaper_shade);
     RegisterSpellScript(aura_ascension_ghostly_weapon);
 }

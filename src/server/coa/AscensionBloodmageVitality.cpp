@@ -15,10 +15,12 @@ namespace
 {
 using namespace AscensionBloodmage;
 constexpr uint32 VitalityCost = 10;
+// keep both
 constexpr uint32 RagingHunger = 681336;
 constexpr uint32 OrganOrbs = 807490;
 constexpr uint32 SPELL_BLOOD_CRAVING_PAYOUT = 805985;
 constexpr uint32 SPELL_FORBIDDEN_POWER_MIRROR = 500447;
+constexpr uint32 Hemopulse = 524906;
 
 bool IsBloodmage(Player const* player)
 {
@@ -122,21 +124,22 @@ public:
     {
         if (!caster || !caster->IsPlayer() || caster->getClass() != CLASS_SON_OF_ARUGAL)
             return;
-        if (info->Id == VitalityHeal && info->SpellFamilyName == 26 && index == EFFECT_0 &&
+        if (info->SpellFamilyName == 26 && index == EFFECT_0 &&
             info->Effects[EFFECT_0].Effect == SPELL_EFFECT_HEAL)
         {
-            double amount = double(value) + caster->GetStat(STAT_SPIRIT) * 0.5;
+            double bonus;
+            if (info->Id == VitalityHeal)
+                bonus = caster->GetStat(STAT_SPIRIT) * 0.5;
+            else if (info->Id == Hemopulse)
+                bonus = caster->GetStat(STAT_SPIRIT) * 0.45 + caster->GetStat(STAT_STAMINA) * 0.35;
+            else
+                return;
+            double amount = double(value) + bonus;
             if (std::isfinite(amount) && amount >= 0 &&
                 double(float(amount)) <= std::numeric_limits<int32>::max())
                 value = float(amount);
             return;
         }
-        // Issue 872: Visceral Magic adds 40% to the Armor contribution from
-        // items to Blood Shield. The talent's flat-mod (aura 107, op 3 =
-        // SPELLMOD_EFFECT1, mask 0x10000000) never applies natively: Blood
-        // Shield (504263) is family 26 with an empty spellmod mask, so the
-        // mod matches nothing. Scale the absorb's effect-0 base value here
-        // when the caster owns the talent.
         if (info->Id == 504263 && index == EFFECT_0 && caster->HasAura(707371))
         {
             double amount = double(value) * 1.4;
