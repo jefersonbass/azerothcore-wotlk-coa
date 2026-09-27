@@ -54,6 +54,7 @@
 #include "AscensionCoATalentData.h"
 #include "AscensionCustomClassData.h"
 #include "AscensionSpellProgressionData.h"
+#include "AscensionTalentReplacementData.h"
 #include "SpellbookCostData.h"
 #include "SpellbookOfferData.h"
 #include "SpellbookRankData.h"
@@ -323,12 +324,33 @@ namespace
                 for (uint32 spellId : entry.SpellIds)
                     add(spellId, entry.RequiredLevel, 0);
 
+        // A rank the book sells for a chain a same-class talent replacement supersedes is the
+        // same ability under another name: the replacement teaches its own rank for the level,
+        // so the book must not sell the original's higher ranks beside it (#5279 Warbringer,
+        // #5276 Shieldgore, #5278 Skulltaker). The first rank stays: the character may never
+        // take the talent. Spec-gated so a replacement in one tree never hides another spec's
+        // chain.
+        auto hiddenByReplacement = [classId, spec](uint32 spellId)
+        {
+            if (sSpellMgr->GetFirstSpellInChain(spellId) == spellId)
+                return false;
+            for (auto const& replacement : AscensionCompatData::TalentReplacements)
+            {
+                if (replacement.ClassId != classId || (spec && replacement.SpecId != spec))
+                    continue;
+                for (uint32 rank : {replacement.OriginalSpellId, replacement.ParentSpellId})
+                    if (rank && sSpellMgr->GetFirstSpellInChain(rank) == sSpellMgr->GetFirstSpellInChain(spellId))
+                        return true;
+            }
+            return false;
+        };
+
         // Services the original trainer window sold but this realm's generated class data
         // never resolved to a level. Without them the window is missing whole rank chains for
         // some classes: Stormbringer's Torrential Wrath and Brine, the Guardian Ballads,
         // Pyromancer's Echo of Nozdormu, the Ranger's Bushcraft kit. See SpellbookOfferData.h.
         for (SpellbookOfferData::Offer const &offer : SpellbookOfferData::Offers)
-            if (offer.ClassId == classId)
+            if (offer.ClassId == classId && !hiddenByReplacement(offer.SpellId))
                 add(offer.SpellId, offer.RequiredLevel,
                     rankBelow(offer.FirstSpellId, offer.RequiredLevel, offer.SpellId));
 
