@@ -16,6 +16,12 @@
 namespace
 {
 using namespace AscensionVenomancer;
+enum VenomancerWithering : uint32
+{
+    SPELL_WITHERING_VENOM = 800886,
+    SPELL_WITHERING_STACK_BASE = 707084,
+    SPELL_WITHERING_STACKS = 15,
+};
 bool Select(uint32 id, SpellInfo const* info)
 {
     switch (id)
@@ -91,6 +97,8 @@ public:
         if (info->Id == 803525 && player->IsInCombat())
             result = SPELL_FAILED_AFFECTING_COMBAT;
         if (info->Id == 804968 && !player->HasAura(Spider) && !player->HasAura(Beetle))
+            result = SPELL_FAILED_ONLY_SHAPESHIFT;
+        if (info->Id == SPELL_WITHERING_VENOM && !player->HasAura(Spider))
             result = SPELL_FAILED_ONLY_SHAPESHIFT;
     }
     void OnSpellBeforeEffects(Spell* spell, Unit* caster, SpellInfo const* info) override
@@ -336,6 +344,17 @@ class spell_ascension_venomancer_ability : public SpellScript
         }
         if (id == 805102)
             Expose(player,15,true);
+        if (id == SPELL_WITHERING_VENOM && target && target != player)
+        {
+            if (Aura* toxin = target->GetAura(802840,player->GetGUID()))
+            {
+                uint32 taken = std::min<uint32>(toxin->GetStackAmount(),1);
+                toxin->ModStackAmount(-int32(taken));
+                if (!toxin->GetStackAmount())
+                    target->RemoveAurasDueToSpell(802840,player->GetGUID());
+            }
+            Cast(player,target,SPELL_WITHERING_STACK_BASE);
+        }
         if (id == 800892)
         {
             Cast(player,player,800960);
