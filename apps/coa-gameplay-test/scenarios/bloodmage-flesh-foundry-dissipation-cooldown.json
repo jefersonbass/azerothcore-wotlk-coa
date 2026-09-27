@@ -1,0 +1,33 @@
+{
+  "schema": 1,
+  "name": "Bloodmage #604/#608: Flesh Foundry and Dissipation shorten Fleshcraft cooldown",
+  "contract": "Flesh Foundry (806049-batch talent Fleshcraft empowerment) trims Fleshcraft (801952) cooldown by 4s per crit via proc aura 806345; Dissipation (680730) starts the cooldown 60s shorter. Verified through cooldown_ms after casts with/without the passives.",
+  "timeout_ms": 90000,
+  "players": [
+    { "id": "bloodmage", "race": 1, "class": 20, "level": 80 }
+  ],
+  "creatures": [
+    { "id": "target", "owner": "bloodmage", "entry": 36, "level": 80, "health": 1000000, "distance": 3 }
+  ],
+  "steps": [
+    { "action": "wait", "ms": 5000 },
+    { "action": "assert", "actor": "bloodmage", "metric": "aura", "spell": 680730, "equals": 0 },
+    { "action": "cast", "actor": "bloodmage", "spell": 801952, "target": "bloodmage" },
+    { "action": "snapshot", "actor": "bloodmage", "metric": "cooldown_ms", "spell": 801952, "save_as": "cd_baseline" },
+    {
+      "action": "assert", "label": "Fleshcraft goes on cooldown without passives",
+      "actor": "bloodmage", "metric": "cooldown_ms", "spell": 801952, "min": 1000, "within_ms": 2000
+    },
+    { "action": "command", "actor": "bloodmage", "command": ".cooldown remove 801952" },
+    { "action": "set_aura", "actor": "bloodmage", "spell": 680730, "stacks": 1 },
+    { "action": "assert", "actor": "bloodmage", "metric": "aura", "spell": 680730, "equals": 1 },
+    { "action": "snapshot", "actor": "bloodmage", "metric": "cooldown_ms", "spell": 801952, "save_as": "cd_dissipation" },
+    { "action": "cast", "actor": "bloodmage", "spell": 801952, "target": "bloodmage" },
+    {
+      "action": "assert", "label": "Dissipation starts the cooldown 60s shorter",
+      "actor": "bloodmage", "metric": "cooldown_ms", "spell": 801952, "relative_to": "cd_baseline", "max": -59000, "within_ms": 2000
+    },
+    { "action": "command", "actor": "bloodmage", "command": ".cooldown remove 801952" },
+    { "action": "set_aura", "actor": "bloodmage", "spell": 680730, "stacks": 0 }
+  ]
+}

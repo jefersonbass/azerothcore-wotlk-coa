@@ -1,0 +1,98 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/ ..\FrameXML\UI.xsd">
+  <Script file="CoAReporter.lua"/>
+  <Script file="CoAReporterUI.lua"/>
+  <Frame name="CoAReporterFrame" toplevel="true" movable="true" enableMouse="true" hidden="true" parent="UIParent">
+    <Size><AbsDimension x="460" y="540"/></Size>
+    <Anchors><Anchor point="CENTER"/></Anchors>
+    <Backdrop bgFile="Interface\DialogFrame\UI-DialogBox-Background" edgeFile="Interface\DialogFrame\UI-DialogBox-Border" tile="true">
+      <EdgeSize><AbsValue val="32"/></EdgeSize>
+      <TileSize><AbsValue val="32"/></TileSize>
+      <BackgroundInsets><AbsInset left="11" right="12" top="12" bottom="11"/></BackgroundInsets>
+    </Backdrop>
+    <Layers>
+      <Layer level="ARTWORK">
+        <FontString name="$parentTitle" inherits="GameFontNormalLarge" text="Report a bug (CoA)">
+          <Anchors><Anchor point="TOP" x="0" y="-16"/></Anchors>
+        </FontString>
+        <FontString name="$parentStatus" inherits="GameFontNormalSmall" text="">
+          <Anchors><Anchor point="BOTTOM" x="0" y="14"/></Anchors>
+        </FontString>
+        <FontString name="$parentHint" inherits="GameFontNormalSmall" text="" justifyH="LEFT">
+          <Size><AbsDimension x="420" y="28"/></Size>
+          <Anchors><Anchor point="TOP" relativeTo="$parentTitleBox" relativePoint="BOTTOM" y="-4"/></Anchors>
+          <Color r="0.8" g="0.8" b="0.7"/>
+        </FontString>
+      </Layer>
+    </Layers>
+    <Frames>
+      <Button name="$parentClose" inherits="UIPanelCloseButton">
+        <Anchors><Anchor point="TOPRIGHT" x="-6" y="-6"/></Anchors>
+      </Button>
+      <Frame name="$parentCategoryRow">
+        <Size><AbsDimension x="420" y="24"/></Size>
+        <Anchors><Anchor point="TOP" x="0" y="-44"/></Anchors>
+        <Layers><Layer level="ARTWORK">
+          <FontString inherits="GameFontNormal" text="Type:"><Anchors><Anchor point="LEFT"/></Anchors></FontString>
+        </Layer></Layers>
+        <Frames>
+          <Button name="$parentQuest" inherits="UIPanelButtonTemplate" text="Quest"><Size><AbsDimension x="62" y="22"/></Size><Anchors><Anchor point="LEFT" x="44" y="0"/></Anchors></Button>
+          <Button name="$parentNPC" inherits="UIPanelButtonTemplate" text="NPC"><Size><AbsDimension x="62" y="22"/></Size><Anchors><Anchor point="LEFT" relativeTo="$parentQuest" relativePoint="RIGHT" x="4" y="0"/></Anchors></Button>
+          <Button name="$parentItem" inherits="UIPanelButtonTemplate" text="Item"><Size><AbsDimension x="62" y="22"/></Size><Anchors><Anchor point="LEFT" relativeTo="$parentNPC" relativePoint="RIGHT" x="4" y="0"/></Anchors></Button>
+          <Button name="$parentSpell" inherits="UIPanelButtonTemplate" text="Spell"><Size><AbsDimension x="62" y="22"/></Size><Anchors><Anchor point="LEFT" relativeTo="$parentItem" relativePoint="RIGHT" x="4" y="0"/></Anchors></Button>
+          <Button name="$parentTalent" inherits="UIPanelButtonTemplate" text="Talent"><Size><AbsDimension x="62" y="22"/></Size><Anchors><Anchor point="LEFT" relativeTo="$parentSpell" relativePoint="RIGHT" x="4" y="0"/></Anchors></Button>
+          <Button name="$parentOther" inherits="UIPanelButtonTemplate" text="Other"><Size><AbsDimension x="62" y="22"/></Size><Anchors><Anchor point="LEFT" relativeTo="$parentTalent" relativePoint="RIGHT" x="4" y="0"/></Anchors></Button>
+        </Frames>
+      </Frame>
+      <Frame name="$parentPickerRow">
+        <Size><AbsDimension x="420" y="28"/></Size>
+        <Anchors><Anchor point="TOP" relativeTo="$parentCategoryRow" relativePoint="BOTTOM" y="-2"/></Anchors>
+        <Layers><Layer level="ARTWORK">
+          <FontString name="$parentPickerLabel" inherits="GameFontNormal" text="Pick:"><Anchors><Anchor point="LEFT"/></Anchors></FontString>
+        </Layer></Layers>
+        <Frames>
+          <Frame name="$parentPicker" inherits="UIDropDownMenuTemplate">
+            <Size><AbsDimension x="330" y="28"/></Size>
+            <Anchors><Anchor point="LEFT" x="40" y="0"/></Anchors>
+          </Frame>
+        </Frames>
+      </Frame>
+      <EditBox name="$parentTitleBox" inherits="InputBoxTemplate" autoFocus="false">
+        <Size><AbsDimension x="420" y="24"/></Size>
+        <Anchors><Anchor point="TOP" relativeTo="$parentPickerRow" relativePoint="BOTTOM" y="10"/></Anchors>
+        <Scripts><OnEnterPressed>this:ClearFocus()</OnEnterPressed></Scripts>
+      </EditBox>
+      <ScrollFrame name="$parentBehaviorScroll" inherits="UIPanelScrollFrameTemplate">
+        <Size><AbsDimension x="400" y="110"/></Size>
+        <Anchors><Anchor point="TOP" relativeTo="$parentHint" relativePoint="BOTTOM" y="-4"/></Anchors>
+        <ScrollChild>
+          <EditBox name="$parentBehavior" multiLine="true" autoFocus="false" maxLetters="4000">
+            <Size><AbsDimension x="380" y="110"/></Size>
+            <FontString inherits="ChatFontNormal"/>
+          </EditBox>
+        </ScrollChild>
+      </ScrollFrame>
+      <ScrollFrame name="$parentExpectedScroll" inherits="UIPanelScrollFrameTemplate">
+        <Size><AbsDimension x="400" y="90"/></Size>
+        <Anchors><Anchor point="TOP" relativeTo="$parentBehaviorScroll" relativePoint="BOTTOM" y="-8"/></Anchors>
+        <ScrollChild>
+          <EditBox name="$parentExpected" multiLine="true" autoFocus="false" maxLetters="4000">
+            <Size><AbsDimension x="380" y="90"/></Size>
+            <FontString inherits="ChatFontNormal"/>
+          </EditBox>
+        </ScrollChild>
+      </ScrollFrame>
+      <Button name="$parentSend" inherits="UIPanelButtonTemplate" text="Send report">
+        <Size><AbsDimension x="140" y="26"/></Size>
+        <Anchors><Anchor point="BOTTOM" x="-80" y="12"/></Anchors>
+      </Button>
+      <Button name="$parentCheck" inherits="UIPanelButtonTemplate" text="Check status">
+        <Size><AbsDimension x="140" y="26"/></Size>
+        <Anchors><Anchor point="BOTTOM" x="80" y="12"/></Anchors>
+      </Button>
+    </Frames>
+    <Scripts>
+      <OnLoad>CoAReporterUI_Init(self)</OnLoad>
+      <OnShow>CoAReporterUI_Refresh(self)</OnShow>
+    </Scripts>
+  </Frame>
+</Ui>

@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>CoA Issue Analyzer</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #12151c; --panel: #1a1f2b; --panel2: #202736; --text: #d8dee9;
+    --muted: #8a93a6; --accent: #4f8cff; --high: #e5534b; --mid: #d29922; --low: #57ab5a;
+    --open: #4f8cff; --closed: #7a5af8;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 14px/1.45 "Segoe UI", system-ui, sans-serif; }
+  header { padding: 18px 24px 10px; display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; }
+  header h1 { margin: 0; font-size: 20px; }
+  header .meta { color: var(--muted); font-size: 12px; }
+  header button { margin-left: auto; background: var(--panel2); color: var(--text);
+                  border: 1px solid #333c4f; border-radius: 6px; padding: 6px 12px; cursor: pointer; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+          gap: 10px; padding: 0 24px; }
+  .kpi { background: var(--panel); border-radius: 10px; padding: 12px 14px; }
+  .kpi .v { font-size: 26px; font-weight: 700; }
+  .kpi .l { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .05em; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding: 14px 24px; }
+  .panel { background: var(--panel); border-radius: 10px; padding: 14px; }
+  .panel h2 { margin: 0 0 10px; font-size: 14px; color: var(--muted);
+              text-transform: uppercase; letter-spacing: .05em; }
+  .panel canvas { max-height: 300px; }
+  .tall canvas { max-height: 380px; }
+  .filters { display: flex; gap: 8px; padding: 0 24px 10px; flex-wrap: wrap; align-items: center; }
+  .filters select, .filters input {
+      background: var(--panel2); color: var(--text); border: 1px solid #333c4f;
+      border-radius: 6px; padding: 6px 10px; font-size: 13px; }
+  .filters input { min-width: 260px; }
+  .chip { border-radius: 999px; padding: 3px 10px; font-size: 12px; cursor: pointer;
+          background: var(--panel2); border: 1px solid #333c4f; }
+  .chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  table { width: calc(100% - 48px); margin: 0 24px 30px; border-collapse: collapse; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid #262d3d; }
+  th { color: var(--muted); font-size: 12px; text-transform: uppercase; cursor: pointer; }
+  td a { color: var(--accent); text-decoration: none; }
+  td a:hover { text-decoration: underline; }
+  .badge { border-radius: 4px; padding: 2px 7px; font-size: 11px; font-weight: 600; }
+  .b-high { background: rgba(229,83,75,.18); color: var(--high); }
+  .b-mid  { background: rgba(210,153,34,.18); color: var(--mid); }
+  .b-low  { background: rgba(87,171,90,.18); color: var(--low); }
+  .b-open { background: rgba(79,140,255,.18); color: var(--open); }
+  .b-cat  { background: var(--panel2); color: var(--muted); }
+  .count { color: var(--muted); font-size: 12px; }
+  #more { display:block; margin: 0 auto 30px; }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>CoA Issue Analyzer</h1>
+  <span class="meta" id="generated"></span>
+  <button onclick="location.reload()">Reload data.json</button>
+</header>
+
+<div class="kpis" id="kpis"></div>
+
+<div class="grid">
+  <div class="panel"><h2>Issues by category</h2><canvas id="catChart"></canvas></div>
+  <div class="panel"><h2>Severity distribution</h2><canvas id="sevChart"></canvas></div>
+  <div class="panel tall"><h2>Top classes by issues</h2><canvas id="clsChart"></canvas></div>
+  <div class="panel"><h2>Gamebreaking by category</h2><canvas id="gbChart"></canvas></div>
+</div>
+
+<div class="filters">
+  <select id="fCat"><option value="">All categories</option></select>
+  <select id="fSev"><option value="">All severities</option><option value="high">High</option><option value="mid">Mid</option><option value="low">Low</option></select>
+  <select id="fCls"><option value="">All classes</option></select>
+  <input id="fText" placeholder="Search title...">
+  <button class="chip" id="fGb" onclick="toggleGb()">Gamebreaking only</button>
+  <span class="count" id="count"></span>
+</div>
+
+<table id="tbl">
+  <thead><tr><th>#</th><th>Title</th><th>Category</th><th>Severity</th><th>Classes</th></tr></thead>
+  <tbody></tbody>
+</table>
+<button id="more" class="chip" onclick="showMore()">Show 100 more</button>
+
+<script>
+const CAT_COLOR = {
+  'gamebreaking': '#e5534b', 'class-spell': '#4f8cff', 'class-talent': '#7a5af8',
+  'class-mechanic': '#3fb6c9', 'quest': '#d29922', 'npc-creature': '#f0883e',
+  'item-loot': '#57ab5a', 'instance-dungeon': '#986ee2', 'client-ui': '#8a93a6',
+  'bots-pets': '#c9679d', 'server-infra': '#6b7280', 'other': '#555f70'
+};
+const SEV_COLOR = { high: '#e5534b', mid: '#d29922', low: '#57ab5a' };
+
+let DATA = null;
+let OPEN = [];
+let filtered = [];
+let shown = 0;
+const PAGE = 100;
+let gbOnly = false;
+
+fetch('data.json').then(r => r.json()).then(d => { DATA = d; init(); });
+
+function init() {
+  OPEN = DATA.issues.filter(r => r.state === 'open');
+  document.getElementById('generated').textContent =
+    'generated from issues/*.md at ' + DATA.generated + ' — ' + OPEN.length + ' open of ' +
+    DATA.issues.length + ' synced';
+  fillKpis(); fillSelects(); drawCharts(); applyFilters();
+}
+
+function fillKpis() {
+  const R = OPEN;
+  const k = [
+    ['Open', R.length],
+    ['Gamebreaking', R.filter(r => r.gamebreaking).length],
+    ['High severity', R.filter(r => r.severity === 'high').length],
+    ['Mid severity', R.filter(r => r.severity === 'mid').length],
+    ['Low severity', R.filter(r => r.severity === 'low').length],
+  ];
+  document.getElementById('kpis').innerHTML = k.map(([l, v]) =>
+    `<div class="kpi"><div class="v">${v}</div><div class="l">${l}</div></div>`).join('');
+}
+
+function fillSelects() {
+  const cats = [...new Set(OPEN.map(r => r.category))].sort();
+  document.getElementById('fCat').innerHTML =
+    '<option value="">All categories</option>' + cats.map(c => `<option>${c}</option>`).join('');
+  const cls = {};
+  OPEN.forEach(r => r.classes.forEach(c => cls[c] = (cls[c] || 0) + 1));
+  document.getElementById('fCls').innerHTML = '<option value="">All classes</option>' +
+    Object.entries(cls).sort((a, b) => b[1] - a[1]).map(([c]) => `<option>${c}</option>`).join('');
+  ['fCat', 'fSev', 'fCls'].forEach(id =>
+    document.getElementById(id).addEventListener('change', applyFilters));
+  document.getElementById('fText').addEventListener('input', applyFilters);
+}
+
+function drawCharts() {
+  Chart.defaults.color = '#8a93a6';
+  Chart.defaults.borderColor = '#262d3d';
+  const R = OPEN;
+
+  // categories
+  const catCount = {};
+  R.forEach(r => catCount[r.category] = (catCount[r.category] || 0) + 1);
+  const catEntries = Object.entries(catCount).sort((a, b) => b[1] - a[1]);
+  charts('catChart', {
+    type: 'doughnut',
+    data: { labels: catEntries.map(e => e[0]),
+      datasets: [{ data: catEntries.map(e => e[1]),
+        backgroundColor: catEntries.map(e => CAT_COLOR[e[0]] || '#555f70') }] },
+    options: { plugins: { legend: { position: 'right' } },
+      onClick: (e, els) => { if (els[0]) { setCat(catEntries[els[0].index][0]); } } }
+  });
+
+  // severity per category (stacked)
+  const cats = catEntries.map(e => e[0]);
+  const sevBy = { high: {}, mid: {}, low: {} };
+  R.forEach(r => { sevBy[r.severity][r.category] = (sevBy[r.severity][r.category] || 0) + 1; });
+  charts('sevChart', {
+    type: 'bar',
+    data: { labels: cats,
+      datasets: ['high', 'mid', 'low'].map(s => ({
+        label: s, data: cats.map(c => sevBy[s][c] || 0), backgroundColor: SEV_COLOR[s] })) },
+    options: { scales: { x: { stacked: true }, y: { stacked: true } } }
+  });
+
+  // classes
+  const cls = {};
+  R.forEach(r => r.classes.forEach(c => cls[c] = (cls[c] || 0) + 1));
+  const clsTop = Object.entries(cls).sort((a, b) => b[1] - a[1]).slice(0, 20).reverse();
+  charts('clsChart', {
+    type: 'bar',
+    data: { labels: clsTop.map(e => e[0]),
+      datasets: [{ data: clsTop.map(e => e[1]), backgroundColor: '#4f8cff' }] },
+    options: { indexAxis: 'y', plugins: { legend: { display: false } } }
+  });
+
+  // gamebreaking per category
+  const gb = {};
+  R.filter(r => r.gamebreaking).forEach(r => gb[r.category] = (gb[r.category] || 0) + 1);
+  const gbE = Object.entries(gb).sort((a, b) => b[1] - a[1]);
+  charts('gbChart', {
+    type: 'bar',
+    data: { labels: gbE.map(e => e[0]),
+      datasets: [{ data: gbE.map(e => e[1]), backgroundColor: gbE.map(e => CAT_COLOR[e[0]]) }] },
+    options: { plugins: { legend: { display: false } } }
+  });
+}
+
+const _charts = {};
+function charts(id, cfg) { if (_charts[id]) _charts[id].destroy(); _charts[id] = new Chart(document.getElementById(id), cfg); }
+
+function setCat(c) { document.getElementById('fCat').value = c; applyFilters();
+  document.getElementById('tbl').scrollIntoView({ behavior: 'smooth' }); }
+
+function toggleGb() { gbOnly = !gbOnly;
+  document.getElementById('fGb').classList.toggle('on', gbOnly); applyFilters(); }
+
+function applyFilters() {
+  const ct = document.getElementById('fCat').value;
+  const sv = document.getElementById('fSev').value;
+  const cl = document.getElementById('fCls').value;
+  const tx = document.getElementById('fText').value.toLowerCase();
+  filtered = OPEN.filter(r =>
+    (!ct || r.category === ct) &&
+    (!sv || r.severity === sv) && (!cl || r.classes.includes(cl)) &&
+    (!gbOnly || r.gamebreaking) &&
+    (!tx || r.title.toLowerCase().includes(tx)));
+  filtered.sort((a, b) => b.n - a.n);
+  shown = 0;
+  document.querySelector('#tbl tbody').innerHTML = '';
+  showMore();
+}
+
+function showMore() {
+  const slice = filtered.slice(shown, shown + PAGE);
+  const tb = document.querySelector('#tbl tbody');
+  tb.insertAdjacentHTML('beforeend', slice.map(r => `<tr>
+    <td><a href="https://github.com/jealous-sound/azerothcore-wotlk-coa/issues/${r.n}" target="_blank">#${r.n}</a></td>
+    <td>${esc(r.title)}</td>
+    <td><span class="badge b-cat">${r.category}</span></td>
+    <td><span class="badge b-${r.severity}">${r.severity}</span></td>
+    <td>${r.classes.join(', ')}</td>
+  </tr>`).join(''));
+  shown += slice.length;
+  document.getElementById('count').textContent = `${shown} of ${filtered.length} shown`;
+  document.getElementById('more').style.display = shown < filtered.length ? 'block' : 'none';
+}
+
+function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+</script>
+</body>
+</html>

@@ -1,0 +1,30 @@
+{
+  "schema": 1,
+  "name": "Bloodmage #603 Sovereignty: Crimson Tide damage banks buff stacks",
+  "contract": "With Sovereignty (806049), each Crimson Tide (504129) damage tick adds a stack of the Sovereignty buff (504272); without it, no stacks.",
+  "timeout_ms": 90000,
+  "players": [
+    { "id": "bloodmage", "race": 1, "class": 20, "level": 80 }
+  ],
+  "creatures": [
+    { "id": "target", "owner": "bloodmage", "entry": 36, "level": 80, "health": 100000, "distance": 5 }
+  ],
+  "steps": [
+    { "action": "wait", "ms": 5000 },
+    { "action": "set_aura", "actor": "bloodmage", "spell": 806049, "stacks": 1 },
+    { "action": "assert", "actor": "bloodmage", "metric": "aura", "spell": 806049, "equals": 1 },
+    { "action": "assert", "actor": "bloodmage", "metric": "aura", "spell": 504272, "equals": 0 },
+    { "action": "cast", "actor": "bloodmage", "spell": 504129, "target": "target" },
+    {
+      "action": "assert", "label": "Crimson Tide damage banks Sovereignty stacks",
+      "actor": "bloodmage", "metric": "aura_stacks", "spell": 504272, "min": 1, "within_ms": 6000
+    },
+    { "action": "set_aura", "actor": "bloodmage", "spell": 806049, "stacks": 0 },
+    { "action": "assert", "actor": "bloodmage", "metric": "aura", "spell": 504272, "equals": 0 },
+    { "action": "cast", "actor": "bloodmage", "spell": 504129, "target": "target" },
+    {
+      "action": "assert", "label": "Without Sovereignty no stacks bank",
+      "actor": "bloodmage", "metric": "aura_stacks", "spell": 504272, "equals": 0, "within_ms": 6000
+    }
+  ]
+}

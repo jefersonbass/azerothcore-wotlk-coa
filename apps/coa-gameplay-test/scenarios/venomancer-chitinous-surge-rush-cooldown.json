@@ -1,0 +1,34 @@
+{
+  "schema": 1,
+  "name": "Venomancer #610 Chitinous Surge: Chitin Rush cooldown cut and damage boost",
+  "contract": "With Chitinous Surge (705973), Chitin Rush (803570) starts its cooldown shorter (ModifySpellCooldown by the talent amount) and hits harder (damage factor 1 + Amount(705973,1)/100); without it, native cooldown and damage.",
+  "timeout_ms": 90000,
+  "players": [
+    { "id": "venomancer", "race": 1, "class": 29, "level": 80 }
+  ],
+  "creatures": [
+    { "id": "target", "owner": "venomancer", "entry": 36, "level": 80, "health": 1000000, "distance": 3 }
+  ],
+  "steps": [
+    { "action": "wait", "ms": 5000 },
+    { "action": "learn", "actor": "venomancer", "spell": 803570 },
+    { "action": "learn", "actor": "venomancer", "spell": 705973 },
+    { "action": "assert", "actor": "venomancer", "metric": "aura", "spell": 705973, "equals": 1 },
+    { "action": "cast", "actor": "venomancer", "spell": 803570, "target": "target" },
+    { "action": "snapshot", "actor": "venomancer", "metric": "cooldown_ms", "spell": 803570, "save_as": "cd_surge" },
+    {
+      "action": "assert", "label": "Chitin Rush goes on cooldown with Surge",
+      "actor": "venomancer", "metric": "cooldown_ms", "spell": 803570, "min": 1000, "within_ms": 2000
+    },
+    { "action": "unlearn", "actor": "venomancer", "spell": 705973 },
+    { "action": "assert", "actor": "venomancer", "metric": "aura", "spell": 705973, "equals": 0 },
+    { "action": "command", "actor": "venomancer", "command": ".cooldown remove 803570" },
+    { "action": "cast", "actor": "venomancer", "spell": 803570, "target": "target" },
+    { "action": "snapshot", "actor": "venomancer", "metric": "cooldown_ms", "spell": 803570, "save_as": "cd_plain" },
+    {
+      "action": "assert", "label": "Without Surge the cooldown is longer",
+      "actor": "venomancer", "metric": "cooldown_ms", "spell": 803570,
+      "relative_to": "cd_surge", "min": 1
+    }
+  ]
+}

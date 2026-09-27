@@ -1,0 +1,36 @@
+{
+  "schema": 1,
+  "name": "Venomancer #575 Master of Venoms: extends Venom durations",
+  "contract": "With Master of Venoms (504326), each Venom applied by the caster (Venom list: 800841, 803183, 804980, 800912) gets its duration extended by the talent's percentage; without it the duration is the native one.",
+  "timeout_ms": 90000,
+  "players": [
+    { "id": "venomancer", "race": 1, "class": 29, "level": 80 }
+  ],
+  "creatures": [
+    { "id": "target", "owner": "venomancer", "entry": 36, "level": 80, "health": 1000000, "distance": 15 }
+  ],
+  "steps": [
+    { "action": "wait", "ms": 5000 },
+    { "action": "learn", "actor": "venomancer", "spell": 803183 },
+    { "action": "learn", "actor": "venomancer", "spell": 504326 },
+    { "action": "assert", "actor": "venomancer", "metric": "aura", "spell": 504326, "equals": 1 },
+    { "action": "cast", "actor": "venomancer", "spell": 803183, "target": "target" },
+    {
+      "action": "assert", "label": "Venom applied",
+      "actor": "target", "metric": "aura", "spell": 803183, "min": 1, "within_ms": 4000
+    },
+    { "action": "snapshot", "actor": "target", "metric": "aura_duration_ms", "spell": 803183, "save_as": "venom_ms_master" },
+    { "action": "unlearn", "actor": "venomancer", "spell": 504326 },
+    { "action": "assert", "actor": "venomancer", "metric": "aura", "spell": 504326, "equals": 0 },
+    { "action": "command", "actor": "venomancer", "command": ".aura remove 803183" },
+    { "action": "assert", "actor": "target", "metric": "aura", "spell": 803183, "equals": 0, "within_ms": 3000 },
+    { "action": "cast", "actor": "venomancer", "spell": 803183, "target": "target" },
+    { "action": "assert", "actor": "target", "metric": "aura", "spell": 803183, "min": 1, "within_ms": 4000 },
+    { "action": "snapshot", "actor": "target", "metric": "aura_duration_ms", "spell": 803183, "save_as": "venom_ms_plain" },
+    {
+      "action": "assert", "label": "Master of Venoms version lasts longer",
+      "actor": "target", "metric": "aura_duration_ms", "spell": 803183,
+      "relative_to": "venom_ms_plain", "min": 1
+    }
+  ]
+}

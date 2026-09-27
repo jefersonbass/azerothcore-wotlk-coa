@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"ls -la \\\"C:\\\\Users\\\\fears\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\D--Projetos\\\\bea3bb31-702d-418d-9b06-f82a8105f7a7\\\\tasks\\\\\\\" 2>/dev/null; echo \\\"=== buildx/docker processes ===\\\"; docker ps --for...",
+  "error": "Exit code 1",
+  "timestamp": "2026-09-16T21:16:56.173Z",
+  "retry_count": 1
+}

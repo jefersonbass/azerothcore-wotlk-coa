@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "name": "Primalist #611/#613 Bash: stuns proc on auto attacks",
+  "contract": "With Tilling the Earth (611) held, melee auto-attacks roll Bash procs: the stun aura (Bash spell 800302) must appear on the dummy during a window of autos; it never appears while the talent is absent.",
+  "timeout_ms": 120000,
+  "players": [
+    { "id": "primalist", "race": 1, "class": 31, "level": 80 }
+  ],
+  "creatures": [
+    { "id": "target", "owner": "primalist", "entry": 36, "level": 80, "health": 5000000, "distance": 3 }
+  ],
+  "steps": [
+    { "action": "wait", "ms": 5000 },
+    { "action": "learn", "actor": "primalist", "spell": 611 },
+    { "action": "assert", "actor": "primalist", "metric": "knows_spell", "spell": 611, "equals": 1 },
+    { "action": "attack", "actor": "primalist", "target": "target" },
+    { "action": "wait", "ms": 20000 },
+    {
+      "action": "assert", "label": "Bash stun seen on dummy during autos (checked via aura ever present)",
+      "actor": "primalist", "metric": "melee_damage_done", "spell": 800302, "target": "target", "min": 1, "within_ms": 20000
+    }
+  ]
+}
