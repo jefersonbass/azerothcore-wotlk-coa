@@ -1,0 +1,36 @@
+{
+  "schema": 1,
+  "name": "One Pyromancer Seal of Alar per caster on each recipient (#4883)",
+  "contract": "Seal of Al'ar ranks 1-5 share the chain 803649 -> 803729 -> 807704 -> 807770 -> 808012 (spell_ranks, rev_20260903_01) and Greater Seal of Al'ar 808060 (same +33 mana regen as rank 5, raid version) is unranked; no spell_group listed them, so Aura::CanStackWith let the lesser and greater seals stay on one recipient (#4883). They share spell group 1144 with stack rule 2 (SPELL_GROUP_STACK_RULE_EXCLUSIVE_FROM_SAME_CASTER): the newest replaces the caster's previous one, while a second Pyromancer's still coexists - the same shape as the Starcaller Celestial Mind (1142) group. Only the first rank is listed because SpellMgr::LoadSpellGroups drops any other rank and chains resolve through GetFirstSpellInChain.",
+  "timeout_ms": 60000,
+  "players": [
+    { "id": "py", "race": 1, "class": 24, "level": 60 },
+    { "id": "py2", "race": 1, "class": 24, "level": 60 }
+  ],
+  "steps": [
+    { "action": "wait", "label": "Let level scaling settle", "ms": 5000 },
+    { "action": "learn", "actor": "py", "spell": 803649 },
+    { "action": "learn", "actor": "py", "spell": 808060 },
+    { "action": "learn", "actor": "py2", "spell": 803649 },
+    { "action": "cast", "label": "Seal of Al'ar on the ally", "actor": "py", "spell": 803649, "target": "py2" },
+    {
+      "action": "assert", "label": "Seal of Al'ar is applied",
+      "actor": "py2", "metric": "aura", "spell": 803649, "caster": "py", "equals": 1, "within_ms": 3000
+    },
+    { "action": "wait", "label": "Let the global cooldown pass", "ms": 2500 },
+    { "action": "cast", "label": "Greater Seal of Al'ar from the same caster", "actor": "py", "spell": 808060, "target": "py2" },
+    {
+      "action": "assert", "label": "Greater Seal of Al'ar is applied",
+      "actor": "py2", "metric": "aura", "spell": 808060, "caster": "py", "equals": 1, "within_ms": 3000
+    },
+    {
+      "action": "assert", "label": "It replaced the same caster's Seal of Al'ar",
+      "actor": "py2", "metric": "aura", "spell": 803649, "caster": "py", "equals": 0
+    },
+    { "action": "cast", "label": "A second Pyromancer gives Seal of Al'ar", "actor": "py2", "spell": 803649, "target": "py" },
+    {
+      "action": "assert", "label": "The other caster's Seal of Al'ar coexists (rule 2, not rule 1)",
+      "actor": "py", "metric": "aura", "spell": 803649, "caster": "py2", "equals": 1, "within_ms": 3000
+    }
+  ]
+}
