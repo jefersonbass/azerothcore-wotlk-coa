@@ -224,13 +224,10 @@ class spell_ascension_runemaster_genesis_damage : public SpellScript
 
     void TriggerWeaponEngraving()
     {
-        Unit* caster = GetCaster();
         Unit* target = GetHitUnit();
         if (!target || GetHitDamage() <= 0)
             return;
-        for (WeaponEngraving const& engraving : WeaponEngravings)
-            if (target->IsAlive() && caster->HasAura(engraving.Aura, caster->GetGUID()))
-                caster->CastSpell(target, engraving.Effect, TRIGGERED_FULL_MASK);
+        TriggerRunemasterWeaponEngravings(GetCaster(), target);
     }
 
     void Register() override
@@ -257,6 +254,13 @@ void ApplyGenesisContracts(SpellInfo* info)
         info->Effects[EFFECT_0].BonusMultiplier = 0.0f;
     }
 }
+}
+
+void TriggerRunemasterWeaponEngravings(Unit* caster, Unit* target)
+{
+    for (WeaponEngraving const& engraving : WeaponEngravings)
+        if (target->IsAlive() && caster->HasAura(engraving.Aura, caster->GetGUID()))
+            caster->CastSpell(target, engraving.Effect, TRIGGERED_FULL_MASK);
 }
 
 void ApplyAscensionRunemasterBrandContracts(SpellInfo* info)
