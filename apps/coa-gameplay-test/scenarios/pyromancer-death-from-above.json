@@ -1,0 +1,33 @@
+{
+  "schema": 1,
+  "name": "Pyromancer Death From Above needs Draconic Aspect and roots then soars (#1133)",
+  "contract": "Death From Above 520402 reads 'Requires Draconic Aspect | Root enemies in a line for 3.50 sec and then soar forward'. No script or SQL touched 520402/520404/520385 (grep over src/server and data/sql). The fix gates 520402 on Draconic Aspect 802117 (granted while the 92128 passive is held, AscensionPyromancer.cpp Refresh) via spell_ascension_pyromancer_ability Check, and casts the authored children on cast: 520385 (Mod Root, 3.5 sec) on the target and 520404 (Soaring, 10 sec: Dummy 40 + Periodic Trigger tick 0.5s + tick 1s into 520403 area damage) on the caster. Native paths deliver the rest: effect 138 LEAP_BACK jumps (SpellEffects.cpp EffectLeapBack) and effect 64 TRIGGER_SPELL fires the 40-yd trigger (EffectTriggerSpell).",
+  "timeout_ms": 90000,
+  "players": [
+    { "id": "pyro", "race": 1, "class": 24, "level": 60 },
+    { "id": "ally", "race": 1, "class": 24, "level": 60 }
+  ],
+  "creatures": [
+    { "id": "dummy", "owner": "pyro", "entry": 36, "level": 80, "health": 1000000, "distance": 3 }
+  ],
+  "steps": [
+    { "action": "wait", "label": "Let level scaling settle", "ms": 5000 },
+    { "action": "learn", "actor": "pyro", "spell": 520402 },
+    { "action": "learn", "actor": "pyro", "spell": 92128 },
+    { "action": "learn", "actor": "pyro", "spell": 802117 },
+    { "action": "cast", "label": "Gain Draconic Aspect", "actor": "pyro", "spell": 802117 },
+    {
+      "action": "assert", "label": "Draconic Aspect is up",
+      "actor": "pyro", "metric": "aura", "spell": 802117, "equals": 1, "within_ms": 3000
+    },
+    { "action": "cast", "label": "Death From Above under the Aspect", "actor": "pyro", "spell": 520402, "target": "dummy" },
+    {
+      "action": "assert", "label": "The target is rooted (520385)",
+      "actor": "dummy", "metric": "aura", "spell": 520385, "caster": "pyro", "equals": 1, "within_ms": 3000
+    },
+    {
+      "action": "assert", "label": "The caster is soaring (520404)",
+      "actor": "pyro", "metric": "aura", "spell": 520404, "equals": 1, "within_ms": 3000
+    }
+  ]
+}

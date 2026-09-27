@@ -138,6 +138,13 @@ class pyromancer_spells : public AllSpellScript
                 aura->SetScriptValue(id, spell->GetScriptValue(id));
         if (id == 800103 && player->HasAura(706894))
             Cast(player, player, 706895);
+        if (id == 520402 && !spell->IsTriggered())
+        {
+            Unit* target = spell->m_targets.GetUnitTarget();
+            if (target && target != player)
+                Cast(player, target, 520385);
+            Cast(player, player, 520404);
+        }
         if (spell->IsTriggered())
             return;
         // Flames of Fate (707325): Aspect's Blessing "cooldown is doubled, and
@@ -419,6 +426,10 @@ class spell_ascension_pyromancer_ability : public SpellScript
         uint32 id = GetSpellInfo()->Id;
         if ((id == 706854 || id == 800816) && !CanPhoenixCommand(Owner(GetCaster()), GetExplTargetUnit(), id == 706854))
             return SPELL_FAILED_NO_PET;
+        if (id == 520402)
+            if (Player* player = Owner(GetCaster()))
+                if (!player->HasAura(802117))
+                    return SPELL_FAILED_CASTER_AURASTATE;
         return SPELL_CAST_OK;
     }
     void Effect(SpellEffIndex index)
