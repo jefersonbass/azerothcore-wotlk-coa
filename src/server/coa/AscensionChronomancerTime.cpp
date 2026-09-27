@@ -264,8 +264,13 @@ public:
             return;
         // Paradox (680946): Melt Reality grants buff 680947 for the next Unmake or
         // Reverse Wound within 6 sec; the cast consumes it, not the window (#5027).
+        // Endless Sands (806728): the next Reverse Wound takes its stacks; the
+        // cast consumes them all, not the 15 sec window (#5031).
         if (!spell->IsTriggered() && (IsRank(info->Id, Unmake) || IsRank(info->Id, ReverseWound)))
+        {
             player->RemoveAurasDueToSpell(ParadoxBuff, player->GetGUID());
+            player->RemoveAurasDueToSpell(EndlessSands, player->GetGUID());
+        }
         for (uint32 aeon : {RenewalAeon, ResilienceAeon, ProtectionAeon, OblivionAeon})
             if (info->Id == aeon)
                 for (uint32 other : {RenewalAeon, ResilienceAeon, ProtectionAeon, OblivionAeon})
