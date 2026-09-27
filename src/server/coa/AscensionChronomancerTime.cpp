@@ -52,8 +52,8 @@ enum TimeSpells : uint32
     TimeOutRankThree = 803897,
     ContinuumRestoration = 801271,
     Unmake = 804418,
-    BuyTime = 520185,
-    BuyTimeStasis = 520186,
+    ParadoxBuff = 680947,
+    ReverseWound = 801303,
     InfiniteKeeper = 806312,
     InfiniteKeeperVortex = 806313,
     TimerendRoot = 707430,
@@ -262,6 +262,10 @@ public:
         Player* player = Chronomancer(caster);
         if (!player)
             return;
+        // Paradox (680946): Melt Reality grants buff 680947 for the next Unmake or
+        // Reverse Wound within 6 sec; the cast consumes it, not the window (#5027).
+        if (!spell->IsTriggered() && (IsRank(info->Id, Unmake) || IsRank(info->Id, ReverseWound)))
+            player->RemoveAurasDueToSpell(ParadoxBuff, player->GetGUID());
         for (uint32 aeon : {RenewalAeon, ResilienceAeon, ProtectionAeon, OblivionAeon})
             if (info->Id == aeon)
                 for (uint32 other : {RenewalAeon, ResilienceAeon, ProtectionAeon, OblivionAeon})
