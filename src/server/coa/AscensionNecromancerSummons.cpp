@@ -170,6 +170,8 @@ void Scale(Player* player, Creature* minion, uint8 cost, float& inheritedSpeed)
     float manaFraction =
         minion->GetMaxPower(POWER_MANA) ? float(minion->GetPower(POWER_MANA)) / minion->GetMaxPower(POWER_MANA) : 1.0f;
     float stamina = (player->GetLevel() * 3.0f + player->GetStat(STAT_STAMINA) * 0.3f) * weight;
+    if (player->HasAura(807494))
+        stamina *= 1.1f;
     float intellect = player->GetStat(STAT_INTELLECT);
     float spellPower = float(std::max(player->SpellBaseDamageBonusDone(SPELL_SCHOOL_MASK_FROST),
                                       player->SpellBaseDamageBonusDone(SPELL_SCHOOL_MASK_SHADOW)));

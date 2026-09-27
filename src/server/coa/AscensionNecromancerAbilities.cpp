@@ -341,7 +341,7 @@ class necromancer_casts : public AllSpellScript
             }
         }
         if ((Command(info) || (info->HasEffect(SPELL_EFFECT_SUMMON) && !Raised(info))) && player->HasAura(805674))
-            BuffArmy(player, 805786, true);
+            Cast(player, player, 805786);
         if (id == 805029)
         {
             if (player->HasAura(805427))

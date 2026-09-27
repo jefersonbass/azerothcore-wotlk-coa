@@ -121,7 +121,7 @@ class aura_ascension_necromancer_event : public AuraScript
                     Summon(player, 302586, target, target->GetPosition());
                 if (info && info->Id == 500237 && Chance(player, 561353))
                     Reduce(player, 533236, INT32_MAX);
-                if (info && Named(info, 500968) && (Chance(player, 705747) || Chance(player, 707880)))
+                if (info && Named(info, 500968) && (Chance(player, 705747) || Chance(player, 705748) || Chance(player, 707880)))
                     Summon(player, 525379, target, target->GetPosition());
                 if (critical && player->HasAura(705752))
                     Cast(player, player, 706424);
@@ -223,8 +223,14 @@ class necromancer_defense : public UnitScript
     void OnDamage(Unit* attacker, Unit* victim, uint32& damage) override
     {
         Player* player = Owner(victim);
-        if (!player || victim != player)
+        if (!player)
             return;
+        if (victim != player)
+        {
+            if (IsMinion(player, victim) && (victim->HasAura(503729, player->GetGUID()) || victim->HasAura(704695, player->GetGUID())))
+                damage -= CalculatePct(damage, 40);
+            return;
+        }
         if (player->HasAura(300580))
             damage -= CalculatePct(damage, std::min(10u, Count(player)));
         if (player->HasAura(560595) && player->HasAura(500983))

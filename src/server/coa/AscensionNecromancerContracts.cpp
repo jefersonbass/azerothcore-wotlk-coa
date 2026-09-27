@@ -319,6 +319,26 @@ void ApplyContracts(SpellInfo* info)
         info->Attributes |= SPELL_ATTR0_PASSIVE;
         info->Effects[EFFECT_0].SpellClassMask = flag96(0, 0, 0x4000000);
     }
+    if (id == 704694 || id == 704728)
+    {
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+        info->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_ADD_PCT_MODIFIER;
+        info->Effects[EFFECT_0].MiscValue = SPELLMOD_CASTING_TIME;
+        info->Effects[EFFECT_0].SpellClassMask = flag96(0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF);
+    }
+    if (id == 503900 || id == 560594)
+    {
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+        info->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_MOD_DAMAGE_DONE;
+        info->Effects[EFFECT_0].MiscValue = SPELL_SCHOOL_MASK_ALL;
+        info->Effects[EFFECT_0].SpellClassMask = flag96(0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF);
+    }
+    if (id == 92123 || id == 704699 || id == 680283 || id == 680284)
+    {
+        info->Attributes |= SPELL_ATTR0_PASSIVE;
+        info->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_ADD_FLAT_MODIFIER;
+        info->Effects[EFFECT_0].MiscValue = SPELLMOD_MAX_AURA_STACKS;
+    }
     if (id == 704528)
     {
         // Issue 1004: Swarmer ships without the passive flag, so the
