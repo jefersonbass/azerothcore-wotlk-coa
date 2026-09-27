@@ -352,6 +352,8 @@ class pyromancer_scaling : public UnitScript
             if (row.spell == info->Id && row.effect == index)
             {
                 float sp = row.sp;
+                if (Named(info, 800790) && player->HasAura(680959))
+                    sp *= 1.2f;
                 if (Named(info, 803950))
                 {
                     float percent = sp * 100;

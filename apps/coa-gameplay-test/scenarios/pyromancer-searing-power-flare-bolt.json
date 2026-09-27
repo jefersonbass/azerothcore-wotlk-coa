@@ -1,0 +1,81 @@
+{
+  "schema": 1,
+  "name": "Searing Power raises Flare Bolt's spell power scaling by 20% (#1370)",
+  "contract": "#1370: Searing Power 680959 reads 'Increases the spell power scaling of Flare Bolt by 20%.' Its exiles effect is Add % Modifier 20; the Flare Bolt chain 800790 -> 502011-502019 carries the module coefficient 0.571 (PyromancerCoefficients) applied in pyromancer_scaling ModifySpellEffectBaseValue, which the DBC modifier never touches. The fix multiplies that coefficient by 1.2 while the caster holds 680959, so with the talent the spell power term is 0.571 x 1.2 = 0.6852 of spell power. spell_effect_value returns SpellEffectInfo::CalcValue for the caster including the module hook. Drink Fel Infusion 44505 supplies the spell power. The term is isolated with relative_to and ratio_to, so the assertion holds at any spell power the fixture grants.",
+  "timeout_ms": 60000,
+  "players": [
+    {
+      "id": "caster",
+      "race": 1,
+      "class": 24,
+      "level": 80
+    }
+  ],
+  "steps": [
+    {
+      "action": "wait",
+      "label": "Let level scaling settle",
+      "ms": 5000
+    },
+    {
+      "action": "snapshot",
+      "label": "Flare Bolt effect value with no spell power",
+      "actor": "caster",
+      "metric": "spell_effect_value",
+      "spell": 800790,
+      "effect": 0,
+      "save_as": "v0"
+    },
+    {
+      "action": "set_aura",
+      "actor": "caster",
+      "spell": 44505,
+      "stacks": 1
+    },
+    {
+      "action": "assert",
+      "label": "The fixture grants fire spell power",
+      "actor": "caster",
+      "metric": "spell_power",
+      "school": 2,
+      "min": 500
+    },
+    {
+      "action": "snapshot",
+      "label": "Spell power added to Flare Bolt's value (0.571 coefficient) before Searing Power",
+      "actor": "caster",
+      "metric": "spell_effect_value",
+      "spell": 800790,
+      "effect": 0,
+      "relative_to": "v0",
+      "save_as": "d1"
+    },
+    {
+      "action": "assert",
+      "label": "Flare Bolt's spell power term is present",
+      "actor": "caster",
+      "metric": "spell_effect_value",
+      "spell": 800790,
+      "effect": 0,
+      "relative_to": "v0",
+      "min": 200
+    },
+    {
+      "action": "learn",
+      "actor": "caster",
+      "spell": 680959
+    },
+    {
+      "action": "assert",
+      "label": "Searing Power raises Flare Bolt's spell power term by 20% (0.571 -> 0.6852)",
+      "actor": "caster",
+      "metric": "spell_effect_value",
+      "spell": 800790,
+      "effect": 0,
+      "relative_to": "v0",
+      "ratio_to": "d1",
+      "min": 1.19,
+      "max": 1.21
+    }
+  ]
+}
