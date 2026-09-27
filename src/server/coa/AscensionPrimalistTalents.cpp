@@ -276,9 +276,7 @@ public:
                 player->ModifyPower(POWER_RAGE, CalculatePct(cost, 50));
         // Earthenforged Barrier (680408): Rock Barrier reduces the cost of all
         // spells and abilities by twenty-five percent for its duration,
-        // refunded here after the power is taken. Skipped for Hand of the
-        // Earthmother while Earth's Protection already refunds half: both
-        // would stack to a three-quarter cut instead of the promised half (#4561).
+        // refunded here after the power is taken.
         if (player->HasAura(SPELL_EARTHENFORGED_BARRIER) && player->HasAura(SPELL_ROCK_BARRIER) &&
             !(player->HasAura(SPELL_EARTHMOTHERS_PROTECTION) && IsHandOfTheEarthmother(info)))
             if (int32 cost = spell->GetPowerCost())

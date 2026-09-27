@@ -324,12 +324,8 @@ namespace
                 for (uint32 spellId : entry.SpellIds)
                     add(spellId, entry.RequiredLevel, 0);
 
-        // A rank the book sells for a chain a same-class talent replacement supersedes is the
-        // same ability under another name: the replacement teaches its own rank for the level,
-        // so the book must not sell the original's higher ranks beside it (#5279 Warbringer,
-        // #5276 Shieldgore, #5278 Skulltaker). The first rank stays: the character may never
-        // take the talent. Spec-gated so a replacement in one tree never hides another spec's
-        // chain.
+        // Higher ranks of a chain a same-class talent replacement supersedes stay out of the
+        // book: the replacement teaches its own rank for the level. The first rank stays.
         auto hiddenByReplacement = [classId, spec](uint32 spellId)
         {
             if (sSpellMgr->GetFirstSpellInChain(spellId) == spellId)

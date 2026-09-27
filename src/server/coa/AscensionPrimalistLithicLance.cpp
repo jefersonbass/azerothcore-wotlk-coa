@@ -44,9 +44,6 @@ class aura_ascension_lithic_lance_ready : public AuraScript
             player->learnSpell(LithicLance, true);
         for (uint32 id = GeodeBarrageFirst; id; id = sSpellMgr->GetNextSpellInChain(id))
         {
-            // A learned Lance left over from a previous proc still points the bar at
-            // itself; re-registering it is refused as already active, so the dead
-            // keybind in #4840 survives the new proc. Clear it first, then apply.
             if (player->GetTemporarySpellReplacement(id) == LithicLance)
                 player->SetTemporarySpellReplacement(id, 0);
             if (player->HasActiveSpell(id) && player->GetTemporarySpellReplacement(id) == id)
