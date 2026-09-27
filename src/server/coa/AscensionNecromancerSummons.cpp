@@ -230,8 +230,11 @@ bool Summon(Player* player, uint32 spell, Unit* target, Position const& position
     if (!lifetime)
     {
         lifetime = info->GetDuration();
+        uint32 durationSpell = spell;
+        if (uint32 trigger = info->Effects[EFFECT_0].TriggerSpell)
+            durationSpell = trigger;
         if (lifetime > 0)
-            player->ApplySpellMod(spell, SPELLMOD_DURATION, lifetime);
+            player->ApplySpellMod(durationSpell, SPELLMOD_DURATION, lifetime);
     }
     bool created = false;
     for (auto const& row : NecromancerSummons)
