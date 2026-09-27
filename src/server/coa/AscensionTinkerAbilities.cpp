@@ -133,7 +133,7 @@ public:
         bool bomb = Named(info,801005);
         if (player->HasAura(92141) && (shot || sticky))
             Resource(player,Scrap,shot ? 3 : 10);
-        if (NotifySpellAttack(player,info,target))
+        if ((NotifySpellAttack(player,info,target) || (Build(info) && target && player->IsValidAttackTarget(target))) && target)
             for (Creature* device : Devices(player))
                 device->AI()->SetGUID(target->GetGUID(),1);
         if (shot)
