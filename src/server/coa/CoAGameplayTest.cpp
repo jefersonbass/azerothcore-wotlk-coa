@@ -1479,6 +1479,12 @@ private:
             return unit->IsAlive();
         if (metric == "map_id")
             return unit->GetMapId();
+        if (metric == "position_x")
+            return unit->GetPositionX();
+        if (metric == "position_y")
+            return unit->GetPositionY();
+        if (metric == "position_z")
+            return unit->GetPositionZ();
         if (metric == "combat")
             return unit->IsInCombat();
         if (metric == "casting")
@@ -2651,6 +2657,15 @@ private:
             uint32 const index = step.get<uint32>("index");
             return values && index < values->size() ? double((*values)[index].value) : 0.0;
         }
+        if (metric == "player_class")
+            return player->getClass();
+        if (metric == "cached_class")
+        {
+            CharacterCacheEntry const* cached = sCharacterCache->GetCharacterCacheByGuid(player->GetGUID());
+            return cached ? cached->Class : 0;
+        }
+        if (metric == "at_login_flag")
+            return player->HasAtLoginFlag(AtLoginFlags(step.get<uint32>("id"))) ? 1.0 : 0.0;
         if (metric == "server_packets")
         {
             auto const& packets = _actors.at(step.get<std::string>("actor")).extensionPackets;

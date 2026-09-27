@@ -35,6 +35,7 @@ METRICS = {
     'melee_damage_count', 'melee_damage_total',
     'pet_power', 'pet_max_power', 'spell_energize_count', 'spell_energize_total',
     'xp', 'next_level_xp', 'skill_value', 'skill_maximum', 'lfg_dungeon_disabled', 'map_id',
+    'position_x', 'position_y', 'position_z',
     'view_level', 'sent_level', 'sent_max_health', 'creature_query_rank', 'quest_level', 'quest_xp',
     'health', 'health_pct', 'max_health', 'creature_type', 'power', 'max_power', 'alive', 'combat', 'casting', 'level',
     'aura', 'aura_stacks', 'aura_charges', 'aura_duration_ms', 'aura_amount', 'aura_positive',
@@ -87,6 +88,7 @@ METRICS = {
     'pet_aura_amount', 'pet_aura_amplitude_ms', 'pet_max_health', 'pet_attack_power', 'pet_run_speed_rate',
     'distance', 'spell_proc_count', 'temporary_spell_replacement', 'creature_loot_quality_rate',
     'quest_menu_items', 'quest_menu_has', 'player_setting', 'server_packets', 'server_packet_contains',
+    'player_class', 'cached_class', 'at_login_flag',
 }
 PLAYER_STAT_METRICS = {
     'spell_go_count',
@@ -547,6 +549,8 @@ def validate(scenario):
                 number(step['index'], f'{where}.index', 0, 2**16 - 1, True)
             if metric in {'server_packets', 'server_packet_contains'}:
                 number(step.get('opcode'), f'{where}.opcode', 1, 0xFFFF, True)
+            if metric == 'at_login_flag':
+                number(step.get('id'), f'{where}.id', 1, 0xFFFF, True)
             if metric == 'server_packet_contains':
                 require(isinstance(step.get('text'), str) and step['text'].strip(),
                         f'{where}: metric needs the text to look for')
@@ -582,7 +586,8 @@ def validate(scenario):
                           'ball_carried_count', 'ball_carried_quest',
                           'ball_turn_in_count', 'ball_turn_in_quest',
                           'temporary_spell_replacement', 'quest_menu_items', 'quest_menu_has',
-                          'player_setting', 'server_packets', 'server_packet_contains'} | PLAYER_STAT_METRICS:
+                          'player_setting', 'server_packets', 'server_packet_contains',
+                          'player_class', 'cached_class', 'at_login_flag'} | PLAYER_STAT_METRICS:
                 require(step['actor'] in player_ids, f'{where}: metric needs a player')
             shape = (metric, step.get('exclude'))
             if 'relative_to' in step:
