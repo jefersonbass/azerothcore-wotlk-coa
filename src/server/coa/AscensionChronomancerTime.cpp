@@ -262,7 +262,6 @@ public:
         Player* player = Chronomancer(caster);
         if (!player)
             return;
-        // Paradox (680946) and Endless Sands (806728): the cast consumes the buffs.
         if (!spell->IsTriggered() && (IsRank(info->Id, Unmake) || IsRank(info->Id, ReverseWound)))
         {
             player->RemoveAurasDueToSpell(ParadoxBuff, player->GetGUID());

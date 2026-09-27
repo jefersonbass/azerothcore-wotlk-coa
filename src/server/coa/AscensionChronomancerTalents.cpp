@@ -385,7 +385,6 @@ public:
             if (player->HasAura(SPELL_THROUGH_THE_AEONS))
                 player->CastSpell(player, SPELL_THROUGH_THE_AEONS_BUFF, true);
         }
-        // Clocked In (706076): the Wand cast spends buff 520168.
         if (!spell->IsTriggered() && IsArtificerCast(info->Id))
             player->RemoveAurasDueToSpell(SPELL_CLOCKED_IN_BUFF, player->GetGUID());
 

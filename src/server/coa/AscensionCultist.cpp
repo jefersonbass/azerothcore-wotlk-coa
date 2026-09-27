@@ -153,7 +153,6 @@ bool Resource(Player* player, uint32 id, int32 delta, bool force)
     after = Count(player, id);
     if (before < 60 && after >= 60 && player->HasAura(300307))
         Cast(player, player, 573285);
-    // Herald (92131) and Dreadnought (680750) holders skip Total Madness.
     if (after == 100 && before < 100 && !player->HasSpell(92131) && !player->HasSpell(805120) &&
         !player->HasAura(92131) && !player->HasAura(680750))
         Cast(player, player, 803060);
