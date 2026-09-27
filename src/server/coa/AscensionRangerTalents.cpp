@@ -18,6 +18,7 @@ namespace
 enum RangerTalentSpells : uint32
 {
     SPELL_LIGHT_ARROWS = 681292,
+    SPELL_HIGHWAYMAN_TRIGGER = 705063,
     SPELL_KNOCKOUT_INCAPACITATE = 706762,
     SPELL_STONEMASONS_SECRET = 524654,
     SPELL_DIRTY_BLADES = 680276,
@@ -203,6 +204,36 @@ class aura_ascension_ranger_wingman : public AuraScript
             EFFECT_2, SPELL_AURA_MOD_DAMAGE_PERCENT_TAKEN);
         OnEffectPeriodic += AuraEffectPeriodicFn(aura_ascension_ranger_wingman::Refresh,
             EFFECT_2, SPELL_AURA_MOD_DAMAGE_PERCENT_TAKEN);
+    }
+};
+
+class aura_ascension_ranger_highwayman : public AuraScript
+{
+    PrepareAuraScript(aura_ascension_ranger_highwayman);
+
+    bool Validate(SpellInfo const*) override
+    {
+        return ValidateSpellInfo({SPELL_HIGHWAYMAN_TRIGGER});
+    }
+
+    bool CheckProc(ProcEventInfo& eventInfo)
+    {
+        Unit* ranger = GetTarget();
+        Unit* victim = eventInfo.GetActionTarget();
+        return eventInfo.GetActor() == ranger && victim && victim != ranger && eventInfo.GetDamageInfo() &&
+            !victim->HasInArc(float(M_PI), ranger);
+    }
+
+    void HandleProc(AuraEffect const* aurEff, ProcEventInfo& eventInfo)
+    {
+        PreventDefaultAction();
+        GetTarget()->CastSpell(eventInfo.GetActionTarget(), SPELL_HIGHWAYMAN_TRIGGER, true, nullptr, aurEff);
+    }
+
+    void Register() override
+    {
+        DoCheckProc += AuraCheckProcFn(aura_ascension_ranger_highwayman::CheckProc);
+        OnEffectProc += AuraEffectProcFn(aura_ascension_ranger_highwayman::HandleProc, EFFECT_0, SPELL_AURA_ANY);
     }
 };
 
