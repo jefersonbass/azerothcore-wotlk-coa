@@ -4785,6 +4785,9 @@ bool Unit::CanCastSpellWhileMoving(SpellInfo const* info) const
     if (IsPlayer() && HasAura(805335) && info->SpellFamilyName == 37 &&
         info->HasEffect(SPELL_EFFECT_SCHOOL_DAMAGE))
         return true;
+    // Boltslinger (92091): Darkslayer (524715) becomes castable while moving (#4762).
+    if (IsPlayer() && getClass() == CLASS_WITCH_HUNTER && HasAura(92091) && info->Id == 524715)
+        return true;
     // Copied aura 313 grants movement only to spells selected by its family mask.
     return HasAuraTypeWithAffectMask(SPELL_AURA_313, info);
 }
