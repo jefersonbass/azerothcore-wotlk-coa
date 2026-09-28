@@ -270,7 +270,10 @@ void Spend(Player* player, uint32 id, uint64 generation)
             aura && generation == aura->GetScriptValue(Scrap))
         {
             if (aura->GetCharges() > 1)
+            {
                 aura->SetCharges(aura->GetCharges() - 1);
+                aura->SetUsingCharges(false);
+            }
             else
                 aura->Remove();
         }
