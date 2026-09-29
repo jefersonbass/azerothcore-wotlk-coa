@@ -528,7 +528,7 @@ struct ResourceCostRule
     std::uint8_t PreserveCostChancePercent = 0;
 };
 
-inline constexpr std::array<ResourceCostRule, 65> ResourceCostRules =
+inline constexpr std::array<ResourceCostRule, 71> ResourceCostRules =
 {{
     {14, 801904, 801904, 800058, 2, ResourceConsumption::Fixed,
         705137, 30},

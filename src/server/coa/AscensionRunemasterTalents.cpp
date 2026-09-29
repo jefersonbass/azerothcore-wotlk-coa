@@ -366,7 +366,6 @@ class aura_runemaster_kirin_tor_adept : public AuraScript
             aura_runemaster_kirin_tor_adept::RetargetToEyeOfTheBeholder, EFFECT_0, SPELL_AURA_ADD_PCT_MODIFIER);
     }
 };
-}
 
 void ApplyAscensionRunemasterTalentContracts(SpellInfo* info)
 {
