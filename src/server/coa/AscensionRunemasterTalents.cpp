@@ -338,6 +338,8 @@ class aura_runemaster_kirin_tor_adept : public AuraScript
     }
 };
 
+}
+
 void ApplyAscensionRunemasterTalentContracts(SpellInfo* info)
 {
     if (info->Id == SPELL_PERMAFROST_RUNE)
@@ -391,5 +393,4 @@ void AddSC_AscensionRunemasterTalents()
     RegisterSpellScript(aura_runemaster_protective_warding);
     RegisterSpellScript(aura_runemaster_kirin_tor_adept);
     new runemaster_marker_login();
-}
 }
