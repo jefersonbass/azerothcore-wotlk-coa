@@ -113,16 +113,6 @@ uint32 AttackSpell(uint32 entry)
         return 0;
     }
 }
-uint8 SummonCount(Player* player, uint32 spell, uint8 effect, uint8 count)
-{
-    SpellInfo const* info = sSpellMgr->GetSpellInfo(spell);
-    if (info && info->Effects[effect].Effect == SPELL_EFFECT_TRIGGER_SPELL && info->Effects[effect].TriggerSpell)
-        spell = info->Effects[effect].TriggerSpell;
-    SpellInfo const* source = sSpellMgr->GetSpellInfo(spell);
-    if (!source)
-        return count;
-    return uint8(std::clamp<int32>(int32(player->ApplyEffectModifiers(source, effect, float(count))), 0, 16));
-}
 }
 bool Responds(uint32 entry, uint32 command)
 {

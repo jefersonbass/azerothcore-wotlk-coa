@@ -52,6 +52,8 @@ enum TimeSpells : uint32
     TimeOutRankThree = 803897,
     ContinuumRestoration = 801271,
     Unmake = 804418,
+    BuyTime = 520185,
+    BuyTimeStasis = 520186,
     ParadoxBuff = 680947,
     ReverseWound = 801303,
     InfiniteKeeper = 806312,

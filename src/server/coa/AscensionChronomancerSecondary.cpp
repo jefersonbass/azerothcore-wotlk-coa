@@ -381,49 +381,6 @@ public:
             info->AscensionInheritsResolvedAmount = true;
             info->Effects[EFFECT_0].BonusMultiplier = 0.0f;
         }
-        if (info->Id == SPELL_ECHO_DURATION || info->Id == SPELL_AHEAD_COUNTER || info->Id == SPELL_RIPPLE_CHARGE)
-        {
-            info->AttributesCu &= ~SPELL_ATTR0_CU_FORCE_AURA_SAVING;
-            info->AttributesCu |= SPELL_ATTR0_CU_AURA_CANNOT_BE_SAVED;
-        }
-    }
-};
-}
-
-class chronomancer_secondary_hits : public AllSpellScript
-{
-public:
-    chronomancer_secondary_hits() : AllSpellScript("chronomancer_secondary_hits", {ALLSPELLHOOK_ON_HIT_RESULT}) { }
-
-    void OnSpellHitResult(Spell* spell, Unit* target, uint8 miss, uint32 damage, uint32, bool) override
-    {
-        Player* player = SecondaryChronomancer(spell->GetCaster());
-        if (!player || !target || target == player || miss != SPELL_MISS_NONE || !target->IsInWorld())
-            return;
-        SpellInfo const* info = spell->GetSpellInfo();
-        if (sSpellMgr->GetFirstSpellInChain(info->Id) == SPELL_UNMAKE)
-            EruptInfiniteKeeper(player, target);
-        else if (damage && IsChromaticShardOrAnomalySpike(info))
-            ReplicateShiftingChaos(player, target, damage);
-    }
-};
-
-class chronomancer_secondary_metadata : public GlobalScript
-{
-public:
-    chronomancer_secondary_metadata() : GlobalScript("chronomancer_secondary_metadata",
-        {GLOBALHOOK_ON_LOAD_SPELL_CUSTOM_ATTR}) { }
-
-    void OnLoadSpellCustomAttr(SpellInfo* info) override
-    {
-        if (info->Id == SPELL_MELT_COPY && info->SpellFamilyName == 28)
-        {
-            info->AttributesEx2 |= SPELL_ATTR2_CANT_CRIT;
-            info->AttributesEx3 |= SPELL_ATTR3_IGNORE_CASTER_MODIFIERS;
-            info->AttributesEx4 |= SPELL_ATTR4_IGNORE_DAMAGE_TAKEN_MODIFIERS;
-            info->AscensionInheritsResolvedAmount = true;
-            info->Effects[EFFECT_0].BonusMultiplier = 0.0f;
-        }
         if (info->Id == SPELL_SHIFTING_CHAOS_BLAST && info->SpellFamilyName == ChronomancerSpellFamily)
         {
             info->AttributesEx2 |= SPELL_ATTR2_CANT_CRIT;
@@ -445,7 +402,24 @@ public:
         }
     }
 };
-}
+
+class chronomancer_secondary_hits : public AllSpellScript
+{
+public:
+    chronomancer_secondary_hits() : AllSpellScript("chronomancer_secondary_hits", {ALLSPELLHOOK_ON_HIT_RESULT}) { }
+
+    void OnSpellHitResult(Spell* spell, Unit* target, uint8 miss, uint32 damage, uint32, bool) override
+    {
+        Player* player = SecondaryChronomancer(spell->GetCaster());
+        if (!player || !target || target == player || miss != SPELL_MISS_NONE || !target->IsInWorld())
+            return;
+        SpellInfo const* info = spell->GetSpellInfo();
+        if (sSpellMgr->GetFirstSpellInChain(info->Id) == SPELL_UNMAKE)
+            EruptInfiniteKeeper(player, target);
+        else if (damage && IsChromaticShardOrAnomalySpike(info))
+            ReplicateShiftingChaos(player, target, damage);
+    }
+};
 
 void AddSC_AscensionChronomancerSecondary()
 {
