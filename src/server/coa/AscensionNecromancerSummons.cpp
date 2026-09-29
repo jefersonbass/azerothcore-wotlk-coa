@@ -224,7 +224,12 @@ bool Summon(Player* player, uint32 spell, Unit* target, Position const& position
         lifetime = info->GetDuration();
         uint32 durationSpell = spell;
         if (uint32 trigger = info->Effects[EFFECT_0].TriggerSpell)
+        {
             durationSpell = trigger;
+            if (lifetime <= 0)
+                if (SpellInfo const* triggered = sSpellMgr->GetSpellInfo(trigger))
+                    lifetime = triggered->GetDuration();
+        }
         if (lifetime > 0)
             player->ApplySpellMod(durationSpell, SPELLMOD_DURATION, lifetime);
     }
