@@ -226,35 +226,6 @@ void ExposeRuneshroudOrWaveforgedMarker(SpellInfo* info)
 
     info->Attributes &= ~SPELL_ATTR0_PASSIVE;
 }
-}
-
-void ApplyAscensionRunemasterTalentContracts(SpellInfo* info)
-{
-    if (info->Id == SPELL_ADVANCED_MAGI && info->SpellFamilyName == 38)
-    {
-        ApplyAdvancedMagiScaling(info);
-        return;
-    }
-    if (info->Id == SPELL_ALTERATION_RANK_1 && info->SpellFamilyName == 38)
-    {
-        ApplyAlterationWaterTattooScope(info);
-        return;
-    }
-    if (info->Id == SPELL_PERMAFROST_RUNE)
-    {
-        info->AuraInterruptFlags |= AURA_INTERRUPT_FLAG_TAKE_DAMAGE;
-        return;
-    }
-    ExposeRuneshroudOrWaveforgedMarker(info);
-    if (info->Id != 712310 || info->SpellFamilyName != 38)
-        return;
-    auto& effect = info->Effects[EFFECT_1];
-    effect.Effect = SPELL_EFFECT_APPLY_AURA;
-    effect.ApplyAuraName = SPELL_AURA_EFFECT_IMMUNITY;
-    effect.MiscValue = SPELL_EFFECT_KNOCK_BACK_DEST;
-    effect.BasePoints = 0;
-    effect.DieSides = 0;
-}
 
 // Protective Warding (800756): "Critical damage taken reduces the cooldown of
 // Rune of Guarding by 10%." Gaining damage has no standalone proc event, so the
@@ -415,7 +386,6 @@ void AddSC_AscensionRunemasterTalents()
 {
     new runemaster_talent_events();
     new runemaster_runic_tempest_events();
-// keep both
     new runemaster_elemental_carvings();
     RegisterSpellScript(aura_runemaster_granite_shield);
     RegisterSpellScript(aura_runemaster_protective_warding);
