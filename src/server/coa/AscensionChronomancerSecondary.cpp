@@ -421,6 +421,8 @@ public:
     }
 };
 
+}
+
 void AddSC_AscensionChronomancerSecondary()
 {
     new chronomancer_melt_periodic();
