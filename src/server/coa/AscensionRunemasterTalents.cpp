@@ -392,5 +392,4 @@ void AddSC_AscensionRunemasterTalents()
     RegisterSpellScript(aura_runemaster_kirin_tor_adept);
     new runemaster_marker_login();
 }
-
 }
