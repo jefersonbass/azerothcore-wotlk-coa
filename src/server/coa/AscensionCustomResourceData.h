@@ -109,7 +109,7 @@ struct ResourceGainRule
     std::uint8_t ChancePercent = 100;
 };
 
-inline constexpr std::array<ResourceGainRule, 193> ResourceGainRules =
+inline constexpr std::array<ResourceGainRule, 189> ResourceGainRules =
 {{
     {14, 524706, 524706, 800058, 1, ResourceMutation::AuraStacks,
         ResourceGainEvent::FirstSuccessfulHostileTarget},
@@ -459,9 +459,9 @@ inline constexpr std::array<ResourceGainRule, 193> ResourceGainRules =
     {22, 520702, 520707, 804455, 1, ResourceMutation::AuraStacks,
         ResourceGainEvent::EachSuccessfulDamagingHit, 92120},
     {22, 561284, 561284, 804455, 1, ResourceMutation::AuraStacks,
-        ResourceGainEvent::EachSuccessfulDamagingHit, 92120},
+        ResourceGainEvent::Cast, 92120},
     {22, 561354, 561357, 804455, 1, ResourceMutation::AuraStacks,
-        ResourceGainEvent::EachSuccessfulDamagingHit, 92120}
+        ResourceGainEvent::Cast, 92120}
 }};
 
 struct NativePowerGainRule
@@ -528,7 +528,7 @@ struct ResourceCostRule
     std::uint8_t PreserveCostChancePercent = 0;
 };
 
-inline constexpr std::array<ResourceCostRule, 63> ResourceCostRules =
+inline constexpr std::array<ResourceCostRule, 65> ResourceCostRules =
 {{
     {14, 801904, 801904, 800058, 2, ResourceConsumption::Fixed,
         705137, 30},
@@ -599,7 +599,14 @@ inline constexpr std::array<ResourceCostRule, 63> ResourceCostRules =
     {24, 520751, 520751, 807533, 1, ResourceConsumption::None},
     {24, 572892, 572894, 807533, 1, ResourceConsumption::None},
     {24, 800818, 800818, 807533, 1, ResourceConsumption::None},
-    {24, 520019, 520019, 807533, 1, ResourceConsumption::Fixed}
+    {24, 520019, 520019, 807533, 1, ResourceConsumption::Fixed},
+
+    {22, 524853, 524853, 804455, 1, ResourceConsumption::All},
+    {22, 804435, 804435, 804455, 1, ResourceConsumption::All},
+    {22, 804438, 804438, 804455, 1, ResourceConsumption::All},
+    {22, 806203, 806203, 804455, 1, ResourceConsumption::All},
+    {22, 572417, 572417, 804455, 1, ResourceConsumption::All},
+    {22, 804503, 804503, 804455, 1, ResourceConsumption::All}
 }};
 }
 
