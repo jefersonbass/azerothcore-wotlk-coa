@@ -59,9 +59,9 @@ void SyncRuneshroudOrWaveforged(Player* player)
     else if (!player->HasAura(808089, player->GetGUID()))
         player->CastSpell(player, 808089, true);
 }
-
 constexpr uint32 SPELL_PERMAFROST_RUNE = 804060;
 constexpr uint32 SPELL_PERMAFROST_MARKER = 807114;
+constexpr uint32 SPELL_RUNE_OF_GUARDING = 500464;
 constexpr uint32 SPELL_RUNESHROUD = 500288;
 constexpr int32 PERMAFROST_PLAYER_DURATION = 8000;
 
