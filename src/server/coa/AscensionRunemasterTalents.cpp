@@ -20,7 +20,7 @@ bool EarthTattooActive(Unit const* unit)
     for (auto const& [key, application] : unit->GetAppliedAuras())
     {
         Aura const* aura = application->GetBase();
-        if (aura->GetCasterGUID() == unit->GetGUID() && IsEarthTattoo(aura->GetId()))
+        if (aura->GetCasterGUID() == unit->GetGUID() && (aura->GetId() == 801094 || (aura->GetId() >= 803754 && aura->GetId() <= 803758)))
             return true;
     }
     return false;
