@@ -13,6 +13,11 @@
 namespace
 {
 
+bool IsEarthTattoo(uint32 id)
+{
+    return id == 801094 || (id >= 803754 && id <= 803758);
+}
+
 bool EarthTattooActive(Unit const* unit)
 {
     if (!unit)
