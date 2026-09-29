@@ -48,9 +48,7 @@ enum ChronomancerTalentSpells : uint32
     SPELL_DESTABILIZE_TIME_SLOW = 570761,
     SPELL_THE_VAST_INFINITE = 706083,
     SPELL_THE_VAST_INFINITE_SHARE = 707600,
-    SPELL_THE_VAST_INFINITE_HEAL = 707601,
-    SPELL_CLOCKED_IN_TALENT = 706076,
-    SPELL_CLOCKED_IN_BUFF = 520168
+    SPELL_THE_VAST_INFINITE_HEAL = 707601
 };
 
 constexpr uint32 TimeguardHeavyHitPercent = 20;
@@ -385,8 +383,6 @@ public:
             if (player->HasAura(SPELL_THROUGH_THE_AEONS))
                 player->CastSpell(player, SPELL_THROUGH_THE_AEONS_BUFF, true);
         }
-        if (!spell->IsTriggered() && IsArtificerCast(info->Id))
-            player->RemoveAurasDueToSpell(SPELL_CLOCKED_IN_BUFF, player->GetGUID());
 
         // Resonance (706079): "Casting Artificer's Wand or Crystal Cannon now
         // has a 35% chance to reduce the cooldown of Hasten by 1 sec." Those

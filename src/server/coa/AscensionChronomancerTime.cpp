@@ -54,7 +54,6 @@ enum TimeSpells : uint32
     Unmake = 804418,
     BuyTime = 520185,
     BuyTimeStasis = 520186,
-    ParadoxBuff = 680947,
     ReverseWound = 801303,
     InfiniteKeeper = 806312,
     InfiniteKeeperVortex = 806313,
@@ -264,11 +263,6 @@ public:
         Player* player = Chronomancer(caster);
         if (!player)
             return;
-        if (!spell->IsTriggered() && (IsRank(info->Id, Unmake) || IsRank(info->Id, ReverseWound)))
-        {
-            player->RemoveAurasDueToSpell(ParadoxBuff, player->GetGUID());
-            player->RemoveAurasDueToSpell(EndlessSands, player->GetGUID());
-        }
         for (uint32 aeon : {RenewalAeon, ResilienceAeon, ProtectionAeon, OblivionAeon})
             if (info->Id == aeon)
                 for (uint32 other : {RenewalAeon, ResilienceAeon, ProtectionAeon, OblivionAeon})
