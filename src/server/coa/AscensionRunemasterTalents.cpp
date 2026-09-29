@@ -12,9 +12,18 @@
 
 namespace
 {
-bool IsEarthTattoo(uint32 id)
+
+bool EarthTattooActive(Unit const* unit)
 {
-    return id == 801094 || (id >= 803754 && id <= 803758);
+    if (!unit)
+        return false;
+    for (auto const& [key, application] : unit->GetAppliedAuras())
+    {
+        Aura const* aura = application->GetBase();
+        if (aura->GetCasterGUID() == unit->GetGUID() && IsEarthTattoo(aura->GetId()))
+            return true;
+    }
+    return false;
 }
 
 bool StonePetroglyphActive(Player* player)
