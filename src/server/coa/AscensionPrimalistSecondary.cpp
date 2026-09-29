@@ -29,7 +29,8 @@ enum PrimalistSecondarySpells : uint32
     SPELL_SAVAGE_FRENZY = 806549,
     SPELL_TOTEM_WARRIOR = 704099,
     SPELL_TOTEM_WARRIOR_HIT = 555732,
-    SPELL_BOON_OF_THE_BEAR = 500939
+    SPELL_BOON_OF_THE_BEAR = 500939,
+    SPELL_STONE_GRIP = 800145
 };
 
 class primalist_secondary_auras : public UnitScript
@@ -332,6 +333,11 @@ public:
         {
             info->AttributesCu &= ~SPELL_ATTR0_CU_FORCE_AURA_SAVING;
             info->AttributesCu |= SPELL_ATTR0_CU_AURA_CANNOT_BE_SAVED;
+        }
+        if (info->Id == SPELL_STONE_GRIP)
+        {
+            info->Effects[EFFECT_1].Effect = 0;
+            info->Mechanic = MECHANIC_SAPPED;
         }
     }
 };

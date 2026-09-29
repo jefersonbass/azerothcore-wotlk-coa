@@ -154,7 +154,7 @@ bool Resource(Player* player, uint32 id, int32 delta, bool force)
     if (before < 60 && after >= 60 && player->HasAura(300307))
         Cast(player, player, 573285);
     if (after == 100 && before < 100 && !player->HasSpell(92131) && !player->HasSpell(805120) &&
-        !player->HasAura(92131) && !player->HasAura(680750))
+        !player->HasSpell(680750))
         Cast(player, player, 803060);
     Refresh(player);
     return true;
@@ -223,7 +223,7 @@ void Refresh(Player* player)
     }
     SetHelper(player, 805606, player->HasSpell(92130));
     SetHelper(player, 680556, player->HasAura(680557) && player->GetAuraOfRankedSpell(567524));
-    SetHelper(player, 573315, stacks >= 60);
+    SetHelper(player, 573315, stacks > 60);
     SetAmount(player, 680574, 1, Amount(680574, 1) * (stacks > 60 ? 2 : 1));
     SetAmount(player, 680607, 0, stacks / 20);
     SetAmount(player, 574147, 0, int32((player->GetFloatValue(UNIT_FIELD_MINDAMAGE) +

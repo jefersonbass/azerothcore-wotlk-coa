@@ -225,7 +225,7 @@ class aura_ascension_templar_lifecycle : public AuraScript
         if (Named(GetSpellInfo(), 805409))
         {
             player->RemoveAurasDueToSpell(301340);
-            if (!player->HasAura(92109) && !player->HasAura(803149))
+            if (!State(player).oath)
                 ClearOaths(player);
         }
     }
