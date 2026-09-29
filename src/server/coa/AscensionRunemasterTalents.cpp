@@ -393,5 +393,4 @@ void AddSC_AscensionRunemasterTalents()
     new runemaster_marker_login();
 }
 
-
 }
