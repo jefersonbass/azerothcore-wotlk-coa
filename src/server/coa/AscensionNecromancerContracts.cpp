@@ -498,8 +498,10 @@ float Factor(Player* player, Unit* target, SpellInfo const* info, bool periodic)
         factor *= 1.0f + Diseases(player, target) * 0.5f;
     if (info->Id == 802132)
         factor *= 1.0f + Diseases(player, target) * Amount(704291) / 100.0f;
-    if (info->Id == 800343 && player->HasAura(570136))
+    if (Named(info, 800343) && player->HasAura(570136))
         factor *= 1.0f + Diseases(player, target) * 0.04f;
+    if (Named(info, 570131) && player->HasAura(570136))
+        factor *= 1.5f;
     if (info->Id == 800343 && player->HasAura(704723))
         factor *= 1.0f + player->GetAuraCount(706504) * 0.1f;
     if (periodic && Named(info, 500968))

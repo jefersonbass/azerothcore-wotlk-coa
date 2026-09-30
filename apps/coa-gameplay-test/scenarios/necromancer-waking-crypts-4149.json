@@ -1,0 +1,234 @@
+{
+ "contract": "Waking Crypts 570136 reads 'Crypt Plague damage +50%, Crypt Swarm +4% per disease on the target.' AscensionNecromancerContracts.cpp Factor gated the swarm bonus on info->Id == 800343, so ranks 800344/803530 passed with 1.0, and the plague bonus on 570131 did not exist. Now Named(info, 800343) covers every Crypt Swarm rank and Named(info, 570131) with HasAura(570136) multiplies by 1.5. The scripted damage-taken metrics run the module Factor hook on a fixed base of 1000, so ratios discriminate the fix directly.",
+ "creatures": [
+  {
+   "distance": 10,
+   "entry": 36,
+   "health": 1000000,
+   "id": "golem",
+   "level": 80,
+   "owner": "necro"
+  }
+ ],
+ "location": {
+  "map": 0,
+  "o": 0,
+  "x": -8917.41,
+  "y": -115.853,
+  "z": 82.3711
+ },
+ "name": "Necromancer Waking Crypts raises Crypt Plague by 50% and Crypt Swarm per disease on every rank (#4149)",
+ "players": [
+  {
+   "class": 23,
+   "id": "necro",
+   "level": 80,
+   "race": 5
+  }
+ ],
+ "schema": 1,
+ "steps": [
+  {
+   "action": "wait",
+   "label": "Let spawn AI and level scaling settle",
+   "ms": 5000
+  },
+  {
+   "action": "learn",
+   "actor": "necro",
+   "spell": 500338
+  },
+  {
+   "action": "learn",
+   "actor": "necro",
+   "spell": 570132
+  },
+  {
+   "action": "snapshot",
+   "actor": "necro",
+   "label": "Plague base",
+   "metric": "script_spell_damage_taken",
+   "save_as": "plague0",
+   "spell": 570131,
+   "target": "necro"
+  },
+  {
+   "action": "snapshot",
+   "actor": "necro",
+   "label": "Swarm rank 1 base",
+   "metric": "script_spell_damage_taken",
+   "save_as": "swarm1_0",
+   "spell": 800343,
+   "target": "necro"
+  },
+  {
+   "action": "snapshot",
+   "actor": "necro",
+   "label": "Swarm rank 2 base",
+   "metric": "script_spell_damage_taken",
+   "save_as": "swarm2_0",
+   "spell": 800344,
+   "target": "necro"
+  },
+  {
+   "action": "snapshot",
+   "actor": "necro",
+   "label": "Swarm rank 3 base",
+   "metric": "script_spell_damage_taken",
+   "save_as": "swarm3_0",
+   "spell": 803530,
+   "target": "necro"
+  },
+  {
+   "action": "learn",
+   "actor": "necro",
+   "spell": 570136
+  },
+  {
+   "action": "assert",
+   "actor": "necro",
+   "label": "SETUP: Waking Crypts is active",
+   "metric": "aura",
+   "spell": 570136,
+   "within_ms": 2000,
+   "equals": 1
+  },
+  {
+   "action": "assert",
+   "actor": "necro",
+   "label": "DISCRIMINATING: Crypt Plague is x1.5 with the talent and no disease",
+   "max": 1.501,
+   "metric": "script_spell_damage_taken",
+   "min": 1.499,
+   "ratio_to": "plague0",
+   "spell": 570131,
+   "target": "necro"
+  },
+  {
+   "action": "assert",
+   "actor": "necro",
+   "label": "CONTROL: Crypt Swarm rank 1 is unchanged with no disease",
+   "max": 1.001,
+   "metric": "script_spell_damage_taken",
+   "min": 0.999,
+   "ratio_to": "swarm1_0",
+   "spell": 800343,
+   "target": "necro"
+  },
+  {
+   "action": "cast",
+   "actor": "necro",
+   "label": "Apply one disease",
+   "spell": 500338,
+   "target": "golem"
+  },
+  {
+   "action": "assert",
+   "actor": "golem",
+   "label": "SETUP: one disease is active",
+   "metric": "aura",
+   "spell": 500338,
+   "within_ms": 5000,
+   "equals": 1
+  },
+  {
+   "action": "assert",
+   "actor": "necro",
+   "label": "DISCRIMINATING: Crypt Swarm rank 1 is x1.04 with one disease",
+   "max": 1.041,
+   "metric": "script_spell_damage_taken",
+   "min": 1.039,
+   "ratio_to": "swarm1_0",
+   "spell": 800343,
+   "target": "necro"
+  },
+  {
+   "action": "assert",
+   "actor": "necro",
+   "label": "DISCRIMINATING: Crypt Swarm rank 2 is x1.04 with one disease",
+   "max": 1.041,
+   "metric": "script_spell_damage_taken",
+   "min": 1.039,
+   "ratio_to": "swarm2_0",
+   "spell": 800344,
+   "target": "necro"
+  },
+  {
+   "action": "assert",
+   "actor": "necro",
+   "label": "DISCRIMINATING: Crypt Swarm rank 3 is x1.04 with one disease",
+   "max": 1.041,
+   "metric": "script_spell_damage_taken",
+   "min": 1.039,
+   "ratio_to": "swarm3_0",
+   "spell": 803530,
+   "target": "necro"
+  },
+  {
+   "action": "cast",
+   "actor": "necro",
+   "label": "Apply Crypt Plague as the second disease",
+   "spell": 570132,
+   "target": "golem"
+  },
+  {
+   "action": "assert",
+   "actor": "golem",
+   "label": "SETUP: Crypt Plague is active",
+   "metric": "aura",
+   "spell": 570131,
+   "within_ms": 5000,
+   "equals": 1
+  },
+  {
+   "action": "assert",
+   "actor": "necro",
+   "label": "DISCRIMINATING: Crypt Swarm rank 1 is x1.08 with two diseases",
+   "max": 1.081,
+   "metric": "script_spell_damage_taken",
+   "min": 1.079,
+   "ratio_to": "swarm1_0",
+   "spell": 800343,
+   "target": "necro"
+  },
+  {
+   "action": "assert",
+   "actor": "necro",
+   "label": "DISCRIMINATING: Crypt Swarm rank 3 is x1.08 with two diseases",
+   "max": 1.081,
+   "metric": "script_spell_damage_taken",
+   "min": 1.079,
+   "ratio_to": "swarm3_0",
+   "spell": 803530,
+   "target": "necro"
+  },
+  {
+   "action": "unlearn",
+   "actor": "necro",
+   "spell": 570136
+  },
+  {
+   "action": "assert",
+   "actor": "necro",
+   "label": "Without the talent Crypt Plague returns to base",
+   "max": 1.001,
+   "metric": "script_spell_damage_taken",
+   "min": 0.999,
+   "ratio_to": "plague0",
+   "spell": 570131,
+   "target": "necro"
+  },
+  {
+   "action": "assert",
+   "actor": "necro",
+   "label": "Without the talent Crypt Swarm rank 3 returns to base",
+   "max": 1.001,
+   "metric": "script_spell_damage_taken",
+   "min": 0.999,
+   "ratio_to": "swarm3_0",
+   "spell": 803530,
+   "target": "necro"
+  }
+ ],
+ "timeout_ms": 90000
+}
