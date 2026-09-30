@@ -1,0 +1,46 @@
+{
+  "schema": 1,
+  "name": "Through The Aeons grants its mana-regen buff on any Aeon activation (#2003)",
+  "contract": "Through The Aeons 560310 (Spell.dbc, family 28, passive) reads 'Activating an Aeon now increases your mana regeneration from Spirit by 100% for 8 sec.' Its effect 0 is aura 42 PROC_TRIGGER_SPELL on 560311, but Spell.dbc gives 560310 ProcFlags 2 and the proc path was proved dead twice: #4324 wrote a spell_proc row and spell_proc_count read 0 with the passive applied and the Aeon landing, still 0 after widening to every class, positivity bit and phase, so the row and its scenario were deleted and must not return. The live path is the OnSpellCast bypass in AscensionChronomancerTalents.cpp (chronomancer_talent_casts: family 28, non-triggered IsAeonActivation 806290-806293 with HasAura 560310 casts 560311). The payload is fully native: 560311 effect 0 is SPELL_EFFECT_APPLY_AURA of aura 110 MOD_POWER_REGEN_PERCENT, BasePoints 99 + DieSides 1 = 100, MiscValue 0 = POWER_MANA, DurationIndex 31 = 8000 ms; AuraEffect::HandleModPowerRegenPCT calls HandleModPowerRegen, which for POWER_MANA calls Player::UpdateManaRegen, where power_regen (sqrt(Intellect) * OCTRegenMPPerSpirit) is multiplied by GetTotalAuraMultiplierByMiscValue(110, POWER_MANA), i.e. x2.0 Spirit regen. No harness metric reads the live regen rate (same limit as Athleticism #2008), so the scenario asserts the data-driven proof the engine consumes: buff presence, amount 100 and ~8 s duration, with and without the talent, on two different Aeons.",
+  "timeout_ms": 90000,
+  "players": [
+    { "id": "chrono", "race": 1, "class": 22, "level": 60 }
+  ],
+  "steps": [
+    { "action": "wait", "label": "Let spawn AI and level scaling settle", "ms": 5000 },
+    { "action": "learn", "actor": "chrono", "spell": 806290 },
+    { "action": "set_aura", "actor": "chrono", "spell": 806290, "stacks": 0 },
+    { "action": "learn", "actor": "chrono", "spell": 806293 },
+    { "action": "set_aura", "actor": "chrono", "spell": 806293, "stacks": 0 },
+    { "action": "cast", "label": "Activate Renewal without the talent", "actor": "chrono", "spell": 806290 },
+    {
+      "action": "assert", "label": "CONTROL: no Aeons buff without Through The Aeons",
+      "actor": "chrono", "metric": "aura", "spell": 560311, "equals": 0, "within_ms": 2000
+    },
+    { "action": "wait", "label": "Let the Aeon cooldown pass", "ms": 5500 },
+    { "action": "learn", "actor": "chrono", "spell": 560310 },
+    {
+      "action": "assert", "label": "SETUP: Through The Aeons is active",
+      "actor": "chrono", "metric": "aura", "spell": 560310, "equals": 1, "within_ms": 2000
+    },
+    { "action": "cast", "label": "Activate Renewal with the talent", "actor": "chrono", "spell": 806290 },
+    {
+      "action": "assert", "label": "DISCRIMINATING: the Aeons buff lands on Aeon activation",
+      "actor": "chrono", "metric": "aura", "spell": 560311, "equals": 1, "within_ms": 2000
+    },
+    {
+      "action": "assert", "label": "The buff resolves to +100% mana (Spirit) regen",
+      "actor": "chrono", "metric": "aura_amount", "spell": 560311, "effect": 0, "equals": 100
+    },
+    {
+      "action": "assert", "label": "The buff lasts 8 seconds",
+      "actor": "chrono", "metric": "aura_duration_ms", "spell": 560311, "min": 7000, "max": 8000
+    },
+    { "action": "wait", "label": "Let the Aeon cooldown pass", "ms": 5500 },
+    { "action": "cast", "label": "Activate Oblivion with the talent", "actor": "chrono", "spell": 806293 },
+    {
+      "action": "assert", "label": "DISCRIMINATING: a different Aeon also grants the buff",
+      "actor": "chrono", "metric": "aura", "spell": 560311, "equals": 1, "within_ms": 2000
+    }
+  ]
+}
