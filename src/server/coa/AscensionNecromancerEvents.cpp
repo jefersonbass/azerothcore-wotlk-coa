@@ -95,9 +95,9 @@ class aura_ascension_necromancer_event : public AuraScript
         }
         if (own)
         {
-            if (info && (info->Id == 800343 || Lichfrost(info)) && player->HasAura(92121))
+            if (info && (Named(info, 800343) || Lichfrost(info)) && player->HasAura(92121))
                 Plague(player, target, Lichfrost(info) ? 2 : 1);
-            if (info && info->Id == 800343)
+            if (info && Named(info, 800343))
             {
                 if (player->HasAura(92123))
                     Cast(player, target, 803530);
