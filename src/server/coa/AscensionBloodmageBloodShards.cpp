@@ -23,17 +23,19 @@ enum BloodShardSpells : uint32
     SPELL_INHUMANE = 807488,
     SPELL_BLOODCHASER = 523721,
     SPELL_EVERLASTING_HUNT = 804686,
-    SPELL_EVERLASTING_HUNT_COOLDOWN = 802497,
     SPELL_SHARD_COUNTER = 505366,
     SPELL_SHARD_VISUAL_FIRST = 505349,
     SPELL_SHARD_DAMAGE = 504115,
     SPELL_VEINBURST = 504260,
+    SPELL_VEINBURST_MAX_RANK = 504820,
+    SPELL_REAVE = 800490,
     SPELL_AORTIC_ASSAULT_HIT = 806502,
     SPELL_CURSED_FORM_REQUIREMENT = 525031,
     SPELL_CURSED_FORM_REQUIREMENT_2 = 524861
 };
 
 constexpr uint8 MAX_SHARDS = 8;
+constexpr int32 EVERLASTING_HUNT_COOLDOWN_REDUCTION_MS = -1500;
 
 constexpr std::array<uint32, 10> BLOODMOON_BLAST_RANKS = {
     500125, 501607, 501608, 501609, 501610, 501611, 501612, 501613, 501614, 572332 };
@@ -176,7 +178,8 @@ public:
         if (info->Id == SPELL_SHARD_DAMAGE)
         {
             if (player->HasAura(SPELL_EVERLASTING_HUNT))
-                player->CastSpell(player, SPELL_EVERLASTING_HUNT_COOLDOWN, true);
+                for (uint32 cooled : { SPELL_VEINBURST, SPELL_VEINBURST_MAX_RANK, SPELL_REAVE })
+                    player->ModifySpellCooldown(cooled, EVERLASTING_HUNT_COOLDOWN_REDUCTION_MS);
             return;
         }
         if (IsVeinburst(info->Id))
