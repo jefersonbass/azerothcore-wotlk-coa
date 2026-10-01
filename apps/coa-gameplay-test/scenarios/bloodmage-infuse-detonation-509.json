@@ -1,0 +1,47 @@
+{
+  "schema": 1,
+  "name": "Bloodmage: Infuse banks party damage and detonates on expiry (#509)",
+  "contract": "Infuse 681403 (10 s, DurationIndex 1) reads 'Accumulates damage dealt to the target by you, your party or raid members, and their minions for 10 sec, then unleashes the stored amount as Shadow damage'. Its single effect is a dummy aura (4) naming 681404 with Spell.dbc ProcFlags 0, and no spell_proc row exists anywhere in the repository, so no native path can bank or detonate: dummy auras have no generic EffectTriggerSpell handler. bloodmage_infuse_marks (AscensionBloodmageSecondary.cpp) is the only path: UNITHOOK_ON_DAMAGE banks every point of party/raid/minion damage into the mark's effect 0, and UNITHOOK_ON_AURA_REMOVE casts the 681404 burst with the banked total when the mark expires (early dispels fizzle). Expected before the fix: the mark applies natively but no 681404 hit ever lands. Expected after the fix: exactly one 681404 hit after the 10 s expiry. The 0.15 multipliers on 681404 decide the undecided decay reading from #509's thread only if the burst total mismatches the banked total; the count assertion below does not depend on it.",
+  "timeout_ms": 120000,
+  "players": [
+    {"id": "caster", "race": 1, "class": 20, "level": 80, "spell_hit_rating": 10000}
+  ],
+  "creatures": [
+    {"id": "enemy", "owner": "caster", "entry": 36, "level": 80, "health": 1000000, "distance": 3}
+  ],
+  "steps": [
+    {"action": "set_health", "actor": "enemy", "value": 999999},
+    {"action": "wait", "label": "Injured fixture avoids full-health level rescaling", "ms": 5000},
+    {"action": "assert", "actor": "enemy", "metric": "max_health", "equals": 1000000},
+    {"action": "learn", "actor": "caster", "spell": 681403},
+    {"action": "learn", "actor": "caster", "spell": 578305},
+    {"action": "cast", "actor": "caster", "spell": 681403, "target": "enemy"},
+    {
+      "action": "assert", "label": "The Infuse mark lands on the enemy", "actor": "enemy",
+      "metric": "aura", "spell": 681403, "equals": 1, "within_ms": 2000
+    },
+    {"action": "set_power", "actor": "caster", "power": 1, "value": 1000},
+    {"action": "cast", "actor": "caster", "spell": 578305, "target": "enemy"},
+    {"action": "wait", "ms": 1500},
+    {"action": "set_power", "actor": "caster", "power": 1, "value": 1000},
+    {"action": "cast", "actor": "caster", "spell": 578305, "target": "enemy"},
+    {"action": "wait", "ms": 1500},
+    {
+      "action": "assert", "label": "Bloodbolt hit the marked enemy and banks", "actor": "caster",
+      "metric": "spell_damage_count", "spell": 578305, "target": "enemy", "min": 2
+    },
+    {
+      "action": "assert", "label": "No detonation before the 10 s expiry", "actor": "caster",
+      "metric": "spell_damage_count", "spell": 681404, "target": "enemy", "equals": 0
+    },
+    {"action": "wait", "ms": 9000},
+    {
+      "action": "assert", "label": "The banked damage detonates once on expiry", "actor": "caster",
+      "metric": "spell_damage_count", "spell": 681404, "target": "enemy", "equals": 1, "within_ms": 8000
+    },
+    {
+      "action": "assert", "label": "The mark is gone after detonation", "actor": "enemy",
+      "metric": "aura", "spell": 681403, "equals": 0
+    }
+  ]
+}
