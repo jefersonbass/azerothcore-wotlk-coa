@@ -1,0 +1,34 @@
+{
+  "schema": 1,
+  "name": "Unrelenting Swarm applies its aura and routes its mods to Crypt Scarabs (#2372)",
+  "contract": "Unrelenting Swarm 704719 reads 'Reduces the Runic Power drained by each Crypt Scarabs tick by $/10;s1'. Its payload is already correct in Spell.dbc - two SPELL_EFFECT_APPLY_AURA (6) with aura 108 (ADD_PCT_MODIFIER), EffectMiscValue 19 (SPELLMOD_ACTIVATION_TIME, SpellDefines.h) and 1 (SPELLMOD_DURATION), base points -51 (-50%). Two code fixes make it register: AscensionNecromancerContracts.cpp marks 704719 passive so the aura applies at learn (Player::AddSpell only casts passive auras), and SpellInfo.cpp routes mod 704719 to Crypt Scarabs 805868 by named root (masks alone could never match its 0/0/0 family flags). The spell_modifier metric starts from a nonzero base because Player::ApplySpellMod skips PCT mods on a null basevalue. Open half, not asserted here: Crypt Scarabs 805868 carries only a Dummy aura, so no Runic Power drain exists to observe reduced - that needs the maintainer decision tracked in #5540. This scenario locks the aura and the routing, not the drain.",
+  "timeout_ms": 90000,
+  "players": [
+    {
+      "id": "necro",
+      "race": 1,
+      "class": 23,
+      "level": 60
+    }
+  ],
+  "steps": [
+    { "action": "wait", "label": "Let the fixtures settle", "ms": 5000 },
+    {
+      "action": "assert", "label": "SETUP: no Crypt Scarabs modifier before the talent",
+      "actor": "necro", "metric": "spell_modifier", "spell": 805868, "op": 19, "base": 100, "equals": 100
+    },
+    { "action": "learn", "actor": "necro", "spell": 704719 },
+    {
+      "action": "assert", "label": "The talent aura is applied at learn (this is what the missing passive flag broke)",
+      "actor": "necro", "metric": "aura", "spell": 704719, "equals": 1, "within_ms": 3000
+    },
+    {
+      "action": "assert", "label": "The activation-time mod now reaches Crypt Scarabs (this is what the missing routing broke)",
+      "actor": "necro", "metric": "spell_modifier", "spell": 805868, "op": 19, "base": 100, "equals": 50
+    },
+    {
+      "action": "assert", "label": "The duration mod now reaches Crypt Scarabs",
+      "actor": "necro", "metric": "spell_modifier", "spell": 805868, "op": 1, "base": 100, "equals": 50
+    }
+  ]
+}
