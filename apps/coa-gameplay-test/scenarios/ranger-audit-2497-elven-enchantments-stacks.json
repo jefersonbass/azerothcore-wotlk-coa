@@ -1,0 +1,54 @@
+{
+  "schema": 1,
+  "name": "Ranger Elven Enchantments: Searing Quiver damage grants Elven Enchantments stacks (#2497)",
+  "contract": "Elven Enchantments 705054 reads 'dealing damage with Searing or Poison Quiver now grants a stack of Elven Enchantments ... stacking 10 times.' Its only firing effect is SPELL_AURA_PROC_TRIGGER_SPELL on 560698; Spell.dbc ProcFlags is 0; the spell_proc row from rev_20260921_40_ranger_dead_procs.sql supplies ProcFlags 262400 = DONE_SPELL_RANGED_DMG_CLASS (0x100, the Fire Arrows 681109 hit) plus DONE_PERIODIC (0x40000, the Poison Quiver 500104 ticks), SpellFamilyName 27 with mask (0,525312,0) = 524288 Fire Arrows | 1024 Poison Quiver, SchoolMask 12 (Fire|Nature), phase HIT and AttributesMask 2 so the triggered Fire Arrows can proc. 560698 is a 10-stack cumulative self aura. Expected: with Searing Quiver up but without the talent, Fire Arrows damage grants no 560698; once 705054 is learned, each Fire Arrows hit grants one 560698 stack. The +25% quiver damage halves of the tooltip ride 705054's own effects 1-2 natively and are not asserted here.",
+  "timeout_ms": 120000,
+  "location": {
+    "map": 0,
+    "x": -8917.41,
+    "y": -115.853,
+    "z": 82.3711,
+    "o": 0
+  },
+  "players": [
+    { "id": "ranger", "race": 1, "class": 21, "level": 80, "ranged_hit_rating": 10000, "allow_regeneration": false }
+  ],
+  "creatures": [
+    { "id": "dummy", "owner": "ranger", "entry": 36, "level": 80, "health": 1000000, "distance": 15 }
+  ],
+  "steps": [
+    { "action": "wait", "label": "Let spawn AI and level scaling settle", "ms": 5000 },
+    { "action": "learn", "actor": "ranger", "spell": 264 },
+    { "action": "learn", "actor": "ranger", "spell": 75 },
+    { "action": "learn", "actor": "ranger", "spell": 500103 },
+    { "action": "add_item", "actor": "ranger", "item": 2504 },
+    { "action": "equip", "actor": "ranger", "item": 2504, "slot": 17 },
+    { "action": "cast", "label": "Raise Searing Quiver", "actor": "ranger", "spell": 500103 },
+    {
+      "action": "assert", "label": "SETUP: Searing Quiver is up", "actor": "ranger",
+      "metric": "aura", "spell": 500103, "equals": 1, "within_ms": 3000
+    },
+    { "action": "cast", "label": "Start Auto Shot", "actor": "ranger", "spell": 75, "target": "dummy" },
+    {
+      "action": "assert", "label": "SETUP: Auto Shot lands repeatedly", "actor": "ranger",
+      "metric": "spell_damage_count", "spell": 75, "target": "dummy", "min": 3, "within_ms": 20000
+    },
+    {
+      "action": "assert", "label": "SETUP: Searing Quiver deals Fire damage", "actor": "ranger",
+      "metric": "spell_damage_count", "spell": 681109, "target": "dummy", "min": 1, "within_ms": 10000
+    },
+    {
+      "action": "assert", "label": "Control: without Elven Enchantments quiver damage grants no stacks",
+      "actor": "ranger", "metric": "aura", "spell": 560698, "equals": 0
+    },
+    { "action": "learn", "actor": "ranger", "spell": 705054 },
+    {
+      "action": "assert", "label": "SETUP: Elven Enchantments is active", "actor": "ranger",
+      "metric": "aura", "spell": 705054, "equals": 1, "within_ms": 3000
+    },
+    {
+      "action": "assert", "label": "Searing Quiver damage grants Elven Enchantments stacks", "actor": "ranger",
+      "metric": "aura_stacks", "spell": 560698, "min": 3, "within_ms": 30000
+    }
+  ]
+}
