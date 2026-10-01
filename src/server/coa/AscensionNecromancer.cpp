@@ -108,48 +108,34 @@ uint8 Capacity(Player* player)
     player->ApplySpellMod(805011, SPELLMOD_MAX_AURA_STACKS, capacity);
     return uint8(std::clamp(capacity, 0, 48));
 }
-bool MinionRaiserKnown(Player* player, uint32 spell)
-{
-    static std::unordered_map<uint32, uint32> const entryByTalentSpell = []
-    {
-        std::unordered_map<uint32, uint32> map;
-        for (AscensionCompatData::CoATalentEntry const& entry : AscensionCompatData::CoATalentEntries)
-            for (uint8 index = 0; index < entry.SpellCount; ++index)
-                if (entry.SpellIds[index])
-                    map[entry.SpellIds[index]] = entry.EntryId;
-        return map;
-    }();
-
-    auto found = entryByTalentSpell.find(spell);
-    if (found == entryByTalentSpell.end())
-        return true;
-
-    auto const& entries = AscensionCompatData::CoATalentEntries;
-    auto entry = std::lower_bound(entries.begin(), entries.end(), found->second,
-        [](AscensionCompatData::CoATalentEntry const& value, uint32 id) { return value.EntryId < id; });
-    if (entry == entries.end() || entry->EntryId != found->second)
-        return true;
-
-    return AscensionCoATalentState::KnownRank(*entry,
-        [player](uint32 id) { return player->HasSpell(id); }) != 0;
-}
 void Prune(Player* player, bool all)
 {
     auto& state = State(player);
     auto saved = state.minions;
+    auto ownsSummon = [player](MinionRecord const& row)
+    {
+        if (!row.cost || player->HasSpell(row.spell))
+            return true;
+        return std::any_of(player->GetSpellMap().begin(), player->GetSpellMap().end(),
+            [row](auto const& known)
+            {
+                return known.second->State != PLAYERSPELL_REMOVED &&
+                    Named(sSpellMgr->GetSpellInfo(known.first), row.spell);
+            });
+    };
     state.minions.erase(std::remove_if(state.minions.begin(), state.minions.end(),
-                                       [player, all](MinionRecord const& row)
+                                       [player, all, &ownsSummon](MinionRecord const& row)
                                        {
                                            Creature* unit = player->FindMap()
                                                                 ? ObjectAccessor::GetCreature(*player, row.guid)
                                                                 : nullptr;
                                            return all || !unit || !unit->IsAlive() ||
                                                   unit->GetOwnerGUID() != player->GetGUID() || !player->IsInMap(unit) ||
-                                                  !player->InSamePhase(unit) || !MinionRaiserKnown(player, row.spell);
+                                                  !player->InSamePhase(unit) || !ownsSummon(row);
                                        }),
                         state.minions.end());
     for (auto const& row : saved)
-        if (all || !MinionRaiserKnown(player, row.spell))
+        if (all || !ownsSummon(row))
             if (Creature* unit = player->FindMap() ? ObjectAccessor::GetCreature(*player, row.guid) : nullptr)
                 if (unit->GetOwnerGUID() == player->GetGUID())
                     unit->DespawnOrUnsummon();
