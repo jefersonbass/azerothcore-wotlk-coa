@@ -121,6 +121,14 @@ void ApplyContracts(SpellInfo* info)
         info->Effects[EFFECT_0].MiscValue = SPELLMOD_COST;
     if (id == 681493)
         info->Effects[EFFECT_2].SpellClassMask = flag96(0, 0, 33554432);
+if (id == 681486 && info->Effects[EFFECT_2].ApplyAuraName == SPELL_AURA_ADD_PCT_MODIFIER &&
+        info->Effects[EFFECT_2].MiscValue == SPELLMOD_DOT &&
+        info->Effects[EFFECT_2].SpellClassMask == flag96(0, 268436480, 0))
+    {
+        info->Effects[EFFECT_2].MiscValue = SPELLMOD_DAMAGE;
+        info->Effects[EFFECT_2].SpellClassMask = flag96(1024, 0, 0);
+    }
+
     if (Family(info, 1, 4194304))
     {
         info->InterruptFlags |= SPELL_INTERRUPT_FLAG_MOVEMENT;
