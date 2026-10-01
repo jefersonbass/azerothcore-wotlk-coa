@@ -23,6 +23,7 @@
 #include "AscensionCoAConfig.h"
 #include "WorldSessionMgr.h"
 #include "AscensionCoATalentState.h"
+#include "AscensionWildcard.h"
 #include "AscensionRunemasterEchoes.h"
 #include "AscensionCollectionModelData.h"
 #include "AscensionAmmunitionData.h"
@@ -70,6 +71,7 @@
 #include "GameTime.h"
 #include "GossipDef.h"
 #include "GlobalScript.h"
+#include "GroupScript.h"
 #include "GridTerrainData.h"
 #include "GuildPackets.h"
 #include "Item.h"
@@ -92,6 +94,7 @@
 #include "StringConvert.h"
 #include "Timer.h"
 #include "Tokenize.h"
+#include "World.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
 
@@ -1371,6 +1374,8 @@ public:
 
   static std::vector<AscensionCoATalentState::KnownEntry> KnownTalentEntries(Player const* player)
   {
+    if (AscensionWildcard::IsWildcardHero(player))
+      return AscensionWildcard::KnownEntries(player);
     return AscensionCoATalentState::KnownEntries(player->getClass(), SpellbookOf(player));
   }
 
@@ -1395,10 +1400,14 @@ public:
   void SendCharacterAdvancementState(Player* player)
   {
     WorldPacket packet(SMSG_CHARACTER_ADVANCEMENT_ACTIVE_SPEC, sizeof(uint32) * 2);
-    packet << uint32(0) << uint32(1);
+    bool const wildcard = AscensionWildcard::IsWildcardHero(player);
+    packet << (wildcard ? AscensionWildcard::ActiveSpec(player) : uint32(0))
+           << uint32(wildcard ? AscensionWildcard::SPECIALIZATION_COUNT : 1);
     player->GetSession()->SendPacket(&packet);
 
     uint32 const sent = SendKnownTalentEntries(player);
+    if (wildcard)
+      AscensionWildcard::SignalRollReady(player);
     LOG_INFO("coa",
              "Initialized Character Advancement for {} (class {}, level {}) with {} known entries",
              player->GetName(), uint32(player->getClass()), uint32(player->GetLevel()), sent);
@@ -1422,7 +1431,7 @@ public:
       result = "CA_INSPECT_TARGET_NOT_FOUND";
     else if (!target->IsInWorld())
       result = "CA_INSPECT_NOT_IN_WORLD";
-    else if (!player->IsWithinDistInMap(target, INSPECT_DISTANCE))
+    else if (!player->IsWithinDistInMap(target, std::max(INSPECT_DISTANCE, player->GetVisibilityRange())))
       result = "CA_INSPECT_TARGET_NOT_IN_RANGE";
 
     WorldPacket packet(SMSG_INSPECT_CHARACTER_ADVANCEMENT_RESULT, 64);
@@ -1759,7 +1768,7 @@ public:
       _pendingTalentRequests.erase(itr);
     }
 
-    if (!IsAscensionCustomClass(player))
+    if (!IsAscensionCustomClass(player) && !AscensionWildcard::IsWildcardHero(player))
       return;
     for (TalentRequest const& request : requests)
     {
@@ -1784,6 +1793,12 @@ public:
       refusal.Result = "CA_UPDATE_ENTRIES_UNKNOWN";
       LOG_WARN("coa", "Malformed Ascension known-entries upload from {} payload={} bytes",
                player->GetName(), body.size());
+    }
+    else if (AscensionWildcard::IsWildcardHero(player))
+    {
+      AscensionWildcard::BuildChoice const choice = AscensionWildcard::ApplyBuildUpload(player, upload);
+      refusal.Result = choice.Result;
+      refusal.Learn = choice.Learn;
     }
     else if (!ApplyKnownEntriesUpload(player, upload, refusal))
     {
@@ -3633,6 +3648,46 @@ public:
     CollectItem(player, *state, item->GetEntry(), true);
   }
 
+    void OnQuestRewarded(Player* player, Quest const* quest)
+    {
+        if (!quest)
+            return;
+
+        auto state = GetState(player);
+        if (!state)
+            return;
+
+        for (uint32 index = 0; index < QUEST_REWARDS_COUNT; ++index)
+            if (quest->RewardItemId[index] && quest->RewardItemIdCount[index])
+                CollectItemAppearance(player, *state, quest->RewardItemId[index], true, true);
+
+        for (uint32 index = 0; index < QUEST_REWARD_CHOICES_COUNT; ++index)
+            if (quest->RewardChoiceItemId[index] && quest->RewardChoiceItemCount[index])
+                CollectItemAppearance(player, *state, quest->RewardChoiceItemId[index], true, true);
+    }
+
+    void OnLootRollStart(Roll const& roll, Loot const& loot, LootItem const& item)
+    {
+        ItemTemplate const* proto = sObjectMgr->GetItemTemplate(item.itemid);
+        if (!proto || proto->Quality >= ITEM_QUALITY_EPIC)
+            return;
+
+        for (auto const& [guid, vote] : roll.playerVote)
+        {
+            if (vote == NOT_VALID)
+                continue;
+
+            Player* player = ObjectAccessor::FindConnectedPlayer(guid);
+            if (!player || !player->GetSession() || player->GetSession()->IsBot() ||
+                !item.AllowedForPlayer(player, loot.sourceWorldObjectGUID))
+                continue;
+
+            auto state = GetState(player);
+            if (state)
+                CollectItemAppearance(player, *state, item.itemid, true, true);
+        }
+    }
+
   void OnVisibleItemSet(Player *player, uint8 slot, Item *item) {
     if (!item)
       return;
@@ -4033,27 +4088,36 @@ private:
     return false;
   }
 
-  void CollectItem(Player *player, PlayerCollectionState &state, uint32 itemId,
-                   bool notifyClient) {
-    auto mappingItr = _itemAppearances.find(itemId);
-    if (mappingItr != _itemAppearances.end())
+    void CollectItemAppearance(Player* player, PlayerCollectionState& state, uint32 itemId,
+        bool notifyClient, bool equipmentOnly = false)
     {
-      uint32 appearanceId = mappingItr->second;
-      auto const appearance = _appearances.find(appearanceId);
-      if (appearance != _appearances.end() && IsEquipmentAppearance(appearance->second))
-        sScriptMgr->OnPlayerCoAProgress(player, CoAProgressEvent::AppearanceCollected, appearanceId);
-      if (_appearances.contains(appearanceId) &&
-          state.CollectedAppearances.insert(appearanceId).second) {
+        auto const mapping = _itemAppearances.find(itemId);
+        if (mapping == _itemAppearances.end())
+            return;
+
+        uint32 const appearanceId = mapping->second;
+        auto const appearance = _appearances.find(appearanceId);
+        if (appearance == _appearances.end() || (equipmentOnly && !IsEquipmentAppearance(appearance->second)))
+            return;
+
+        if (IsEquipmentAppearance(appearance->second))
+            sScriptMgr->OnPlayerCoAProgress(player, CoAProgressEvent::AppearanceCollected, appearanceId);
+
+        if (!state.CollectedAppearances.insert(appearanceId).second)
+            return;
+
         CharacterDatabase.Execute(
             "INSERT IGNORE INTO `account_appearance_collection` (`account_id`, "
             "`appearance_id`, `source_item`) "
             "VALUES ({}, {}, {})",
             state.AccountId, appearanceId, itemId);
-
         if (notifyClient)
-          SendAppearanceAdded(player, appearanceId, itemId);
-      }
+            SendAppearanceAdded(player, appearanceId, itemId);
     }
+
+  void CollectItem(Player *player, PlayerCollectionState &state, uint32 itemId,
+                   bool notifyClient) {
+    CollectItemAppearance(player, state, itemId, notifyClient);
 
     if (_vanityItems.contains(itemId))
       sScriptMgr->OnPlayerCoAProgress(player, CoAProgressEvent::VanityCollected, itemId);
@@ -4332,11 +4396,15 @@ public:
         AscensionCompatConfig::REALM_TYPE);
 
     uint8 flags[8] = {0, 0, 0, 0, 0, 0, 0, 0};
-    if (art == "seasonal")         flags[1] = 1;
-    else if (art == "league")      flags[2] = 1;
-    else if (art == "ptr")         flags[3] = 1;
-    else if (art == "development") flags[4] = 1;
-    else                           flags[0] = 1;
+    for (std::string_view type : Acore::Tokenize(art, ' ', false)) {
+      if (type == "live")             flags[0] = 1;
+      else if (type == "seasonal")    flags[1] = 1;
+      else if (type == "league")      flags[2] = 1;
+      else if (type == "ptr")         flags[3] = 1;
+      else if (type == "development") flags[4] = 1;
+    }
+    if (std::none_of(flags, flags + 5, [](uint8 flag) { return flag != 0; }))
+      flags[0] = 1;
 
     std::string const model = ascensionCompatConfig.GetConfigValue<std::string>(
         AscensionCompatConfig::CLASS_MODEL);
@@ -4345,9 +4413,13 @@ public:
     else if (model == "wcr")
       flags[REALM_CREATION_FLAG_WARCRAFT_REBORN] = 1;
 
+    uint32 const maxLevel = sWorld->getIntConfig(CONFIG_MAX_PLAYER_LEVEL);
+    uint32 const ruleset = maxLevel <= 60 ? EXPANSION_CLASSIC
+        : maxLevel <= 70 ? EXPANSION_THE_BURNING_CRUSADE : EXPANSION_WRATH_OF_THE_LICH_KING;
+
     WorldPacket p(SMSG_REALM_INFO, 64);
     p << static_cast<uint32>(realm.Id.Realm);
-    p << static_cast<uint32>(EXPANSION_WRATH_OF_THE_LICH_KING);
+    p << ruleset;
     p << 0.0f << 0.0f << 0.0f;
     p << static_cast<uint32>(0);
     p << 0.0f << 0.0f;
@@ -4361,8 +4433,8 @@ public:
     session->SendPacket(&p);
 
     LOG_INFO("coa",
-             "Realm info sent to {}: type {}, class model {}, realm {} ({}).",
-             who, art, model, realm.Id.Realm, realm.Name);
+             "Realm info sent to {}: type {}, class model {}, ruleset {}, realm {} ({}).",
+             who, art, model, ruleset, realm.Id.Realm, realm.Name);
   }
 
   void SendGameModeState(Player *player) {
@@ -5426,6 +5498,7 @@ public:
             {PLAYERHOOK_ON_LOGIN, PLAYERHOOK_ON_LOGOUT, PLAYERHOOK_ON_UPDATE,
              PLAYERHOOK_ON_AFTER_SET_VISIBLE_ITEM_SLOT, PLAYERHOOK_ON_EQUIP, PLAYERHOOK_ON_DELETE,
              PLAYERHOOK_ON_STORE_NEW_ITEM, PLAYERHOOK_ON_CREATE_ITEM,
+             PLAYERHOOK_ON_PLAYER_COMPLETE_QUEST,
              PLAYERHOOK_ON_PLAYER_IS_CLASS, PLAYERHOOK_ON_LEVEL_CHANGED,
              PLAYERHOOK_ON_LEARN_SPELL, PLAYERHOOK_ON_FORGOT_SPELL,
              PLAYERHOOK_ON_AFTER_SPEC_SLOT_CHANGED,
@@ -5473,6 +5546,7 @@ public:
             AscensionCollectionService::Instance().PrepareOwnedCompanionsBeforeMap(player);
             AscensionCollectionService::Instance().PrepareOwnedBankSpellsBeforeMap(player);
             AscensionClassService::Instance().PrepareTaughtAbilitiesBeforeMap(player);
+            AscensionClassService::Instance().QueueCharacterAdvancementState(player);
         }
     }
 
@@ -5674,6 +5748,12 @@ public:
                      bool) override {
     AscensionCollectionService::Instance().OnItemObtained(player, item);
   }
+
+    void OnPlayerCompleteQuest(Player* player, Quest const* quest) override
+    {
+        if (ascensionCompatConfig.GetConfigValue<bool>(AscensionCompatConfig::ENABLED))
+            AscensionCollectionService::Instance().OnQuestRewarded(player, quest);
+    }
 
   void OnPlayerStoreNewItem(Player *player, Item *item,
                             uint32) override {
@@ -6655,6 +6735,12 @@ void AddAscensionSpecializationSwitchGuard(AscensionSpecializationSwitchGuard gu
         SpecializationSwitchGuards().push_back(std::move(guard));
 }
 
+std::string AscensionSpecializationSwitchRefusal(Player* player, uint32 activeSpecializationId,
+    uint32 requestedSpecializationId)
+{
+    return SpecializationSwitchRefusal(player, activeSpecializationId, requestedSpecializationId);
+}
+
 uint32 ForgetAscensionClassTalents(Player* player)
 {
     if (!player || !IsAscensionCustomClass(player))
@@ -6781,6 +6867,19 @@ std::vector<AscensionClassAbility> GetAscensionClassAbilities(uint8 classId)
     return abilities;
 }
 
+class AscensionCompatGroupScript : public GroupScript
+{
+public:
+    AscensionCompatGroupScript()
+        : GroupScript("AscensionCompatGroupScript", {GROUPHOOK_ON_LOOT_ROLL_START}) { }
+
+    void OnLootRollStart(Group*, Roll const& roll, Loot const& loot, LootItem const& item) override
+    {
+        if (ascensionCompatConfig.GetConfigValue<bool>(AscensionCompatConfig::ENABLED))
+            AscensionCollectionService::Instance().OnLootRollStart(roll, loot, item);
+    }
+};
+
 class AscensionCompatAllCreatureScript : public AllCreatureScript {
 public:
   AscensionCompatAllCreatureScript()
@@ -6837,6 +6936,7 @@ void AddAscensionCompatScripts() {
   new AscensionCompatServerScript();
   new AscensionCompatCommandScript();
   new AscensionCompatPlayerScript();
+  new AscensionCompatGroupScript();
   new AscensionCompatAllSpellScript();
   new AscensionCompatUnitScript();
   new AscensionCompatChangelogScript();
