@@ -1,0 +1,32 @@
+{
+  "schema": 1,
+  "name": "Runemaster: Glyph God cuts Glyphic Overload to a 30s cooldown (#1942)",
+  "contract": "Glyph God 520156 (CharacterAdvancement 29346, class 32 Arcane talent, passive) reads 'Reduces the cooldown of Glyphic Overload by 15 sec.' Its single effect is aura 107 SPELL_AURA_ADD_FLAT_MODIFIER with EffectMiscValue 11 (SPELLMOD_COOLDOWN), EffectBasePoints -15001 + DieSides 1 = -15000 ms, over EffectSpellClassMask (0, 0, 144), which intersects Glyphic Overload 520099 (SpellFamilyName 38, flags (0, 0, 128)) via SpellInfo::IsAffected; 520099 is otherwise a single-rank chain with RecoveryTime 45000. Player::AddSpellCooldown folds SPELLMOD_COOLDOWN natively, so no source file, module or pending SQL references 520156 and none is needed: the talent must turn the 45s cooldown into 30s. The scenario casts Overload once without the talent (control: cooldown reads ~45s, proving the cooldown exists at all), resets it, learns Glyph God, and casts again (discriminating: ~30s; the 20-35s band fails both the unfixed ~42-45s and a zeroed cooldown). Overload costs 40% mana, so mana is refilled from a max_power-proven pool before each cast and every cast asserts cast_failure 0 so an unpaid cast fails loudly as setup, never as a cooldown reading. Overload is self-range, so both casts target the caster.",
+  "timeout_ms": 90000,
+  "players": [
+    {"id": "rm", "race": 1, "class": 32, "level": 80}
+  ],
+  "steps": [
+    {"action": "wait", "label": "Let spawn AI and level scaling settle", "ms": 3000},
+    {"action": "learn", "actor": "rm", "spell": 520099},
+    {"action": "assert", "label": "SETUP: mana pool covers the 40% Overload cost", "actor": "rm",
+      "metric": "max_power", "power": 0, "min": 4000},
+    {"action": "set_power", "label": "Fill mana for the control cast", "actor": "rm", "power": 0, "value": 4000},
+    {"action": "cast", "label": "Control cast without Glyph God", "actor": "rm", "spell": 520099, "target": "rm"},
+    {"action": "assert", "label": "SETUP: control cast succeeded", "actor": "rm",
+      "metric": "cast_failure", "spell": 520099, "equals": 0},
+    {"action": "assert", "label": "CONTROL: Overload enters its native 45s cooldown", "actor": "rm",
+      "metric": "cooldown_ms", "spell": 520099, "min": 40000, "within_ms": 3000},
+    {"action": "wait", "label": "Let the global cooldown expire", "ms": 2000},
+    {"action": "reset_cooldown", "label": "Clear the control cooldown", "actor": "rm", "spell": 520099},
+    {"action": "learn", "actor": "rm", "spell": 520156},
+    {"action": "assert", "label": "SETUP: Glyph God aura is active", "actor": "rm",
+      "metric": "aura", "spell": 520156, "equals": 1, "within_ms": 3000},
+    {"action": "set_power", "label": "Fill mana for the talented cast", "actor": "rm", "power": 0, "value": 4000},
+    {"action": "cast", "label": "Talented cast with Glyph God", "actor": "rm", "spell": 520099, "target": "rm"},
+    {"action": "assert", "label": "SETUP: talented cast succeeded", "actor": "rm",
+      "metric": "cast_failure", "spell": 520099, "equals": 0},
+    {"action": "assert", "label": "DISCRIMINATING: Overload cooldown is cut to 30s", "actor": "rm",
+      "metric": "cooldown_ms", "spell": 520099, "min": 20000, "max": 35000, "within_ms": 3000}
+  ]
+}
