@@ -432,10 +432,12 @@ public:
         if (uint32 cooldown = player->GetSpellCooldownDelay(SPELL_INCARNATION_OF_CHAOS))
             player->ModifySpellCooldown(SPELL_INCARNATION_OF_CHAOS,
                 -std::min<uint32>(cooldown, CHAOTIC_TIME_REDUCTION));
-        // Anomaly Spikes (503825): "Periodic damage dealt now has a 8% chance
+        // Anomaly Spikes (503825, rank 2 504886): "Periodic damage dealt now has a 8%/15% chance
         // to launch an Anomaly Spike at your target." The spike (503826)
         // carries the damage natively; the proc roll lives here.
-        if (player->HasAura(SPELL_ANOMALY_SPIKES) && roll_chance_i(ANOMALY_CHANCE))
+        uint32 anomalyChance = player->HasAura(SPELL_ANOMALY_SPIKES_R2) ? ANOMALY_CHANCE_R2 :
+            (player->HasAura(SPELL_ANOMALY_SPIKES) ? ANOMALY_CHANCE : 0);
+        if (anomalyChance && roll_chance_i(anomalyChance))
             spell->GetCaster()->CastSpell(target, SPELL_ANOMALY_SPIKE_HIT, true);
     }
 
@@ -455,8 +457,10 @@ private:
     static constexpr uint32 SPELL_CHAOTIC_TIME = 583245;
     static constexpr uint32 CHAOTIC_TIME_REDUCTION = 1000;
     static constexpr uint32 SPELL_ANOMALY_SPIKES = 503825;
+    static constexpr uint32 SPELL_ANOMALY_SPIKES_R2 = 504886;
     static constexpr uint32 SPELL_ANOMALY_SPIKE_HIT = 503826;
     static constexpr uint32 ANOMALY_CHANCE = 8;
+    static constexpr uint32 ANOMALY_CHANCE_R2 = 15;
     static constexpr uint32 ARCHAEOLOGY_PCT = 3;
 };
 
