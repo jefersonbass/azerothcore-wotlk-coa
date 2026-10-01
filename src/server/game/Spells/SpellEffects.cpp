@@ -238,7 +238,7 @@ pEffect SpellEffects[TOTAL_SPELL_EFFECTS] =
     &Spell::EffectAscensionRestoreBaseManaPct,              //166 SPELL_EFFECT_ASCENSION_RESTORE_BASE_MANA_PCT
     &Spell::EffectNULL,                                     //167 unknown Ascension effect
     &Spell::EffectNULL,                                     //168 unknown Ascension effect
-    &Spell::EffectNULL,                                     //169 SPELL_EFFECT_ASCENSION_SPREAD_AURA
+    &Spell::EffectAscensionSpreadAura,                      //169 SPELL_EFFECT_ASCENSION_SPREAD_AURA
     &Spell::EffectNULL,                                     //170 SPELL_EFFECT_ASCENSION_SPREAD_AURA_2
     &Spell::EffectNULL,                                     //171 unknown Ascension effect
     &Spell::EffectNULL,                                     //172 unknown Ascension effect
@@ -478,6 +478,67 @@ void Spell::EffectAscensionModifyAuraDuration(SpellEffIndex effIndex)
             aura->Remove();
         else
             aura->SetDuration(duration);
+    }
+}
+
+void Spell::EffectAscensionSpreadAura(SpellEffIndex effIndex)
+{
+    if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT_TARGET)
+        return;
+
+    Unit* primary = unitTarget;
+    Unit* caster = GetCaster();
+    if (!primary || !caster || !primary->IsAlive() || !caster->IsAlive())
+        return;
+
+    SpellEffectInfo const& effect = m_spellInfo->Effects[effIndex];
+    uint32 spread = effect.TriggerSpell;
+    if (!spread || !sSpellMgr->GetSpellInfo(spread))
+        return;
+
+    Aura* source = primary->GetAura(spread, caster->GetGUID());
+    if (!source)
+        return;
+
+    float radius = effect.CalcRadius(caster);
+    if (radius <= 0.0f)
+        return;
+
+    uint32 limit = m_spellInfo->MaxAffectedTargets;
+    if (!limit)
+        limit = uint32(std::max(damage, 0));
+
+    UnitList candidates;
+    Acore::AnyUnfriendlyUnitInObjectRangeCheck check(primary, caster, radius);
+    Acore::UnitListSearcher<Acore::AnyUnfriendlyUnitInObjectRangeCheck> searcher(primary, candidates, check);
+    Cell::VisitObjects(primary, searcher, radius);
+
+    candidates.remove_if([primary, caster](Unit* unit)
+    {
+        return unit == primary || !unit->IsAlive() || !caster->InSamePhase(unit) ||
+            !caster->IsValidAttackTarget(unit);
+    });
+    candidates.sort([primary](Unit* left, Unit* right)
+    {
+        return primary->GetExactDistSq(left) < primary->GetExactDistSq(right);
+    });
+
+    uint8 stacks = source->GetStackAmount();
+    int32 duration = source->GetDuration();
+    int32 maxDuration = source->GetMaxDuration();
+    for (Unit* victim : candidates)
+    {
+        if (!limit--)
+            break;
+        caster->CastSpell(victim, spread, true);
+        if (Aura* copy = victim->GetAura(spread, caster->GetGUID()))
+        {
+            if (stacks > 1)
+                copy->SetStackAmount(stacks);
+            if (maxDuration > 0)
+                copy->SetMaxDuration(maxDuration);
+            copy->SetDuration(duration);
+        }
     }
 }
 
