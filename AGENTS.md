@@ -76,6 +76,9 @@ Read the relevant sections when needed for the work. Do not read every guide or 
 - Preparing an actual PR → `.agents/docs/self-review-rules.md`
 - Investigating a gameplay bug report before fixing it → `.agents/docs/issue-investigation.md`
 - Requested issue queue / issue-to-PR workflow → `.agents/skills/coa-fix-issues/SKILL.md`
+- Requested issue queue or topic fixes (class mechanics, quests, crashes, etc.) →
+  `.agents/skills/coa-fix-issues/SKILL.md` (topic requests default to 32 issues and one PR per batch)
+
 - Subsystem-specific questions → the relevant section in `.agents/docs/systems/`
 - Ascension damage/healing, AP/RAP/SP coefficients, triggered spells or tooltip parity →
   `.agents/docs/systems/ascension-spell-parity.md`
