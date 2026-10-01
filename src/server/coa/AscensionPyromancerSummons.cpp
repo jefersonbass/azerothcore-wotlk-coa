@@ -61,6 +61,22 @@ struct npc_ascension_pyromancer_summon : public ScriptedAI
     Position previous;
     std::set<ObjectGuid> shielded, occupants;
     bool firstShield = false;
+    enum PhoenixSummon : uint32
+    {
+        PhoenixEntry = 50258,
+        RoaringPyreEntry = 50359,
+        PhoenixEggDisplay = 20245,
+        PhoenixFlightDisplay = 17765,
+    };
+    bool IsPhoenix() const { return me->GetEntry() == PhoenixEntry; }
+    void Follow(Player* player)
+    {
+        me->SetCanFly(true);
+        me->GetMotionMaster()->Clear(false);
+        me->GetMotionMaster()->MoveFollow(player, PET_FOLLOW_DIST, PET_FOLLOW_ANGLE, MOTION_SLOT_ACTIVE);
+        if (me->GetDisplayId() != PhoenixFlightDisplay)
+            me->SetDisplayId(PhoenixFlightDisplay);
+    }
     void IsSummonedBy(WorldObject* summoner) override
     {
         Player* player = Owner(summoner ? summoner->ToUnit() : nullptr);
@@ -77,22 +93,24 @@ struct npc_ascension_pyromancer_summon : public ScriptedAI
         me->SetHealth(me->GetMaxHealth());
         me->SetArmor(player->GetArmor());
         me->SetReactState(REACT_PASSIVE);
-        if (me->GetEntry() == 50258 || me->GetEntry() == 50359)
+        if (IsPhoenix() || me->GetEntry() == RoaringPyreEntry)
         {
-            ObjectGuid& owned = me->GetEntry() == 50258 ? State(player).phoenix : State(player).pyre;
+            ObjectGuid& owned = IsPhoenix() ? State(player).phoenix : State(player).pyre;
             if (Creature* old = ObjectAccessor::GetCreature(*me, owned); old && old->GetOwnerGUID() == owner)
                 old->DespawnOrUnsummon();
             owned = me->GetGUID();
         }
-        if (me->GetEntry() == 50359)
+        if (me->GetEntry() == RoaringPyreEntry)
             me->CastSpell(me, 704279, true);
-        timers.ScheduleEvent(1, me->GetEntry() == 50258 ? PhoenixPeriod(player) : 200ms);
+        if (IsPhoenix())
+            Follow(player);
+        timers.ScheduleEvent(1, IsPhoenix() ? PhoenixPeriod(player) : 200ms);
     }
     void SetGUID(ObjectGuid const& guid, int32 = 0) override { command = guid; }
     void DoAction(int32 action) override
     {
         Player* player = ObjectAccessor::GetPlayer(*me, owner);
-        if (!player || me->GetEntry() != 50258)
+        if (!player || !IsPhoenix())
             return;
         if (action == 1)
         {
@@ -103,7 +121,7 @@ struct npc_ascension_pyromancer_summon : public ScriptedAI
                 shielded.clear();
                 firstShield = true;
                 diveTime = 4000;
-                me->SetDisplayId(17765);
+                me->SetDisplayId(PhoenixFlightDisplay);
                 me->GetMotionMaster()->MoveCharge(target->GetPositionX(), target->GetPositionY(),
                                                   target->GetPositionZ(), 25);
             }
@@ -112,7 +130,7 @@ struct npc_ascension_pyromancer_summon : public ScriptedAI
         {
             dormant = std::max(1, sSpellMgr->GetSpellInfo(707060)->GetDuration());
             me->GetMotionMaster()->MoveIdle();
-            me->SetDisplayId(20245);
+            me->SetDisplayId(PhoenixEggDisplay);
             timers.RescheduleEvent(1, 2s);
         }
     }
@@ -144,7 +162,7 @@ struct npc_ascension_pyromancer_summon : public ScriptedAI
     }
     void JustDied(Unit*) override
     {
-        if (me->GetEntry() == 50258)
+        if (IsPhoenix())
             if (Player* player = ObjectAccessor::GetPlayer(*me, owner); player && player->HasAura(806779))
                 for (Unit* ally : Allies(player, me, 30, 40))
                     Copy(player, ally, 712482, me->GetMaxHealth());
@@ -161,14 +179,20 @@ struct npc_ascension_pyromancer_summon : public ScriptedAI
         {
             Shields(player);
             diveTime = diveTime > diff ? diveTime - diff : 0;
-            if (!diveTime)
-                me->SetDisplayId(20245);
+            if (!diveTime && IsPhoenix())
+            {
+                me->SetDisplayId(PhoenixFlightDisplay);
+                Follow(player);
+            }
         }
+        bool wasDormant = dormant != 0;
         dormant = dormant > diff ? dormant - diff : 0;
+        if (wasDormant && !dormant && IsPhoenix() && !diveTime)
+            Follow(player);
         timers.Update(diff);
         if (timers.ExecuteEvent() != 1)
             return;
-        if (me->GetEntry() == 50258)
+        if (IsPhoenix())
         {
             uint32 id = dormant ? 706856 : 707110;
             SpellInfo const* info = sSpellMgr->GetSpellInfo(id);
@@ -194,7 +218,7 @@ struct npc_ascension_pyromancer_summon : public ScriptedAI
             next = 200ms;
         else if (dormant)
             next = 2000ms;
-        else if (me->GetEntry() == 50258)
+        else if (IsPhoenix())
             next = PhoenixPeriod(player);
         timers.ScheduleEvent(1, next);
     }
