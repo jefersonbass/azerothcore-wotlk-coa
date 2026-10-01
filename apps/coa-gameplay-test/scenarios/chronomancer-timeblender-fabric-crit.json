@@ -1,0 +1,45 @@
+{
+  "schema": 1,
+  "name": "Timeblender guarantees Fabric of Time crits natively (#1987)",
+  "contract": "Timeblender 555737 carries a single effect: SPELL_EFFECT_APPLY_AURA (6) with Aura=107 SPELL_AURA_ADD_FLAT_MODIFIER, EffectMiscValue 7 = SPELLMOD_CRITICAL_CHANCE, EffectBasePoints 99 with DieSides 1 (real value +100), class mask (0,0,256). Every Fabric of Time rank ships SpellFamilyName 28 with family flags (0,0,256), so the mask matches; the obtainable rank 806299 (the only Fabric rank with a CharacterAdvancement row) is covered. Native path only: AuraEffect::CalculateSpellMod builds the modifier and Unit::SpellDoneCritChance applies SPELLMOD_CRITICAL_CHANCE via Player::ApplySpellMod, so the probe needs no cast. The tooltip's second half ('an additional charge') has no DBC carrier and is NOT asserted here: 806299 ships RecoveryTime 15000 but no SpellCharges.dbc row, so MaxCharges is 0, and the only charge row (572378, category 328 = 2 charges/15s) is not obtainable (no CharacterAdvancement row). Adding charges to 806299 would invent data the client does not ship.",
+  "timeout_ms": 60000,
+  "players": [
+    { "id": "control", "race": 1, "class": 22, "level": 80 },
+    { "id": "talent", "race": 1, "class": 22, "level": 80 }
+  ],
+  "steps": [
+    { "action": "wait", "label": "Let spawn AI and level scaling settle", "ms": 5000 },
+    {
+      "action": "assert",
+      "label": "Fabric of Time has no crit modifier without the talent",
+      "actor": "control",
+      "metric": "spell_modifier",
+      "spell": 806299,
+      "op": 7,
+      "base": 0,
+      "equals": 0
+    },
+    { "action": "learn", "actor": "talent", "spell": 555737 },
+    {
+      "action": "assert",
+      "label": "Timeblender guarantees Fabric of Time crits (+100 crit chance)",
+      "actor": "talent",
+      "metric": "spell_modifier",
+      "spell": 806299,
+      "op": 7,
+      "base": 0,
+      "equals": 100
+    },
+    { "action": "unlearn", "actor": "talent", "spell": 555737 },
+    {
+      "action": "assert",
+      "label": "Unlearning removes the guarantee",
+      "actor": "talent",
+      "metric": "spell_modifier",
+      "spell": 806299,
+      "op": 7,
+      "base": 0,
+      "equals": 0
+    }
+  ]
+}
