@@ -51,7 +51,8 @@ enum RangerTalentSpells : uint32
     SPELL_MARKED_FOR_DEATH_BUFF = 806974,
     SPELL_DEEPWOOD_POISON = 800079,
     SPELL_DEEPWOOD_POISON_DOT = 801472,
-    SPELL_RANGER_EXPLOIT = 520570
+    SPELL_RANGER_EXPLOIT = 520570,
+    SPELL_DEADLY_ACCURATE = 560345
 };
 
 constexpr uint32 STONEMASON_SOURCE_FIRST = 501715;
@@ -594,9 +595,28 @@ public:
     }
 };
 
+class ranger_deadly_accurate_consume : public AllSpellScript
+{
+public:
+    ranger_deadly_accurate_consume() : AllSpellScript("ranger_deadly_accurate_consume", {ALLSPELLHOOK_ON_HIT_RESULT}) { }
+
+    void OnSpellHitResult(Spell* spell, Unit* target, uint8 miss, uint32 damage, uint32, bool) override
+    {
+        Player* player = spell->GetCaster() ? spell->GetCaster()->ToPlayer() : nullptr;
+        SpellInfo const* info = spell->GetSpellInfo();
+        if (!player || player->getClass() != CLASS_RANGER || !target || miss != SPELL_MISS_NONE || !damage ||
+            info->SpellFamilyName != 27 || !player->HasAura(SPELL_DEADLY_ACCURATE))
+            return;
+        if (sSpellMgr->GetFirstSpellInChain(info->Id) != 501715)
+            return;
+        player->RemoveAurasDueToSpell(SPELL_DEADLY_ACCURATE);
+    }
+};
+
 void AddSC_AscensionRangerTalents()
 {
     new ranger_pierced_crits();
+    new ranger_deadly_accurate_consume();
     new ranger_deepwood_exploit();
     RegisterSpellScript(spell_ascension_ranger_light_arrows);
     RegisterSpellScript(spell_ascension_ranger_knockout);
