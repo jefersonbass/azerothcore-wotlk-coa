@@ -1,6 +1,7 @@
 /* Copyright (C) 2016+ AzerothCore, GNU AGPL v3. */
 #include "AscensionRangerTalents.h"
 #include "Creature.h"
+#include "Item.h"
 #include "ObjectMgr.h"
 #include "Player.h"
 #include "ScriptMgr.h"
@@ -45,7 +46,9 @@ enum RangerTalentSpells : uint32
     SPELL_PILFERING_HEAL = 520880,
     SPELL_RAPID_STRIKES = 560341,
     SPELL_RAPID_STRIKE = 560342,
-    SPELL_GUIDANCE = 532261
+    SPELL_GUIDANCE = 532261,
+    SPELL_MARKED_FOR_DEATH = 806973,
+    SPELL_MARKED_FOR_DEATH_BUFF = 806974
 };
 
 constexpr uint32 STONEMASON_SOURCE_FIRST = 501715;
@@ -459,6 +462,46 @@ public:
         player->CastSpell(target, SPELL_SWIFTSHOT_VULNERABILITY, true);
     }
 };
+
+class aura_ascension_ranger_marked_for_death : public AuraScript
+{
+    PrepareAuraScript(aura_ascension_ranger_marked_for_death);
+
+    bool Validate(SpellInfo const* spellInfo) override
+    {
+        SpellEffectInfo const& trigger = spellInfo->Effects[EFFECT_0];
+        return spellInfo->Id == SPELL_MARKED_FOR_DEATH && spellInfo->SpellFamilyName == 27 &&
+            trigger.IsAura(SPELL_AURA_PROC_TRIGGER_SPELL) &&
+            trigger.TriggerSpell == SPELL_MARKED_FOR_DEATH_BUFF &&
+            ValidateSpellInfo({ SPELL_MARKED_FOR_DEATH_BUFF });
+    }
+
+    bool Load() override
+    {
+        Unit* ranger = GetUnitOwner();
+        return ranger && ranger->IsPlayer() && ranger->ToPlayer()->getClass() == CLASS_RANGER;
+    }
+
+    static bool HasDaggers(Player const* ranger)
+    {
+        for (WeaponAttackType attack : { BASE_ATTACK, OFF_ATTACK })
+            if (Item const* weapon = ranger->GetWeaponForAttack(attack, true))
+                if (weapon->GetTemplate()->SubClass == ITEM_SUBCLASS_WEAPON_DAGGER)
+                    return true;
+        return false;
+    }
+
+    bool CheckProc(ProcEventInfo& eventInfo)
+    {
+        Player const* ranger = GetTarget()->ToPlayer();
+        return ranger && eventInfo.GetActor() == GetTarget() && HasDaggers(ranger);
+    }
+
+    void Register() override
+    {
+        DoCheckProc += AuraCheckProcFn(aura_ascension_ranger_marked_for_death::CheckProc);
+    }
+};
 }
 
 void HandleAscensionRangerStonemason(Spell* spell, Player* player)
@@ -533,6 +576,7 @@ void AddSC_AscensionRangerTalents()
     RegisterSpellScript(aura_ascension_ranger_pilfering);
     RegisterSpellScript(aura_ascension_ranger_rapid_strikes);
     RegisterSpellScript(aura_ascension_ranger_guidance);
+    RegisterSpellScript(aura_ascension_ranger_marked_for_death);
     new ranger_wingman_companions();
     new ranger_swiftshot_hits();
 }
