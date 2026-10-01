@@ -1,0 +1,312 @@
+{
+  "contract": [
+    "Ancestral Evolution 806229 (Barbarian raid talent) reads 'all party and raid members reflect 20% of all damage taken for 20 sec'.",
+    "The raid-wide carrier (SPELL_EFFECT_APPLY_AREA_AURA_RAID, radius 100, duration 20 s) ships effect 0 as a DUMMY aura with ProcFlags 0, so nothing ever fired. The load-time contract repoints effect 0 at PROC_TRIGGER_SPELL_WITH_VALUE (amount 20, the authored 20%) and arms PROC_FLAG_TAKEN_DAMAGE | PROC_FLAG_TAKEN_PERIODIC; aura_ascension_ancestral_evolution deals the 20% share back at the attacker as physical damage.",
+    "Expected: after the Barbarian casts 806229 onto its party member, a hostile Warrior's melee swings hurt the attacker for 20% of each taken hit (attacker health falls by 0.19-0.21x the member's health loss), while a second member without the aura takes the same swings with no reflection onto the attacker."
+  ],
+  "creatures": [
+    {
+      "distance": 2,
+      "entry": 36,
+      "health": 1000000,
+      "id": "d",
+      "level": 80,
+      "owner": "member"
+    }
+  ],
+  "location": {
+    "map": 0,
+    "o": 0,
+    "x": -8917.41,
+    "y": -115.853,
+    "z": 82.3711
+  },
+  "name": "Barbarian Ancestral Evolution reflects 20% of damage taken at the attacker (#3617)",
+  "players": [
+    {
+      "class": 12,
+      "id": "c",
+      "level": 80,
+      "race": 1
+    },
+    {
+      "class": 12,
+      "expertise_rating": 10000,
+      "id": "member",
+      "level": 80,
+      "melee_hit_rating": 10000,
+      "race": 1
+    },
+    {
+      "class": 12,
+      "expertise_rating": 10000,
+      "id": "plain",
+      "level": 80,
+      "melee_hit_rating": 10000,
+      "race": 1
+    },
+    {
+      "class": 1,
+      "expertise_rating": 10000,
+      "id": "attacker",
+      "level": 80,
+      "melee_hit_rating": 10000,
+      "race": 2
+    }
+  ],
+  "schema": 1,
+  "steps": [
+    {
+      "action": "wait",
+      "label": "Let login and level scaling settle",
+      "ms": 4000
+    },
+    {
+      "action": "group",
+      "actor": "c",
+      "label": "Put the caster and both members in one party",
+      "target": "member"
+    },
+    {
+      "action": "group",
+      "actor": "c",
+      "target": "plain"
+    },
+    {
+      "action": "pvp",
+      "actor": "member",
+      "enabled": true
+    },
+    {
+      "action": "pvp",
+      "actor": "plain",
+      "enabled": true
+    },
+    {
+      "action": "pvp",
+      "actor": "attacker",
+      "enabled": true
+    },
+    {
+      "action": "set_health",
+      "actor": "member",
+      "maximum": 100000,
+      "value": 100000
+    },
+    {
+      "action": "set_health",
+      "actor": "plain",
+      "maximum": 100000,
+      "value": 100000
+    },
+    {
+      "action": "set_health",
+      "actor": "attacker",
+      "maximum": 1000000,
+      "value": 1000000
+    },
+    {
+      "action": "learn",
+      "actor": "c",
+      "spell": 806229
+    },
+    {
+      "action": "cast",
+      "actor": "c",
+      "label": "Barbarian casts Ancestral Evolution",
+      "spell": 806229
+    },
+    {
+      "action": "assert",
+      "actor": "member",
+      "label": "CONTRACT: the raid aura reaches the party member",
+      "metric": "aura",
+      "spell": 806229,
+      "within_ms": 15000,
+      "equals": 1
+    },
+    {
+      "action": "assert",
+      "actor": "member",
+      "label": "CONTRACT: the aura carries the authored 20% share",
+      "effect": 0,
+      "metric": "aura_amount",
+      "spell": 806229,
+      "equals": 20
+    },
+    {
+      "action": "assert",
+      "actor": "plain",
+      "label": "SETUP: the carrier also reaches the nearby control member",
+      "metric": "aura",
+      "spell": 806229,
+      "within_ms": 15000,
+      "equals": 1
+    },
+    {
+      "action": "cancel_aura",
+      "actor": "plain",
+      "label": "SETUP: drop the aura from the control member",
+      "spell": 806229
+    },
+    {
+      "action": "assert",
+      "actor": "plain",
+      "label": "SETUP: the control member has no aura left",
+      "metric": "aura",
+      "spell": 806229,
+      "equals": 0,
+      "within_ms": 15000
+    },
+    {
+      "action": "snapshot",
+      "actor": "member",
+      "label": "Baseline member health",
+      "metric": "health",
+      "save_as": "member0"
+    },
+    {
+      "action": "snapshot",
+      "actor": "plain",
+      "label": "Baseline control health",
+      "metric": "health",
+      "save_as": "plain0"
+    },
+    {
+      "action": "snapshot",
+      "actor": "attacker",
+      "label": "Baseline attacker health",
+      "metric": "health",
+      "save_as": "attacker0"
+    },
+    {
+      "action": "snapshot",
+      "actor": "member",
+      "label": "Baseline proc count",
+      "metric": "spell_proc_count",
+      "save_as": "procs0",
+      "spell": 806229
+    },
+    {
+      "action": "attack",
+      "actor": "attacker",
+      "label": "Hostile Warrior beats the warded member",
+      "target": "member"
+    },
+    {
+      "action": "wait",
+      "ms": 6000
+    },
+    {
+      "action": "stop_attack",
+      "actor": "attacker"
+    },
+    {
+      "action": "snapshot",
+      "actor": "member",
+      "label": "Warded member health after beating",
+      "metric": "health",
+      "save_as": "member1"
+    },
+    {
+      "action": "snapshot",
+      "actor": "attacker",
+      "label": "Attacker health after reflected beating",
+      "metric": "health",
+      "save_as": "attacker1"
+    },
+    {
+      "action": "assert",
+      "actor": "attacker",
+      "label": "CONTRACT: the attacker lost health to the 20% reflection",
+      "max": -100,
+      "metric": "health",
+      "min": -8000,
+      "relative_to": "attacker0"
+    },
+    {
+      "action": "assert",
+      "actor": "member",
+      "label": "SETUP: the warded member actually took damage",
+      "metric": "health",
+      "relative_to": "member0",
+      "max": -500
+    },
+    {
+      "action": "assert",
+      "actor": "member",
+      "label": "CONTRACT: every taken hit procced the aura",
+      "metric": "spell_proc_count",
+      "relative_to": "procs0",
+      "min": 1,
+      "spell": 806229
+    },
+    {
+      "action": "snapshot",
+      "actor": "attacker",
+      "label": "Re-baseline attacker health",
+      "metric": "health",
+      "save_as": "attacker2"
+    },
+    {
+      "action": "attack",
+      "actor": "attacker",
+      "label": "Same Warrior beats the unwarded control",
+      "target": "plain"
+    },
+    {
+      "action": "wait",
+      "ms": 6000
+    },
+    {
+      "action": "stop_attack",
+      "actor": "attacker"
+    },
+    {
+      "action": "snapshot",
+      "actor": "plain",
+      "label": "Control health after beating",
+      "metric": "health",
+      "save_as": "plain1"
+    },
+    {
+      "action": "snapshot",
+      "actor": "attacker",
+      "label": "Attacker health after control beating",
+      "metric": "health",
+      "save_as": "attacker3"
+    },
+    {
+      "action": "assert",
+      "actor": "attacker",
+      "label": "CONTROL: with no aura on the victim nothing is reflected",
+      "max": 500,
+      "metric": "health",
+      "min": -100,
+      "relative_to": "attacker2"
+    },
+    {
+      "action": "assert",
+      "actor": "plain",
+      "label": "SETUP: the control also took damage",
+      "metric": "health",
+      "relative_to": "plain0",
+      "max": -500
+    },
+    {
+      "action": "assert",
+      "actor": "member",
+      "label": "SURVIVAL: both members are still alive",
+      "metric": "alive",
+      "equals": 1
+    },
+    {
+      "action": "assert",
+      "actor": "plain",
+      "label": "SURVIVAL: the control is still alive",
+      "metric": "alive",
+      "equals": 1
+    }
+  ],
+  "timeout_ms": 120000
+}

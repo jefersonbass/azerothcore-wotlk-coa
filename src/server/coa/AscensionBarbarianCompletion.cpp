@@ -118,6 +118,15 @@ void ApplyContracts(SpellInfo* info)
                 effect.ApplyAuraName = SPELL_AURA_DUMMY;
     if (id == 806228)
         info->Effects[EFFECT_1].ApplyAuraName = SPELL_AURA_DUMMY;
+    if (id == 806229)
+    {
+        // Ancestral Evolution: the raid-wide carrier ships as a DUMMY aura with
+        // ProcFlags 0, so the authored 20% reflect never fires. Repoint it at the
+        // proc-trigger aura and arm damage-taken procs; the aura script below
+        // reflects the share back at the attacker.
+        info->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_PROC_TRIGGER_SPELL_WITH_VALUE;
+        info->ProcFlags = PROC_FLAG_TAKEN_DAMAGE | PROC_FLAG_TAKEN_PERIODIC;
+    }
     if (id == 570106)
         info->Effects[EFFECT_1].Effect = 0;
     if (id == 804862)
@@ -321,6 +330,52 @@ public:
             value += player->GetTotalAttackPowerValue(BASE_ATTACK);
         if (info->Id == 801761 && index == 1)
             value = player->HasAura(707410) ? -100.0f : 0.0f;
+    }
+};
+
+// Ancestral Evolution (806229): "all party and raid members reflect 20% of all
+// damage taken for 20 sec". The raid-wide carrier ships effect 0 as a DUMMY aura
+// with no proc, so the contract above repoints it at PROC_TRIGGER_SPELL_WITH_VALUE
+// (amount 20 = the authored 20%) and arms damage-taken procs. Each taken hit deals
+// the share back at the attacker as physical damage. The spell-id guard keeps one
+// member's reflect from ping-ponging off another member's own Evolution aura.
+class aura_ascension_ancestral_evolution : public AuraScript
+{
+    PrepareAuraScript(aura_ascension_ancestral_evolution);
+
+    bool Check(ProcEventInfo& event)
+    {
+        Unit* ally = GetTarget();
+        DamageInfo* damage = event.GetDamageInfo();
+        Unit* attacker = damage ? damage->GetAttacker() : nullptr;
+        AuraEffect const* effect = GetEffect(EFFECT_0);
+        SpellInfo const* info = damage ? damage->GetSpellInfo() : nullptr;
+        return ally && ally->IsAlive() && event.GetActionTarget() == ally && damage &&
+            attacker && attacker != ally && attacker->IsAlive() &&
+            !ally->IsFriendlyTo(attacker) && damage->GetDamage() > 0 &&
+            (!info || info->Id != 806229) && effect && effect->GetAmount() > 0;
+    }
+
+    void Reflect(AuraEffect const* effect, ProcEventInfo& event)
+    {
+        PreventDefaultAction();
+        Unit* ally = GetTarget();
+        DamageInfo* damage = event.GetDamageInfo();
+        Unit* attacker = damage ? damage->GetAttacker() : nullptr;
+        if (!ally || !attacker)
+            return;
+        uint32 share = uint32((uint64(damage->GetDamage()) * uint64(std::max(0, effect->GetAmount()))) / 100);
+        if (!share)
+            return;
+        Unit::DealDamage(ally, attacker, share, nullptr, SPELL_DIRECT_DAMAGE, SPELL_SCHOOL_MASK_NORMAL,
+            GetSpellInfo(), false);
+    }
+
+    void Register() override
+    {
+        DoCheckProc += AuraCheckProcFn(aura_ascension_ancestral_evolution::Check);
+        OnEffectProc += AuraEffectProcFn(aura_ascension_ancestral_evolution::Reflect, EFFECT_0,
+            SPELL_AURA_PROC_TRIGGER_SPELL_WITH_VALUE);
     }
 };
 
@@ -597,4 +652,5 @@ void AddAscensionBarbarianCompletionScripts()
     new barbarian_scaling();
     new barbarian_casts();
     RegisterSpellScript(aura_ascension_barbarian_lifecycle);
+    RegisterSpellScript(aura_ascension_ancestral_evolution);
 }
