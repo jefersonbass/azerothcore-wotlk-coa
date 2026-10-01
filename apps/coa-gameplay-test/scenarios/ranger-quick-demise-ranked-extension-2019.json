@@ -1,0 +1,40 @@
+{
+  "schema": 1,
+  "name": "Ranger: A Quick Demise extends ranked Serrated Shot auras (#2019)",
+  "contract": "A Quick Demise 560810 (ProcChance 20) triggers 561109, whose single effect 177 SPELL_EFFECT_ASCENSION_MODIFY_AURA_DURATION carries MiscValue 500073 (Serrated Shot) with +2000 ms. Serrated Shot has seven DBC records chained in spell_ranks (500073 rank 1 through 575837 rank 7, SpellLevel 16-62), but Spell::EffectAscensionModifyAuraDuration resolved the aura with an exact spell-id lookup, so only rank 1 was ever extended and every Ranger above level 24 saw nothing. The handler now resolves with Unit::GetAuraOfRankedSpell, which walks the chain from the first rank; behavior is identical when the rank-1 aura is present and previously-dead lookups come alive. All four scripted effect-177 users (Witch Hunter flames, Venomancer mycosis, Reaper deathchaser, Felsworn inner demon) PreventHitDefaultEffect, so the shared default path change cannot reach them. The scenario applies the rank-7 aura (575837, the rank a level-80 Ranger owns) to a dummy, snapshots its remaining duration, casts 561109 directly (costless, enemy-targeted, no gates), and asserts a +2000 ms delta: before the fix the delta is never positive. Serrated Shot needs a bow or crossbow (mask bits 2/18), Advantage 804329 and 25 Focus, all fixtured; every cast asserts cast_failure 0 so a broken fixture fails as setup.",
+  "timeout_ms": 90000,
+  "players": [
+    {"id": "ranger", "race": 1, "class": 21, "level": 80, "spell_hit_rating": 10000}
+  ],
+  "creatures": [
+    {"id": "dummy", "owner": "ranger", "entry": 36, "health": 1000000, "distance": 3}
+  ],
+  "steps": [
+    {"action": "wait", "label": "Let spawn AI and level scaling settle", "ms": 5000},
+    {"action": "add_item", "actor": "ranger", "item": 2504},
+    {"action": "equip", "label": "Serrated Shot needs a bow or crossbow", "actor": "ranger", "item": 2504, "slot": 17},
+    {"action": "wait", "label": "Let the weapon swap cooldown expire", "ms": 2000},
+    {"action": "learn", "actor": "ranger", "spell": 575837},
+    {"action": "learn", "actor": "ranger", "spell": 561109},
+    {"action": "set_aura", "label": "Advantage gates every Serrated Shot rank", "actor": "ranger", "spell": 804329, "stacks": 1},
+    {"action": "assert", "label": "SETUP: Advantage is active", "actor": "ranger",
+      "metric": "aura", "spell": 804329, "equals": 1, "within_ms": 3000},
+    {"action": "assert", "label": "SETUP: Focus pool covers the 25 Focus cost", "actor": "ranger",
+      "metric": "max_power", "power": 2, "min": 100},
+    {"action": "set_power", "label": "Fill Focus for the Serrated cast", "actor": "ranger", "power": 2, "value": 100},
+    {"action": "cast", "label": "Apply rank-7 Serrated Shot", "actor": "ranger", "spell": 575837, "target": "dummy"},
+    {"action": "assert", "label": "SETUP: Serrated cast succeeded", "actor": "ranger",
+      "metric": "cast_failure", "spell": 575837, "equals": 0},
+    {"action": "wait", "label": "Let the shot land and the global cooldown expire", "ms": 3000},
+    {"action": "assert", "label": "SETUP: rank-7 aura is on the dummy", "actor": "dummy",
+      "metric": "aura_duration_ms", "spell": 575837, "caster": "ranger", "min": 500},
+    {"action": "snapshot", "label": "Duration before the extension", "actor": "dummy",
+      "metric": "aura_duration_ms", "spell": 575837, "caster": "ranger", "save_as": "duration_before"},
+    {"action": "cast", "label": "Extend via A Quick Demise helper", "actor": "ranger", "spell": 561109, "target": "dummy"},
+    {"action": "assert", "label": "SETUP: helper cast succeeded", "actor": "ranger",
+      "metric": "cast_failure", "spell": 561109, "equals": 0},
+    {"action": "assert", "label": "DISCRIMINATING: duration grows by the helper's +2000 ms", "actor": "dummy",
+      "metric": "aura_duration_ms", "spell": 575837, "caster": "ranger",
+      "relative_to": "duration_before", "min": 1000, "max": 2500, "within_ms": 3000}
+  ]
+}

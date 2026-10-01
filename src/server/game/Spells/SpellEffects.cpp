@@ -471,7 +471,9 @@ void Spell::EffectAscensionModifyAuraDuration(SpellEffIndex effIndex)
     if (!target || !effect.MiscValue)
         return;
 
-    if (Aura* aura = target->GetAura(effect.MiscValue))
+    // MiscValue names rank 1 of a chain (Serrated Shot 500073, Taldaram's Torment 800772);
+    // resolve rank-aware so higher-rank auras are extended as well.
+    if (Aura* aura = target->GetAuraOfRankedSpell(effect.MiscValue))
     {
         int32 duration = aura->GetDuration() + damage;
         if (duration <= 0)
