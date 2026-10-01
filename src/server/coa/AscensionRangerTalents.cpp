@@ -48,7 +48,10 @@ enum RangerTalentSpells : uint32
     SPELL_RAPID_STRIKE = 560342,
     SPELL_GUIDANCE = 532261,
     SPELL_MARKED_FOR_DEATH = 806973,
-    SPELL_MARKED_FOR_DEATH_BUFF = 806974
+    SPELL_MARKED_FOR_DEATH_BUFF = 806974,
+    SPELL_DEEPWOOD_POISON = 800079,
+    SPELL_DEEPWOOD_POISON_DOT = 801472,
+    SPELL_RANGER_EXPLOIT = 520570
 };
 
 constexpr uint32 STONEMASON_SOURCE_FIRST = 501715;
@@ -502,6 +505,32 @@ class aura_ascension_ranger_marked_for_death : public AuraScript
         DoCheckProc += AuraCheckProcFn(aura_ascension_ranger_marked_for_death::CheckProc);
     }
 };
+
+class ranger_deepwood_exploit : public AllSpellScript
+{
+public:
+    ranger_deepwood_exploit() : AllSpellScript("ranger_deepwood_exploit", {ALLSPELLHOOK_ON_HIT_RESULT}) { }
+
+    void OnSpellHitResult(Spell* spell, Unit* target, uint8 miss, uint32 damage, uint32, bool) override
+    {
+        Player* player = spell->GetCaster() ? spell->GetCaster()->ToPlayer() : nullptr;
+        SpellInfo const* info = spell->GetSpellInfo();
+        // Deepwood Poison (800079): "Flank and Exploit apply Deepwood Poison." The Flank
+        // half already works through the spell_proc row in
+        // rev_20260921_40_ranger_dead_procs.sql; Exploit 520570 carries empty
+        // SpellFamilyFlags (0,0,0), so no family-masked row can ever match it
+        // (SpellInfo.cpp:1440) and the strike is paid here, gated on the player
+        // holding the talent. Flank is deliberately excluded: its own row applies
+        // the same poison and would double-apply.
+        if (!player || player->getClass() != CLASS_RANGER || !target || target == player ||
+            !target->IsAlive() || miss != SPELL_MISS_NONE || !damage ||
+            !player->IsValidAttackTarget(target) || info->SpellFamilyName != 27 ||
+            sSpellMgr->GetFirstSpellInChain(info->Id) != SPELL_RANGER_EXPLOIT ||
+            !player->HasAura(SPELL_DEEPWOOD_POISON))
+            return;
+        player->CastSpell(target, SPELL_DEEPWOOD_POISON_DOT, true);
+    }
+};
 }
 
 void HandleAscensionRangerStonemason(Spell* spell, Player* player)
@@ -568,6 +597,7 @@ public:
 void AddSC_AscensionRangerTalents()
 {
     new ranger_pierced_crits();
+    new ranger_deepwood_exploit();
     RegisterSpellScript(spell_ascension_ranger_light_arrows);
     RegisterSpellScript(spell_ascension_ranger_knockout);
     RegisterSpellScript(aura_ascension_ranger_wingman);
