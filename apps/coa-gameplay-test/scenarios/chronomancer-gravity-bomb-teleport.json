@@ -1,0 +1,116 @@
+{
+  "schema": 1,
+  "name": "Gravity Bomb pulls enemies in before exploding (#3202)",
+  "contract": [
+    "Gravity Bomb 801281 is three APPLY_AURA effects on the enemy target with DurationIndex 32 (6000 ms): effect 0 is PERIODIC_TRIGGER_SPELL for 801282 with amplitude 5999, effect 2 is PERIODIC_TRIGGER_SPELL for 801254 with amplitude 5499, so the pull fires about half a second before the explosion.",
+    "801254 effect 1 is SPELL_EFFECT_TELEPORT_UNITS_FACE_CASTER on DEST_TARGET_ENEMY / UNIT_DEST_AREA_ENEMY with radius index 18 (SpellRadius.dbc = 15 yd), served natively by Spell::EffectTeleUnitsFaceCaster: enemies within 15 yd of the bomb victim are moved onto it.",
+    "801282 is a single SPELL_EFFECT_SCHOOL_DAMAGE on DEST_TARGET_ENEMY / UNIT_DEST_AREA_ENEMY with radius index 13 (SpellRadius.dbc = 10 yd), Chromatic school: after the pull, a victim that started outside the 10 yd blast but inside the 15 yd pull takes explosion damage.",
+    "No C++ change: the periodic trigger, the teleport and the damage all resolve on the native path; spell-power and ranged-attack-power scaling of 801282 stay covered by chronomancer-gravity-bomb-coefficient."
+  ],
+  "timeout_ms": 90000,
+  "players": [
+    {
+      "id": "chronomancer",
+      "race": 1,
+      "class": 22,
+      "level": 60,
+      "spell_hit_rating": 10000
+    }
+  ],
+  "creatures": [
+    {
+      "id": "anchor",
+      "owner": "chronomancer",
+      "entry": 36,
+      "level": 60,
+      "health": 1000000,
+      "distance": 3
+    },
+    {
+      "id": "stray",
+      "owner": "chronomancer",
+      "entry": 36,
+      "level": 60,
+      "health": 1000000,
+      "distance": 15
+    }
+  ],
+  "steps": [
+    {
+      "action": "wait",
+      "label": "Let spawn AI and level scaling settle",
+      "ms": 6000
+    },
+    {
+      "action": "learn",
+      "actor": "chronomancer",
+      "spell": 801281
+    },
+    {
+      "action": "assert",
+      "label": "The stray starts inside the 15 yd pull but outside the 10 yd blast",
+      "actor": "stray",
+      "metric": "distance",
+      "target": "anchor",
+      "min": 10,
+      "max": 14
+    },
+    {
+      "action": "snapshot",
+      "actor": "anchor",
+      "metric": "health",
+      "save_as": "hp_anchor_before"
+    },
+    {
+      "action": "snapshot",
+      "actor": "stray",
+      "metric": "health",
+      "save_as": "hp_stray_before"
+    },
+    {
+      "action": "cast",
+      "actor": "chronomancer",
+      "spell": 801281,
+      "target": "anchor"
+    },
+    {
+      "action": "assert",
+      "label": "The bomb is planted on the target",
+      "actor": "anchor",
+      "metric": "aura",
+      "spell": 801281,
+      "caster": "chronomancer",
+      "equals": 1,
+      "within_ms": 3000
+    },
+    {
+      "action": "wait",
+      "label": "Let the 5.5 sec pull and the 6 sec explosion resolve",
+      "ms": 8000
+    },
+    {
+      "action": "assert",
+      "label": "The stray was teleported onto the bomb target",
+      "actor": "stray",
+      "metric": "distance",
+      "target": "anchor",
+      "max": 2
+    },
+    {
+      "action": "assert",
+      "label": "The delayed explosion damages the bomb's target",
+      "actor": "anchor",
+      "metric": "health",
+      "relative_to": "hp_anchor_before",
+      "max": -1
+    },
+    {
+      "action": "assert",
+      "label": "The pulled stray takes blast damage it started outside of",
+      "actor": "stray",
+      "metric": "health",
+      "relative_to": "hp_stray_before",
+      "max": -1
+    }
+  ]
+}
