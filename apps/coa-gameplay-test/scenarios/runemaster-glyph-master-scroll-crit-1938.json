@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "name": "Runemaster: Glyph Master adds +5 to Scroll of Magic's Unleashed crit (#1938)",
+  "contract": "Glyph Master 520015 (CharacterAdvancement 34670, class 32 Arcane talent, passive) reads 'Scroll of Magic now also increases the critical damage and critical strike chance of Unleashed Glyphs by $s1% for $520077d, stacking $520077u times.' Its effects are aura 107 SPELL_AURA_ADD_FLAT_MODIFIER with EffectMiscValue 12 (SPELLMOD_EFFECT2) and 23 (SPELLMOD_EFFECT3), EffectBasePoints 4 + DieSides 1 = +5 each, over EffectSpellClassMask (0, 16384, 0), which exactly matches Scroll of Magic 520077 (SpellFamilyName 38, flags (0, 16384, 0)). Scroll's own effect 1 is aura 107 crit chance (base -1 + 1 = 0) and effect 2 is aura 108 crit damage (base -1 + 1 = 0), both masked to the Unleashed Glyphs (65536, 0, 0); Unit::ApplyEffectModifiers (Unit.cpp) folds EFFECT2/EFFECT3 mods into effect indexes 1/2, and AuraEffect::ApplySpellMod recalculates them when the mods are added. No source file, module or pending SQL references 520015: the delivery is fully native, so this scenario proves the data half through the spell_modifier metric (Player::ApplySpellMod, same shape as runemaster-audit-2769-primal-rune), which must read 0 before the talent is learned and +5 after. Flat modifiers involve no rolls, so the +/-2 bands only cover float rounding.",
+  "timeout_ms": 60000,
+  "players": [
+    {"id": "rm", "race": 1, "class": 32, "level": 80}
+  ],
+  "steps": [
+    {"action": "wait", "label": "Let spawn AI and level scaling settle", "ms": 3000},
+    {"action": "assert", "label": "BASELINE: no EFFECT2 modifier on Scroll of Magic", "actor": "rm",
+      "metric": "spell_modifier", "spell": 520077, "op": 12, "base": 0, "min": -2, "max": 2},
+    {"action": "assert", "label": "BASELINE: no EFFECT3 modifier on Scroll of Magic", "actor": "rm",
+      "metric": "spell_modifier", "spell": 520077, "op": 23, "base": 0, "min": -2, "max": 2},
+    {"action": "learn", "actor": "rm", "spell": 520015},
+    {"action": "assert", "label": "SETUP: Glyph Master aura is active", "actor": "rm",
+      "metric": "aura", "spell": 520015, "equals": 1, "within_ms": 3000},
+    {"action": "assert", "label": "Glyph Master adds +5 EFFECT2 to Scroll of Magic (Unleashed crit chance)", "actor": "rm",
+      "metric": "spell_modifier", "spell": 520077, "op": 12, "base": 0, "min": 3, "max": 7},
+    {"action": "assert", "label": "Glyph Master adds +5 EFFECT3 to Scroll of Magic (Unleashed crit damage)", "actor": "rm",
+      "metric": "spell_modifier", "spell": 520077, "op": 23, "base": 0, "min": 3, "max": 7}
+  ]
+}
