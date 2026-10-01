@@ -43,6 +43,8 @@ enum RangerTalentSpells : uint32
     SPELL_WORN_OUT = 804457,
     SPELL_PILFERING = 705087,
     SPELL_PILFERING_HEAL = 520880,
+    SPELL_RAPID_STRIKES = 560341,
+    SPELL_RAPID_STRIKE = 560342,
     SPELL_GUIDANCE = 532261
 };
 
@@ -350,6 +352,52 @@ class aura_ascension_ranger_pilfering : public AuraScript
     }
 };
 
+class aura_ascension_ranger_rapid_strikes : public AuraScript
+{
+    PrepareAuraScript(aura_ascension_ranger_rapid_strikes);
+
+    bool Validate(SpellInfo const* spellInfo) override
+    {
+        SpellEffectInfo const& strike = spellInfo->Effects[EFFECT_0];
+        return spellInfo->Id == SPELL_RAPID_STRIKES && spellInfo->SpellFamilyName == 27 &&
+            strike.IsAura(AuraType(354)) && strike.TriggerSpell == SPELL_RAPID_STRIKE &&
+            ValidateSpellInfo({ SPELL_RAPID_STRIKE });
+    }
+
+    bool Load() override
+    {
+        Unit* ranger = GetUnitOwner();
+        return ranger && ranger->IsPlayer() && ranger->ToPlayer()->getClass() == CLASS_RANGER;
+    }
+
+    bool CheckProc(ProcEventInfo& event)
+    {
+        Unit* recipient = GetTarget();
+        DamageInfo const* damage = event.GetDamageInfo();
+        Unit* victim = event.GetActionTarget();
+        return recipient && recipient->IsAlive() && event.GetActor() == recipient && victim &&
+            victim != recipient && !recipient->IsFriendlyTo(victim) && damage && damage->GetDamage() &&
+            (damage->GetDamageType() == DIRECT_DAMAGE || damage->GetDamageType() == SPELL_DIRECT_DAMAGE);
+    }
+
+    void Strike(AuraEffect const* effect, ProcEventInfo& event)
+    {
+        PreventDefaultAction();
+        Unit* victim = event.GetActionTarget();
+        uint64 amount = uint64(event.GetDamageInfo()->GetDamage()) *
+            uint64(std::clamp(effect->GetAmount(), 0, 100)) / 100;
+        if (victim && amount && amount <= uint64(std::numeric_limits<int32>::max()))
+            GetTarget()->CastCustomSpell(SPELL_RAPID_STRIKE, SPELLVALUE_BASE_POINT0,
+                int32(amount), victim, true);
+    }
+
+    void Register() override
+    {
+        DoCheckProc += AuraCheckProcFn(aura_ascension_ranger_rapid_strikes::CheckProc);
+        OnEffectProc += AuraEffectProcFn(aura_ascension_ranger_rapid_strikes::Strike, EFFECT_0, AuraType(354));
+    }
+};
+
 class aura_ascension_ranger_guidance : public AuraScript
 {
     PrepareAuraScript(aura_ascension_ranger_guidance);
@@ -483,6 +531,7 @@ void AddSC_AscensionRangerTalents()
     RegisterSpellScript(aura_ascension_ranger_highwayman);
     RegisterSpellScript(spell_ascension_ranger_frenzy);
     RegisterSpellScript(aura_ascension_ranger_pilfering);
+    RegisterSpellScript(aura_ascension_ranger_rapid_strikes);
     RegisterSpellScript(aura_ascension_ranger_guidance);
     new ranger_wingman_companions();
     new ranger_swiftshot_hits();
