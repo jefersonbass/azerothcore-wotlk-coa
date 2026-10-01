@@ -1,0 +1,46 @@
+{
+  "schema": 1,
+  "name": "Shattered Stars lengthens Starshatter's range by 10 yds (#2391)",
+  "contract": "#2391: Shattered Stars 704771 reads 'Increases the range of Starshatter by 10 yds'. DBC-native, no C++ needed: Effect 0 is APPLY_AURA 107 (ADD_FLAT_MODIFIER), MiscValue 5 (SPELLMOD_RANGE), BasePoints 9 + DieSides 1 = +10, mask word0 0x80000000, family 32, Attributes 0x1c0 (carries SPELL_ATTR0_PASSIVE 0x40, so learn/login applies the aura), DurationIndex 21 (infinite). Starshatter 801135 is family 32 with family flags word0 0x80000000, Ex3 0, so IsAffectedBySpellMod matches and GetMaxRange/CheckRange pick up +10 via the native ApplySpellMod path. No 704771 reference exists in src/ because none is needed. Starfire Shot 801978 (family 32, flags 0x800, no shared bit) is the regression control.",
+  "timeout_ms": 60000,
+  "players": [
+    {
+      "id": "star",
+      "race": 1,
+      "class": 26,
+      "level": 80
+    }
+  ],
+  "creatures": [
+    {
+      "id": "dummy",
+      "owner": "star",
+      "entry": 36,
+      "level": 80,
+      "health": 1000000,
+      "distance": 3
+    }
+  ],
+  "steps": [
+    { "action": "wait", "label": "Let spawn AI and level scaling settle", "ms": 5000 },
+    { "action": "learn", "actor": "star", "spell": 801135 },
+    { "action": "learn", "actor": "star", "spell": 801978 },
+    { "action": "snapshot", "actor": "star", "metric": "spell_max_range", "spell": 801135, "save_as": "shatter_range_before" },
+    { "action": "snapshot", "actor": "star", "metric": "spell_max_range", "spell": 801978, "save_as": "shot_range_before" },
+    { "action": "learn", "actor": "star", "spell": 704771 },
+    { "action": "set_aura", "actor": "star", "spell": 704771, "stacks": 1, "label": "Force the Shattered Stars passive aura" },
+    { "action": "wait", "label": "Let the passive's modifiers settle", "ms": 500 },
+    {
+      "action": "assert", "label": "SETUP: the Shattered Stars passive is active",
+      "actor": "star", "metric": "aura", "spell": 704771, "equals": 1
+    },
+    {
+      "action": "assert", "label": "CONTRACT: Starshatter's range rises by 10 yds",
+      "actor": "star", "metric": "spell_max_range", "spell": 801135, "relative_to": "shatter_range_before", "equals": 10
+    },
+    {
+      "action": "assert", "label": "REGRESSION: Starfire Shot's range is untouched",
+      "actor": "star", "metric": "spell_max_range", "spell": 801978, "relative_to": "shot_range_before", "equals": 0
+    }
+  ]
+}
