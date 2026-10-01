@@ -1,0 +1,28 @@
+{
+  "schema": 1,
+  "name": "Seal of Alysrazor rank 1 applies its Intellect buff for 30 min (#4499)",
+  "contract": "#4499: Seal of Alysrazor rank 1 (800196) reportedly gives no Intellect +2 buff. DBC shows a plain SPELL_EFFECT_APPLY_AURA (aura 29 MOD_STAT, misc 3 Intellect, BP 1 -> value 2) with DurationIndex 30 (1800000 ms = 30 min), no script binding and no Pyromancer C++ reference, so the native path should deliver it. #5597 already fixed the spell being stripped on level-up (added {24, 5, 800196} to ClassSpells); this scenario retests the reported symptom end to end at the reporter's level 8: learn, cast on the ally, and assert the aura, its +2 amount and its 30-min duration.",
+  "timeout_ms": 60000,
+  "players": [
+    { "id": "pyro", "race": 1, "class": 24, "level": 8 },
+    { "id": "ally", "race": 1, "class": 24, "level": 8 }
+  ],
+  "steps": [
+    { "action": "wait", "label": "Let level scaling settle", "ms": 5000 },
+    { "action": "learn", "actor": "pyro", "spell": 800196 },
+    { "action": "assert", "label": "Seal of Alysrazor rank 1 is known", "actor": "pyro", "metric": "knows_spell", "spell": 800196, "equals": 1 },
+    { "action": "cast", "label": "Seal of Alysrazor on the ally", "actor": "pyro", "spell": 800196, "target": "ally" },
+    {
+      "action": "assert", "label": "The Intellect buff is applied",
+      "actor": "ally", "metric": "aura", "spell": 800196, "caster": "pyro", "equals": 1, "within_ms": 3000
+    },
+    {
+      "action": "assert", "label": "The buff is worth +2 Intellect",
+      "actor": "ally", "metric": "aura_amount", "spell": 800196, "caster": "pyro", "effect": 0, "equals": 2
+    },
+    {
+      "action": "assert", "label": "The buff lasts 30 min",
+      "actor": "ally", "metric": "aura_duration_ms", "spell": 800196, "caster": "pyro", "min": 1700000, "max": 1800000
+    }
+  ]
+}
