@@ -1,0 +1,53 @@
+{
+  "schema": 1,
+  "name": "One Pyromancer Seal per caster on each recipient (#5798)",
+  "contract": "Seal of Alysrazor ranks 1-5 share the chain 800196 -> 802819 -> 802820 -> 802821 -> 802822 (spell_ranks, rev_20260831_01) with unranked Greater Seal of Alysrazor 570170 (same +31 value as rank 5, raid version); Seal of Al'ar ranks 1-5 share the chain 803649 -> 803729 -> 807704 -> 807770 -> 808012 (spell_ranks, rev_20260903_01) with unranked Greater Seal of Al'ar 808060. No spell_group listed the Alysrazor pair and nothing linked the two seals, so Aura::CanStackWith let normal+greater and Seal+Seal stay on one recipient (#5798). Group 1145 with rule 2 (SPELL_GROUP_STACK_RULE_EXCLUSIVE_FROM_SAME_CASTER) makes the newest replace the caster's previous seal while a second Pyromancer's still coexists - the same shape as the Seal of Al'ar (1144) group. Only first ranks are listed because SpellMgr::LoadSpellGroups drops any other rank and chains resolve through GetFirstSpellInChain.",
+  "timeout_ms": 90000,
+  "players": [
+    { "id": "py", "race": 1, "class": 24, "level": 60 },
+    { "id": "py2", "race": 1, "class": 24, "level": 60 },
+    { "id": "ally", "race": 1, "class": 24, "level": 60 }
+  ],
+  "steps": [
+    { "action": "wait", "label": "Let level scaling settle", "ms": 5000 },
+    { "action": "group", "actor": "py", "target": "py2" },
+    { "action": "group", "actor": "py", "target": "ally" },
+    { "action": "learn", "actor": "py", "spell": 800196 },
+    { "action": "learn", "actor": "py", "spell": 570170 },
+    { "action": "learn", "actor": "py", "spell": 803649 },
+    { "action": "learn", "actor": "py2", "spell": 800196 },
+    { "action": "cast", "label": "Seal of Alysrazor on the ally", "actor": "py", "spell": 800196, "target": "ally" },
+    {
+      "action": "assert", "label": "Seal of Alysrazor is applied",
+      "actor": "ally", "metric": "aura", "spell": 800196, "caster": "py", "equals": 1, "within_ms": 3000
+    },
+    { "action": "wait", "label": "Let the global cooldown pass", "ms": 2500 },
+    { "action": "cast", "label": "Greater Seal of Alysrazor from the same caster", "actor": "py", "spell": 570170, "target": "ally" },
+    {
+      "action": "assert", "label": "Greater Seal of Alysrazor is applied",
+      "actor": "ally", "metric": "aura", "spell": 570170, "caster": "py", "equals": 1, "within_ms": 3000
+    },
+    {
+      "action": "assert", "label": "It replaced the same caster's Seal of Alysrazor",
+      "actor": "ally", "metric": "aura", "spell": 800196, "caster": "py", "equals": 0
+    },
+    { "action": "wait", "label": "Let the global cooldown pass", "ms": 2500 },
+    { "action": "cast", "label": "Seal of Al'ar from the same caster", "actor": "py", "spell": 803649, "target": "ally" },
+    {
+      "action": "assert", "label": "Seal of Al'ar is applied",
+      "actor": "ally", "metric": "aura", "spell": 803649, "caster": "py", "equals": 1, "within_ms": 3000
+    },
+    {
+      "action": "assert", "label": "It replaced the same caster's Greater Seal of Alysrazor",
+      "actor": "ally", "metric": "aura", "spell": 570170, "caster": "py", "equals": 0
+    },
+    { "action": "cast", "label": "A second Pyromancer gives Seal of Alysrazor to the same ally", "actor": "py2", "spell": 800196, "target": "ally" },
+    {
+      "action": "assert", "label": "The other caster's Seal of Alysrazor coexists (rule 2, not rule 1)",
+      "actor": "ally", "metric": "aura", "spell": 800196, "caster": "py2", "equals": 1, "within_ms": 3000
+    },
+    {
+      "action": "assert", "label": "The first caster's Seal of Al'ar is untouched",
+      "actor": "ally", "metric": "aura", "spell": 803649, "caster": "py", "equals": 1 }
+  ]
+}
