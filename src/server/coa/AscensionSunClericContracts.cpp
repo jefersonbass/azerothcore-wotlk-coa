@@ -28,6 +28,8 @@ void ApplyContracts(SpellInfo* info)
         // in case the record is ever regenerated without it.
         info->Attributes |= SPELL_ATTR0_PASSIVE;
     }
+    if (id == 800624)
+        info->AttributesEx &= ~SPELL_ATTR1_NO_THREAT;
     if (id == Rejuvenating)
         for (auto& effect : info->Effects)
             if (effect.IsAura())
